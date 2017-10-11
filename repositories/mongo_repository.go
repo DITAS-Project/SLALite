@@ -1,11 +1,13 @@
 package repositories
 
 import (
-	"github.com/spf13/viper"
+	"SLALite/model"
+	"errors"
 	"log"
+
+	"github.com/spf13/viper"
 	"gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
-	"SLALite/model"
 )
 
 const (
@@ -19,7 +21,7 @@ const (
 )
 
 type MongoDBRepository struct {
-	session *mgo.Session
+	session  *mgo.Session
 	database *mgo.Database
 }
 
@@ -41,7 +43,7 @@ func CreateMongoDBRepository() (MongoDBRepository, error) {
 		log.Fatal("Error getting connection to Mongo DB: " + err.Error())
 	}
 
-	return MongoDBRepository{session,session.DB(repositoryDbName)}, err
+	return MongoDBRepository{session, session.DB(repositoryDbName)}, err
 }
 
 func (r *MongoDBRepository) SetDatabase(database string, empty bool) {
@@ -57,9 +59,9 @@ func (r *MongoDBRepository) SetDatabase(database string, empty bool) {
 func (r MongoDBRepository) GetAllProviders() (model.Providers, error) {
 	var result *model.Providers = new(model.Providers)
 
-	err := r.database.C(providersCollectionName).Find(bson.M{}).All(result);
+	err := r.database.C(providersCollectionName).Find(bson.M{}).All(result)
 
-	return *result, err;
+	return *result, err
 }
 
 func (r MongoDBRepository) GetProvider(id string) (*model.Provider, error) {
@@ -70,16 +72,18 @@ func (r MongoDBRepository) GetProvider(id string) (*model.Provider, error) {
 		return result, model.ErrNotFound
 	}
 
-	return result,err
+	return result, err
 }
 
 func (r MongoDBRepository) CreateProvider(provider *model.Provider) (*model.Provider, error) {
 	existing, _ := r.GetProvider(provider.Id)
 	if existing.Id != "" {
-		return existing,model.ErrAlreadyExist
+		return existing, model.ErrAlreadyExist
 	}
 	errCreate := r.database.C(providersCollectionName).Insert(provider)
 	return provider, errCreate
 }
 
-
+func (r MongoDBRepository) DeleteProvider(provider *model.Provider) error {
+	return errors.New("Not implemented")
+}

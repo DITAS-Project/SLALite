@@ -17,15 +17,24 @@ type IRepository interface {
 
 	/*
 	 * GetProvider returns the Provider identified by id
+	 * error != nil on error
 	 * error is sql.ErrNoRows if the provider is not found
 	 */
 	GetProvider(id string) (*Provider, error)
 
 	/*
 	 * CreateProvider stores a new provider
+	 * error != nil on error
 	 * error is sql.ErrNoRows if the provider already exists
 	 */
 	CreateProvider(provider *Provider) (*Provider, error)
+
+	/*
+	 * DeleteProvider deletes from the repository the provider whose id is provider.Id.
+	 * error != nil on error
+	 * error is sql.ErrNoRows if the provider does not exist.
+	 */
+	DeleteProvider(provider *Provider) error
 }
 
 // DbRepository is a repository backed up on a database
