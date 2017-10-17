@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"sla/model"
+	"SLALite/model"
 	"strconv"
 
 	"github.com/gorilla/mux"
