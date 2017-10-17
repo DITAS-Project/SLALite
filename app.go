@@ -57,8 +57,9 @@ func (a *App) GetAllProviders(w http.ResponseWriter, r *http.Request) {
 	providers, err := a.Repository.GetAllProviders()
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, err.Error())
+	} else {
+		json.NewEncoder(w).Encode(providers)
 	}
-	json.NewEncoder(w).Encode(providers)
 }
 
 // GetProvider gets a provider by REST ID
@@ -75,8 +76,9 @@ func (a *App) GetProvider(w http.ResponseWriter, r *http.Request) {
 			respondWithError(w, http.StatusInternalServerError, err.Error())
 		}
 		return
+	} else {
+		json.NewEncoder(w).Encode(provider)
 	}
-	json.NewEncoder(w).Encode(provider)
 }
 
 // CreateProvider creates a provider passed by REST params
@@ -97,8 +99,9 @@ func (a *App) CreateProvider(w http.ResponseWriter, r *http.Request) {
 		default:
 			respondWithError(w, http.StatusInternalServerError, err.Error())
 		}
+	} else {
+		respondWithJSON(w, http.StatusCreated, created)
 	}
-	respondWithJSON(w, http.StatusCreated, created)
 }
 
 func respondWithError(w http.ResponseWriter, code int, message string) {
