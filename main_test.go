@@ -11,6 +11,7 @@ import (
 	"log"
 	"math/rand"
 	"strconv"
+	"SLALite/repositories"
 )
 
 var a App
@@ -22,8 +23,10 @@ var prefix = "pf_" + strconv.Itoa(rand.Int())
 func TestMain(m *testing.M) {
 	/*repo := model.MemRepository{}
 	var err error = nil*/
-	repo,err := model.CreateRepository(dbName)
+	//repo,err := repositories.CreateBBoltRepository()
+	repo,err := repositories.CreateMongoDBRepository()
 	if err == nil {
+		repo.SetDatabase("slaliteTest", true)
 		repo.CreateProvider(&p1)
 		a = App{}
 		a.Initialize(repo)
