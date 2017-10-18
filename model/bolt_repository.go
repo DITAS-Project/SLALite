@@ -4,18 +4,33 @@ import (
 	bolt "github.com/coreos/bbolt"
 	"errors"
 	"database/sql"
+	"github.com/spf13/viper"
+	"log"
 )
 
 const (
 	PROVIDER_BUCKET string = "Providers"
+	BBOLT_DATABASE string = "slalite.db"
+
+	databasePropertyName = "database"
 )
 
 type BBoltRepository struct {
 	dbFile string
 }
 
-func CreateRepository(fileName string) (BBoltRepository, error) {
-	repo := BBoltRepository{fileName}
+func CreateRepository() (BBoltRepository, error) {
+	config := viper.New()
+
+	config.SetDefault(databasePropertyName, BBOLT_DATABASE)
+
+	confError := config.ReadInConfig()
+	if confError != nil {
+		log.Println("Can't find bbolt configuration file: " + confError.Error())
+		log.Println("Using defaults")
+	}
+
+	repo := BBoltRepository{config.GetString(databasePropertyName)}
 
 	err := repo.ExecuteTx(nil, func(db *bolt.DB) error {
 		return db.Update(func (tx *bolt.Tx) error {
