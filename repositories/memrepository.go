@@ -1,22 +1,23 @@
-package model
+package repositories
 
 import (
 	"database/sql"
+	"SLALite/model"
 )
 
 // MemRepository is a repository in memory
 type MemRepository struct {
 }
 
-var providers = map[string]Provider{
+var providers = map[string]model.Provider{
 // "01": Provider{Id: "01", Name: "provider01"},
 // "02": Provider{Id: "02", Name: "provider02"},
 }
 
 // GetAllProviders ...
-func (r MemRepository) GetAllProviders() (Providers, error) {
+func (r MemRepository) GetAllProviders() (model.Providers, error) {
 
-	result := make(Providers, 0, len(providers))
+	result := make(model.Providers, 0, len(providers))
 
 	for _, value := range providers {
 		result = append(result, value)
@@ -25,7 +26,7 @@ func (r MemRepository) GetAllProviders() (Providers, error) {
 }
 
 // GetProvider ...
-func (r MemRepository) GetProvider(id string) (*Provider, error) {
+func (r MemRepository) GetProvider(id string) (*model.Provider, error) {
 	var err error
 
 	item, ok := providers[id]
@@ -39,7 +40,7 @@ func (r MemRepository) GetProvider(id string) (*Provider, error) {
 }
 
 // CreateProvider ...
-func (r MemRepository) CreateProvider(provider *Provider) (*Provider, error) {
+func (r MemRepository) CreateProvider(provider *model.Provider) (*model.Provider, error) {
 	var err error
 
 	id := provider.Id

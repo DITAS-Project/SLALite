@@ -1,4 +1,4 @@
-package model
+package repositories
 
 import (
 	bolt "github.com/coreos/bbolt"
@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"github.com/spf13/viper"
 	"log"
+	"SLALite/model"
 )
 
 const (
@@ -19,7 +20,7 @@ type BBoltRepository struct {
 	dbFile string
 }
 
-func CreateRepository() (BBoltRepository, error) {
+func CreateBBoltRepository() (BBoltRepository, error) {
 	config := viper.New()
 
 	config.SetDefault(databasePropertyName, BBOLT_DATABASE)
@@ -74,13 +75,13 @@ func (r BBoltRepository) ExecuteWriteOperation(f func(b *bolt.Bucket) error) err
 	})
 }
 
-func (r BBoltRepository) GetAllProviders() (Providers, error) {
+func (r BBoltRepository) GetAllProviders() (model.Providers, error) {
 
-	var providers Providers
+	var providers model.Providers
 
 	err := r.ExecuteReadOperation(func (b *bolt.Bucket) error {
 		b.ForEach(func(k, v []byte) error {
-			providers = append(providers, Provider{string(k), string(v)})
+			providers = append(providers, model.Provider{string(k), string(v)})
 			return nil
 		})
 
@@ -89,12 +90,12 @@ func (r BBoltRepository) GetAllProviders() (Providers, error) {
 	return providers, err
 }
 
-func (r BBoltRepository) GetProvider(id string) (*Provider, error) {
-	var provider *Provider = nil
+func (r BBoltRepository) GetProvider(id string) (*model.Provider, error) {
+	var provider *model.Provider = nil
 	err := r.ExecuteReadOperation(func(b *bolt.Bucket) error {
 		value := b.Get([]byte(id))
 		if value != nil {
-			provider = &Provider{id, string(value)}
+			provider = &model.Provider{id, string(value)}
 		} else {
 			return sql.ErrNoRows
 		}
@@ -103,7 +104,7 @@ func (r BBoltRepository) GetProvider(id string) (*Provider, error) {
 	return provider, err
 }
 
-func (r BBoltRepository) CreateProvider(provider *Provider) (*Provider, error) {
+func (r BBoltRepository) CreateProvider(provider *model.Provider) (*model.Provider, error) {
 	//log.Info("Trying to create provider " + provider.Id)
 	return provider, r.ExecuteWriteOperation(func(b *bolt.Bucket) error {
 		existing := b.Get([]byte(provider.Id))

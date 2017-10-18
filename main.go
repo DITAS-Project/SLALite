@@ -6,6 +6,7 @@ import (
 	"log"
 	"strconv"
 	"github.com/spf13/viper"
+	"SLALite/repositories"
 )
 
 const (
@@ -45,9 +46,9 @@ func main() {
 	var repo model.IRepository = nil
 	switch repoType {
 	case defaultRepositoryType:
-		repo = model.MemRepository{}
+		repo = repositories.MemRepository{}
 	case "bbolt":
-		boltRepo, errRepo := model.CreateRepository()
+		boltRepo, errRepo := repositories.CreateBBoltRepository()
 		if errRepo != nil {
 			log.Fatal("Error creating repository: ", errRepo.Error())
 		}
