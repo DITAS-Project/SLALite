@@ -1,7 +1,6 @@
 package main
 
 import (
-	"database/sql"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -70,7 +69,7 @@ func (a *App) GetProvider(w http.ResponseWriter, r *http.Request) {
 	provider, err := a.Repository.GetProvider(id)
 	if err != nil {
 		switch err {
-		case sql.ErrNoRows:
+		case model.ErrNotFound:
 			respondWithError(w, http.StatusNotFound, fmt.Sprintf("Provider{id:%s} not found", id))
 		default:
 			respondWithError(w, http.StatusInternalServerError, err.Error())
@@ -93,7 +92,7 @@ func (a *App) CreateProvider(w http.ResponseWriter, r *http.Request) {
 	created, err := a.Repository.CreateProvider(&provider)
 	if err != nil {
 		switch err {
-		case sql.ErrNoRows: /* XXX CHANGE Err type !!! */
+		case model.ErrAlreadyExist:
 			respondWithError(w, http.StatusConflict,
 				fmt.Sprintf("Provider{id: %s} already exists", provider.Id))
 		default:
@@ -109,15 +108,11 @@ func respondWithError(w http.ResponseWriter, code int, message string) {
 }
 
 func respondWithJSON(w http.ResponseWriter, code int, payload interface{}) {
-	// response, _ := json.Marshal(payload)
-
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(code)
-	// w.Write(response)
 	json.NewEncoder(w).Encode(payload)
 }
 
 func respondSuccessJSON(w http.ResponseWriter, payload interface{}) {
-	// response, _ := json.Marshal(payload)
 	respondWithJSON(w, http.StatusOK, payload)
 }

@@ -3,7 +3,6 @@ package repositories
 import (
 	bolt "github.com/coreos/bbolt"
 	"errors"
-	"database/sql"
 	"github.com/spf13/viper"
 	"log"
 	"SLALite/model"
@@ -102,7 +101,7 @@ func (r BBoltRepository) GetProvider(id string) (*model.Provider, error) {
 		if value != nil {
 			provider = &model.Provider{id, string(value)}
 		} else {
-			return sql.ErrNoRows
+			return model.ErrNotFound
 		}
 		return nil
 	})
@@ -114,7 +113,7 @@ func (r BBoltRepository) CreateProvider(provider *model.Provider) (*model.Provid
 	return provider, r.ExecuteWriteOperation(func(b *bolt.Bucket) error {
 		existing := b.Get([]byte(provider.Id))
 		if existing != nil {
-			return sql.ErrNoRows
+			return model.ErrAlreadyExist
 		} else {
 			return b.Put([]byte(provider.Id), []byte(provider.Name))
 		}

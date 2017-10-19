@@ -1,7 +1,6 @@
 package repositories
 
 import (
-	"database/sql"
 	"SLALite/model"
 )
 
@@ -34,7 +33,7 @@ func (r MemRepository) GetProvider(id string) (*model.Provider, error) {
 	if ok {
 		err = nil
 	} else {
-		err = sql.ErrNoRows
+		err = model.ErrNotFound
 	}
 	return &item, err
 }
@@ -47,7 +46,7 @@ func (r MemRepository) CreateProvider(provider *model.Provider) (*model.Provider
 	_, ok := providers[id]
 
 	if ok {
-		err = sql.ErrNoRows
+		err = model.ErrAlreadyExist
 	} else {
 		providers[id] = *provider
 		err = nil

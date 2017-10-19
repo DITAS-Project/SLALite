@@ -6,7 +6,6 @@ import (
 	"gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
 	"SLALite/model"
-	"database/sql"
 )
 
 const (
@@ -68,7 +67,7 @@ func (r MongoDBRepository) GetProvider(id string) (*model.Provider, error) {
 
 	err := r.database.C(providersCollectionName).Find(bson.M{"id": id}).One(result)
 	if result.Id == "" {
-		return result, sql.ErrNoRows
+		return result, model.ErrNotFound
 	}
 
 	return result,err
@@ -77,7 +76,7 @@ func (r MongoDBRepository) GetProvider(id string) (*model.Provider, error) {
 func (r MongoDBRepository) CreateProvider(provider *model.Provider) (*model.Provider, error) {
 	existing, _ := r.GetProvider(provider.Id)
 	if existing.Id != "" {
-		return existing,sql.ErrNoRows
+		return existing,model.ErrAlreadyExist
 	}
 	errCreate := r.database.C(providersCollectionName).Insert(provider)
 	return provider, errCreate

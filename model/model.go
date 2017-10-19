@@ -2,7 +2,11 @@ package model
 
 import (
     "time"
+    "errors"
 )
+
+var ErrNotFound error = errors.New("Entity not found")
+var ErrAlreadyExist error = errors.New("Entity already exists")
 
 type Provider struct {
     Id string           `json:"id"`
