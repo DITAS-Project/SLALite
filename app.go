@@ -58,7 +58,7 @@ func (a *App) GetAllProviders(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, err.Error())
 	} else {
-		json.NewEncoder(w).Encode(providers)
+		respondSuccessJSON(w, providers)
 	}
 }
 
@@ -77,7 +77,7 @@ func (a *App) GetProvider(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	} else {
-		json.NewEncoder(w).Encode(provider)
+		respondSuccessJSON(w, provider)
 	}
 }
 
@@ -115,4 +115,9 @@ func respondWithJSON(w http.ResponseWriter, code int, payload interface{}) {
 	w.WriteHeader(code)
 	// w.Write(response)
 	json.NewEncoder(w).Encode(payload)
+}
+
+func respondSuccessJSON(w http.ResponseWriter, payload interface{}) {
+	// response, _ := json.Marshal(payload)
+	respondWithJSON(w, http.StatusOK, payload)
 }

@@ -10,11 +10,11 @@ import (
 )
 
 const (
-	DEFAULT_URL string = "localhost"
-	REPOSITORY_DB_NAME string = "slalite"
-	PROVIDERS_COLLECTION_NAME string = "Providers"
+	defaultUrl              string = "localhost"
+	repositoryDbName        string = "slalite"
+	providersCollectionName string = "Providers"
 
-	mongoConfigName = "mongodb.yml"
+	mongoConfigName string = "mongodb.yml"
 
 	connectionUrl string = "connection"
 )
@@ -29,7 +29,7 @@ func CreateMongoDBRepository() (MongoDBRepository, error) {
 
 	config.SetConfigName(mongoConfigName)
 	config.AddConfigPath(model.UnixConfigPath)
-	config.SetDefault(connectionUrl, DEFAULT_URL)
+	config.SetDefault(connectionUrl, defaultUrl)
 
 	confError := config.ReadInConfig()
 	if confError != nil {
@@ -42,7 +42,7 @@ func CreateMongoDBRepository() (MongoDBRepository, error) {
 		log.Fatal("Error getting connection to Mongo DB: " + err.Error())
 	}
 
-	return MongoDBRepository{session,session.DB(REPOSITORY_DB_NAME)}, err
+	return MongoDBRepository{session,session.DB(repositoryDbName)}, err
 }
 
 func (r *MongoDBRepository) SetDatabase(database string, empty bool) {
@@ -56,17 +56,17 @@ func (r *MongoDBRepository) SetDatabase(database string, empty bool) {
 }
 
 func (r MongoDBRepository) GetAllProviders() (model.Providers, error) {
-	var result model.Providers
+	var result *model.Providers = new(model.Providers)
 
-	err := r.database.C(PROVIDERS_COLLECTION_NAME).Find(bson.M{}).All(&result);
+	err := r.database.C(providersCollectionName).Find(bson.M{}).All(result);
 
-	return result, err;
+	return *result, err;
 }
 
 func (r MongoDBRepository) GetProvider(id string) (*model.Provider, error) {
 	var result *model.Provider = new(model.Provider)
 
-	err := r.database.C(PROVIDERS_COLLECTION_NAME).Find(bson.M{"id": id}).One(result)
+	err := r.database.C(providersCollectionName).Find(bson.M{"id": id}).One(result)
 	if result.Id == "" {
 		return result, sql.ErrNoRows
 	}
@@ -79,7 +79,7 @@ func (r MongoDBRepository) CreateProvider(provider *model.Provider) (*model.Prov
 	if existing.Id != "" {
 		return existing,sql.ErrNoRows
 	}
-	errCreate := r.database.C(PROVIDERS_COLLECTION_NAME).Insert(provider)
+	errCreate := r.database.C(providersCollectionName).Insert(provider)
 	return provider, errCreate
 }
 

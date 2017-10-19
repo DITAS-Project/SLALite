@@ -10,8 +10,8 @@ import (
 )
 
 const (
-	PROVIDER_BUCKET string = "Providers"
-	BBOLT_DATABASE string = "slalite.db"
+	providerBucket string = "Providers"
+	bboltDatabase  string = "slalite.db"
 
 
 	bboltConfigName = "bbolt.yml"
@@ -28,7 +28,7 @@ func CreateBBoltRepository() (BBoltRepository, error) {
 
 	config.SetConfigName(bboltConfigName)
 	config.AddConfigPath(model.UnixConfigPath)
-	config.SetDefault(databasePropertyName, BBOLT_DATABASE)
+	config.SetDefault(databasePropertyName, bboltDatabase)
 
 	confError := config.ReadInConfig()
 	if confError != nil {
@@ -40,7 +40,7 @@ func CreateBBoltRepository() (BBoltRepository, error) {
 
 	err := repo.ExecuteTx(nil, func(db *bolt.DB) error {
 		return db.Update(func (tx *bolt.Tx) error {
-			_, err2 := tx.CreateBucketIfNotExists([]byte(PROVIDER_BUCKET))
+			_, err2 := tx.CreateBucketIfNotExists([]byte(providerBucket))
 			return err2
 		})
 	})
@@ -59,7 +59,7 @@ func (r BBoltRepository) ExecuteTx(options *bolt.Options, f func(db *bolt.DB) er
 
 func (r BBoltRepository) ExecuteOperation(ft func (fn func(tx *bolt.Tx) error) error, fb func(b *bolt.Bucket) error ) error {
 	return ft(func(tx *bolt.Tx) error {
-		b := tx.Bucket([]byte(PROVIDER_BUCKET))
+		b := tx.Bucket([]byte(providerBucket))
 		if b != nil {
 			return fb(b)
 		} else {
