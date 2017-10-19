@@ -13,6 +13,9 @@ const (
 	PROVIDER_BUCKET string = "Providers"
 	BBOLT_DATABASE string = "slalite.db"
 
+
+	bboltConfigName = "bbolt.yml"
+
 	databasePropertyName = "database"
 )
 
@@ -23,6 +26,8 @@ type BBoltRepository struct {
 func CreateBBoltRepository() (BBoltRepository, error) {
 	config := viper.New()
 
+	config.SetConfigName(bboltConfigName)
+	config.AddConfigPath(model.UnixConfigPath)
 	config.SetDefault(databasePropertyName, BBOLT_DATABASE)
 
 	confError := config.ReadInConfig()

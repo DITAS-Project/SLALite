@@ -10,11 +10,13 @@ import (
 )
 
 const (
-	DEFAULT_HOST string = "localhost"
+	DEFAULT_URL string = "localhost"
 	REPOSITORY_DB_NAME string = "slalite"
 	PROVIDERS_COLLECTION_NAME string = "Providers"
 
-	hostPropertyName string = "host"
+	mongoConfigName = "mongodb.yml"
+
+	connectionUrl string = "connection"
 )
 
 type MongoDBRepository struct {
@@ -25,7 +27,9 @@ type MongoDBRepository struct {
 func CreateMongoDBRepository() (MongoDBRepository, error) {
 	config := viper.New()
 
-	config.SetDefault(hostPropertyName, DEFAULT_HOST)
+	config.SetConfigName(mongoConfigName)
+	config.AddConfigPath(model.UnixConfigPath)
+	config.SetDefault(connectionUrl, DEFAULT_URL)
 
 	confError := config.ReadInConfig()
 	if confError != nil {
@@ -33,9 +37,9 @@ func CreateMongoDBRepository() (MongoDBRepository, error) {
 		log.Println("Using defaults")
 	}
 
-	session, err := mgo.Dial(config.GetString(hostPropertyName))
+	session, err := mgo.Dial(config.GetString(connectionUrl))
 	if err != nil {
-		log.Fatal("Error getting connectin to Mongo DB: " + err.Error())
+		log.Fatal("Error getting connection to Mongo DB: " + err.Error())
 	}
 
 	return MongoDBRepository{session,session.DB(REPOSITORY_DB_NAME)}, err

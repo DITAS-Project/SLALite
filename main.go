@@ -50,9 +50,15 @@ func main() {
 	case "bbolt":
 		boltRepo, errRepo := repositories.CreateBBoltRepository()
 		if errRepo != nil {
-			log.Fatal("Error creating repository: ", errRepo.Error())
+			log.Fatal("Error creating bbolt repository: ", errRepo.Error())
 		}
 		repo = boltRepo
+	case "mongodb":
+		mongoRepo, errMongo := repositories.CreateMongoDBRepository()
+		if errMongo != nil {
+			log.Fatal("Error creating mongo repository: ", errMongo.Error())
+		}
+		repo = mongoRepo
 	}
 	if repo != nil {
 		a := App{}

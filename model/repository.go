@@ -2,6 +2,10 @@ package model
 
 import "database/sql"
 
+const (
+	UnixConfigPath = "/etc/slalite"
+)
+
 // IRepository expose the interface to be fulfilled by implementations of repositories.
 type IRepository interface {
 	/*
