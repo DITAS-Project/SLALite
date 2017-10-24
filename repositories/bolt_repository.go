@@ -1,17 +1,17 @@
 package repositories
 
 import (
-	bolt "github.com/coreos/bbolt"
-	"errors"
-	"github.com/spf13/viper"
-	"log"
 	"SLALite/model"
+	"errors"
+	"log"
+
+	bolt "github.com/coreos/bbolt"
+	"github.com/spf13/viper"
 )
 
 const (
 	providerBucket string = "Providers"
 	bboltDatabase  string = "slalite.db"
-
 
 	bboltConfigName = "bbolt.yml"
 
@@ -38,7 +38,7 @@ func CreateBBoltRepository() (BBoltRepository, error) {
 	repo := BBoltRepository{config.GetString(databasePropertyName)}
 
 	err := repo.ExecuteTx(nil, func(db *bolt.DB) error {
-		return db.Update(func (tx *bolt.Tx) error {
+		return db.Update(func(tx *bolt.Tx) error {
 			_, err2 := tx.CreateBucketIfNotExists([]byte(providerBucket))
 			return err2
 		})
@@ -56,7 +56,7 @@ func (r BBoltRepository) ExecuteTx(options *bolt.Options, f func(db *bolt.DB) er
 	return f(db)
 }
 
-func (r BBoltRepository) ExecuteOperation(ft func (fn func(tx *bolt.Tx) error) error, fb func(b *bolt.Bucket) error ) error {
+func (r BBoltRepository) ExecuteOperation(ft func(fn func(tx *bolt.Tx) error) error, fb func(b *bolt.Bucket) error) error {
 	return ft(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(providerBucket))
 		if b != nil {
@@ -68,13 +68,13 @@ func (r BBoltRepository) ExecuteOperation(ft func (fn func(tx *bolt.Tx) error) e
 }
 
 func (r BBoltRepository) ExecuteReadOperation(f func(b *bolt.Bucket) error) error {
-	return r.ExecuteTx(&bolt.Options{ReadOnly: true}, func (db *bolt.DB) error {
+	return r.ExecuteTx(&bolt.Options{ReadOnly: true}, func(db *bolt.DB) error {
 		return r.ExecuteOperation(db.View, f)
 	})
 }
 
 func (r BBoltRepository) ExecuteWriteOperation(f func(b *bolt.Bucket) error) error {
-	return r.ExecuteTx(nil, func (db *bolt.DB) error {
+	return r.ExecuteTx(nil, func(db *bolt.DB) error {
 		return r.ExecuteOperation(db.Update, f)
 	})
 }
@@ -83,7 +83,7 @@ func (r BBoltRepository) GetAllProviders() (model.Providers, error) {
 
 	var providers model.Providers
 
-	err := r.ExecuteReadOperation(func (b *bolt.Bucket) error {
+	err := r.ExecuteReadOperation(func(b *bolt.Bucket) error {
 		b.ForEach(func(k, v []byte) error {
 			providers = append(providers, model.Provider{string(k), string(v)})
 			return nil
@@ -118,4 +118,8 @@ func (r BBoltRepository) CreateProvider(provider *model.Provider) (*model.Provid
 			return b.Put([]byte(provider.Id), []byte(provider.Name))
 		}
 	})
+}
+
+func (r BBoltRepository) DeleteProvider(provider *model.Provider) error {
+	return errors.New("Not implemented")
 }

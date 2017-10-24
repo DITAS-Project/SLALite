@@ -1,12 +1,13 @@
 package main
 
 import (
+	"SLALite/model"
 	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
-	"SLALite/model"
 	"strconv"
+	"time"
 
 	"github.com/gorilla/mux"
 )
@@ -15,6 +16,16 @@ import (
 type App struct {
 	Router     *mux.Router
 	Repository model.IRepository
+}
+
+// ApiError is the struct sent to client on errors
+type ApiError struct {
+	Code    string `json:"code"`
+	Message string `json:"message"`
+}
+
+func (e *ApiError) Error() string {
+	return e.Message
 }
 
 type endpoint struct {
@@ -36,9 +47,11 @@ func (a *App) Initialize(repository model.IRepository) {
 
 	a.Router.HandleFunc("/", a.Index).Methods("GET")
 
-	a.Router.HandleFunc("/providers", a.GetAllProviders).Methods("GET")
+	a.Router.Methods("GET").Path("/providers").Handler(
+		LoggerDecorator(http.HandlerFunc(a.GetAllProviders), "All Providers"))
 	a.Router.HandleFunc("/providers/{id}", a.GetProvider).Methods("GET")
 	a.Router.HandleFunc("/providers", a.CreateProvider).Methods("POST")
+	a.Router.HandleFunc("/providers/{id}", a.DeleteProvider).Methods("DELETE")
 }
 
 // Run starts the REST API
@@ -49,6 +62,22 @@ func (a *App) Run(addr string) {
 // Index is the API index
 func (a *App) Index(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(api)
+}
+
+func LoggerDecorator(inner http.Handler, name string) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		start := time.Now()
+
+		inner.ServeHTTP(w, r)
+
+		log.Printf(
+			"%s\t%s\t%s\t%s",
+			r.Method,
+			r.RequestURI,
+			name,
+			time.Since(start),
+		)
+	})
 }
 
 // GetAllProviders return all providers in db
@@ -103,8 +132,29 @@ func (a *App) CreateProvider(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// DeleteProvider deletes /provider/id
+func (a *App) DeleteProvider(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	id := vars["id"]
+
+	p := model.Provider{Id: id}
+	err := a.Repository.DeleteProvider(&p)
+
+	if err != nil {
+		switch err {
+		case model.ErrNotFound:
+			respondWithError(w, http.StatusNotFound,
+				fmt.Sprintf("Provider{id: %s} not found", p.Id))
+		default:
+			respondWithError(w, http.StatusInternalServerError, err.Error())
+		}
+	} else {
+		respondNoContent(w)
+	}
+}
+
 func respondWithError(w http.ResponseWriter, code int, message string) {
-	respondWithJSON(w, code, map[string]string{"code": strconv.Itoa(code), "error": message})
+	respondWithJSON(w, code, ApiError{strconv.Itoa(code), message})
 }
 
 func respondWithJSON(w http.ResponseWriter, code int, payload interface{}) {
@@ -115,4 +165,8 @@ func respondWithJSON(w http.ResponseWriter, code int, payload interface{}) {
 
 func respondSuccessJSON(w http.ResponseWriter, payload interface{}) {
 	respondWithJSON(w, http.StatusOK, payload)
+}
+
+func respondNoContent(w http.ResponseWriter) {
+	w.WriteHeader(http.StatusNoContent)
 }

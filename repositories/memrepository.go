@@ -53,3 +53,19 @@ func (r MemRepository) CreateProvider(provider *model.Provider) (*model.Provider
 	}
 	return provider, err
 }
+
+// DeleteProvider ...
+func (r MemRepository) DeleteProvider(provider *model.Provider) error {
+	var err error
+
+	id := provider.Id
+
+	_, ok := providers[id]
+	if ok {
+		delete(providers, id)
+		err = nil
+	} else {
+		err = model.ErrNotFound
+	}
+	return err
+}
