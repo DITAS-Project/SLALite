@@ -2,24 +2,24 @@ package main
 
 import (
 	"SLALite/model"
-	"time"
+	"SLALite/repositories"
+	"github.com/spf13/viper"
 	"log"
 	"strconv"
-	"github.com/spf13/viper"
-	"SLALite/repositories"
+	"time"
 )
 
 const (
-	defaultPort string = "8090"
-	defaultCheckPeriod time.Duration = 60
-	defaultRepositoryType string = "memory"
+	defaultPort           string        = "8090"
+	defaultCheckPeriod    time.Duration = 60
+	defaultRepositoryType string        = "memory"
 
-	portPropertyName = "port"
-	checkPeriodPropertyName = "checkPeriod"
+	portPropertyName           = "port"
+	checkPeriodPropertyName    = "checkPeriod"
 	repositoryTypePropertyName = "repository"
 
 	unixConfigPath = "/etc/slalite"
-	configName = "slalite"
+	configName     = "slalite"
 )
 
 func main() {
@@ -75,11 +75,11 @@ func createValidationThread(repo model.IRepository, checkPeriod time.Duration) {
 		<-ticker.C
 		validateProviders(repo)
 	}
-	
+
 }
 
 func validateProviders(repo model.IRepository) {
-	providers,err := repo.GetAllProviders()
+	providers, err := repo.GetAllProviders()
 
 	if err == nil {
 		log.Println("There are " + strconv.Itoa(len(providers)) + " providers")

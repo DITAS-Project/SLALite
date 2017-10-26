@@ -2,7 +2,6 @@ package repositories
 
 import (
 	"SLALite/model"
-	"errors"
 	"log"
 
 	"github.com/spf13/viper"
@@ -85,5 +84,10 @@ func (r MongoDBRepository) CreateProvider(provider *model.Provider) (*model.Prov
 }
 
 func (r MongoDBRepository) DeleteProvider(provider *model.Provider) error {
-	return errors.New("Not implemented")
+	error := r.database.C(providersCollectionName).Remove(bson.M{"id": provider.Id})
+	if error == mgo.ErrNotFound {
+		return model.ErrNotFound
+	} else {
+		return error
+	}
 }

@@ -35,16 +35,22 @@ func CreateBBoltRepository() (BBoltRepository, error) {
 		log.Println("Using defaults")
 	}
 
-	repo := BBoltRepository{config.GetString(databasePropertyName)}
+	dbName := config.GetString(databasePropertyName)
+	repo := BBoltRepository{dbName}
 
-	err := repo.ExecuteTx(nil, func(db *bolt.DB) error {
+	err := repo.SetDatabase(dbName)
+
+	return repo, err
+}
+
+func (r *BBoltRepository) SetDatabase(database string) error {
+	r.dbFile = database
+	return r.ExecuteTx(nil, func(db *bolt.DB) error {
 		return db.Update(func(tx *bolt.Tx) error {
 			_, err2 := tx.CreateBucketIfNotExists([]byte(providerBucket))
 			return err2
 		})
 	})
-
-	return repo, err
 }
 
 func (r BBoltRepository) ExecuteTx(options *bolt.Options, f func(db *bolt.DB) error) error {
@@ -121,5 +127,12 @@ func (r BBoltRepository) CreateProvider(provider *model.Provider) (*model.Provid
 }
 
 func (r BBoltRepository) DeleteProvider(provider *model.Provider) error {
-	return errors.New("Not implemented")
+	return r.ExecuteWriteOperation(func(b *bolt.Bucket) error {
+		existing := b.Get([]byte(provider.Id))
+		if existing == nil {
+			return model.ErrNotFound
+		} else {
+			return b.Delete([]byte(provider.Id))
+		}
+	})
 }

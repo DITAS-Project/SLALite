@@ -27,6 +27,10 @@ func TestMain(m *testing.M) {
 	//repo,err := repositories.CreateBBoltRepository()
 	//repo, err := repositories.CreateMongoDBRepository()
 	if err == nil {
+		//BBolt test database
+		//repo.SetDatabase(dbName)
+
+		//MongoDB test database
 		//repo.SetDatabase("slaliteTest", true)
 		repo.CreateProvider(&p1)
 		a = App{}
@@ -37,7 +41,9 @@ func TestMain(m *testing.M) {
 
 	result := m.Run()
 
+	//BBolt clear database
 	os.Remove(dbName)
+
 	os.Exit(result)
 }
 
@@ -156,12 +162,13 @@ func BenchmarkDatabase(b *testing.B) {
 	executeCreate(b)
 	executeGetAll(b)
 	executeGet(b)
+	executeDelete(b)
 }
 
 func executeCreate(b *testing.B) {
 	//log.Print("Running create test " + b.Name())
 	for i := 0; i < b.N; i++ {
-		key := prefix + "_" + strconv.Itoa(i)
+		key := getProviderId(i)
 		provider := model.Provider{key, "provider_" + key}
 		body, err := json.Marshal(provider)
 		if err != nil {
@@ -191,11 +198,26 @@ func executeGetAll(b *testing.B) {
 
 func executeGet(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		key := prefix + "_" + strconv.Itoa(i)
+		key := getProviderId(i)
 		req, _ := http.NewRequest("GET", "/providers/"+key, nil)
 		res := request(req)
 		if http.StatusOK != res.Code {
 			b.Error("Provider " + key + " not found: " + strconv.Itoa(res.Code))
 		}
 	}
+}
+
+func executeDelete(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		key := getProviderId(i)
+		req, _ := http.NewRequest("DELETE", "/providers/"+key, nil)
+		res := request(req)
+		if http.StatusNoContent != res.Code {
+			b.Error("Provider " + key + " not found: " + strconv.Itoa(res.Code))
+		}
+	}
+}
+
+func getProviderId(i int) string {
+	return prefix + "_" + strconv.Itoa(i)
 }
