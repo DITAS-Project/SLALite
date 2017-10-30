@@ -35,6 +35,34 @@ type IRepository interface {
 	 * error is sql.ErrNoRows if the provider does not exist.
 	 */
 	DeleteProvider(provider *Provider) error
+
+	/*
+	 * GetAllAgreements returns the list of agreements.
+	 * The list is empty when there are no agreements
+	 * error != nil on error
+	 */
+	GetAllAgreements() (Agreement, error)
+
+	/*
+	 * GetAgreement returns the Agreement identified by id
+	 * error != nil on error
+	 * error is sql.ErrNoRows if the provider is not found
+	 */
+	GetAgreement(id string) (*Agreement, error)
+
+	/*
+	 * CreateAgreement stores a new agreement
+	 * error != nil on error
+	 * error is sql.ErrNoRows if the provider already exists
+	 */
+	CreateAgreement(agreement *Agreement) (*Agreement, error)
+
+	/*
+	 * DeleteAgreement deletes from the repository the agreement whose id is provider.Id.
+	 * error != nil on error
+	 * error is sql.ErrNoRows if the provider does not exist.
+	 */
+	DeleteAgreement(agreement *Agreement) error
 }
 
 // DbRepository is a repository backed up on a database
