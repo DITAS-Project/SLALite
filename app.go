@@ -50,7 +50,8 @@ type endpoint struct {
 }
 
 var api = map[string]endpoint{
-	"providers": endpoint{"GET", "/providers", "Providers"},
+	"providers":  endpoint{"GET", "/providers", "Providers"},
+	"agreements": endpoint{"GET", "/agreements", "Agreements"},
 }
 
 // Initialize initializes the REST API passing the db connection
@@ -67,6 +68,12 @@ func (a *App) Initialize(repository model.IRepository) {
 	a.Router.HandleFunc("/providers/{id}", a.GetProvider).Methods("GET")
 	a.Router.HandleFunc("/providers", a.CreateProvider).Methods("POST")
 	a.Router.HandleFunc("/providers/{id}", a.DeleteProvider).Methods("DELETE")
+
+	a.Router.Methods("GET").Path("/agreements").Handler(
+		LoggerDecorator(http.HandlerFunc(a.GetAllAgreements), "All Providers"))
+	a.Router.HandleFunc("/agreements/{id}", a.GetAgreement).Methods("GET")
+	a.Router.HandleFunc("/agreements", a.CreateAgreement).Methods("POST")
+	a.Router.HandleFunc("/agreements/{id}", a.DeleteAgreement).Methods("DELETE")
 }
 
 // Run starts the REST API
@@ -95,50 +102,45 @@ func LoggerDecorator(inner http.Handler, name string) http.Handler {
 	})
 }
 
-// GetAllProviders return all providers in db
-func (a *App) GetAllProviders(w http.ResponseWriter, r *http.Request) {
-	providers, err := a.Repository.GetAllProviders()
+func (a *App) getAll(w http.ResponseWriter, r *http.Request, f func() (interface{}, error)) {
+	list, err := f()
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, err.Error())
 	} else {
-		respondSuccessJSON(w, providers)
+		respondSuccessJSON(w, list)
 	}
 }
 
-// GetProvider gets a provider by REST ID
-func (a *App) GetProvider(w http.ResponseWriter, r *http.Request) {
+func (a *App) get(w http.ResponseWriter, r *http.Request, f func(string) (interface{}, error)) {
 	vars := mux.Vars(r)
 	id := vars["id"]
 
-	provider, err := a.Repository.GetProvider(id)
+	provider, err := f(id)
 	if err != nil {
 		switch err {
 		case model.ErrNotFound:
-			respondWithError(w, http.StatusNotFound, fmt.Sprintf("Provider{id:%s} not found", id))
+			respondWithError(w, http.StatusNotFound, fmt.Sprintf("Object with {id:%s} not found", id))
 		default:
 			respondWithError(w, http.StatusInternalServerError, err.Error())
 		}
-		return
 	} else {
 		respondSuccessJSON(w, provider)
 	}
 }
 
-// CreateProvider creates a provider passed by REST params
-func (a *App) CreateProvider(w http.ResponseWriter, r *http.Request) {
+func (a *App) create(w http.ResponseWriter, r *http.Request, decode func() error, create func() (model.Identity, error)) {
 
-	var provider model.Provider
-	errDec := json.NewDecoder(r.Body).Decode(&provider)
+	errDec := decode()
 	if errDec != nil {
 		respondWithError(w, http.StatusBadRequest, errDec.Error())
 	}
 	/* check errors */
-	created, err := a.Repository.CreateProvider(&provider)
+	created, err := create()
 	if err != nil {
 		switch err {
 		case model.ErrAlreadyExist:
 			respondWithError(w, http.StatusConflict,
-				fmt.Sprintf("Provider{id: %s} already exists", provider.Id))
+				fmt.Sprintf("Object {id: %s} already exists", created.GetId()))
 		default:
 			respondWithError(w, http.StatusInternalServerError, err.Error())
 		}
@@ -147,25 +149,93 @@ func (a *App) CreateProvider(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// DeleteProvider deletes /provider/id
-func (a *App) DeleteProvider(w http.ResponseWriter, r *http.Request) {
+func (a *App) delete(w http.ResponseWriter, r *http.Request, del func(string) error) {
 	vars := mux.Vars(r)
 	id := vars["id"]
 
-	p := model.Provider{Id: id}
-	err := a.Repository.DeleteProvider(&p)
+	err := del(id)
 
 	if err != nil {
 		switch err {
 		case model.ErrNotFound:
 			respondWithError(w, http.StatusNotFound,
-				fmt.Sprintf("Provider{id: %s} not found", p.Id))
+				fmt.Sprintf("Object{id: %s} not found", id))
 		default:
 			respondWithError(w, http.StatusInternalServerError, err.Error())
 		}
 	} else {
 		respondNoContent(w)
 	}
+}
+
+// GetAllProviders return all providers in db
+func (a *App) GetAllProviders(w http.ResponseWriter, r *http.Request) {
+	a.getAll(w, r, func() (interface{}, error) {
+		return a.Repository.GetAllProviders()
+	})
+}
+
+// GetProvider gets a provider by REST ID
+func (a *App) GetProvider(w http.ResponseWriter, r *http.Request) {
+	a.get(w, r, func(id string) (interface{}, error) {
+		return a.Repository.GetProvider(id)
+	})
+}
+
+// CreateProvider creates a provider passed by REST params
+func (a *App) CreateProvider(w http.ResponseWriter, r *http.Request) {
+
+	var provider model.Provider
+
+	a.create(w, r,
+		func() error {
+			return json.NewDecoder(r.Body).Decode(&provider)
+		},
+		func() (model.Identity, error) {
+			return a.Repository.CreateProvider(&provider)
+		})
+}
+
+// DeleteProvider deletes /provider/id
+func (a *App) DeleteProvider(w http.ResponseWriter, r *http.Request) {
+	a.delete(w, r, func(id string) error {
+		return a.Repository.DeleteProvider(&model.Provider{Id: id})
+	})
+}
+
+// GetAllAgreements return all agreements in db
+func (a *App) GetAllAgreements(w http.ResponseWriter, r *http.Request) {
+	a.getAll(w, r, func() (interface{}, error) {
+		return a.Repository.GetAllAgreements()
+	})
+}
+
+// GetAgreement gets an agreement by REST ID
+func (a *App) GetAgreement(w http.ResponseWriter, r *http.Request) {
+	a.get(w, r, func(id string) (interface{}, error) {
+		return a.Repository.GetAgreement(id)
+	})
+}
+
+// CreateAgreement creates a agreement passed by REST params
+func (a *App) CreateAgreement(w http.ResponseWriter, r *http.Request) {
+
+	var agreement model.Agreement
+
+	a.create(w, r,
+		func() error {
+			return json.NewDecoder(r.Body).Decode(&agreement)
+		},
+		func() (model.Identity, error) {
+			return a.Repository.CreateAgreement(&agreement)
+		})
+}
+
+// DeleteAgreement deletes an agreement by id
+func (a *App) DeleteAgreement(w http.ResponseWriter, r *http.Request) {
+	a.delete(w, r, func(id string) error {
+		return a.Repository.DeleteAgreement(&model.Agreement{Id: id})
+	})
 }
 
 func respondWithError(w http.ResponseWriter, code int, message string) {

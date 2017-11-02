@@ -33,7 +33,8 @@ import (
 var a App
 var p1 = model.Provider{Id: "01", Name: "Provider01"}
 var dbName = "test.db"
-var prefix = "pf_" + strconv.Itoa(rand.Int())
+var providerPrefix = "pf_" + strconv.Itoa(rand.Int())
+var agreementPrefix = "apf_" + strconv.Itoa(rand.Int())
 
 // TestMain runs the tests
 func TestMain(m *testing.M) {
@@ -234,5 +235,5 @@ func executeDelete(b *testing.B) {
 }
 
 func getProviderId(i int) string {
-	return prefix + "_" + strconv.Itoa(i)
+	return providerPrefix + "_" + strconv.Itoa(i)
 }

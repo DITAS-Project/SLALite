@@ -25,27 +25,29 @@ import (
 )
 
 const (
-	defaultUrl              string = "localhost"
+	defaultURL              string = "localhost"
 	repositoryDbName        string = "slalite"
 	providersCollectionName string = "Providers"
 	agreementCollectionName string = "Agreements"
 
 	mongoConfigName string = "mongodb.yml"
 
-	connectionUrl string = "connection"
+	connectionURL string = "connection"
 )
 
+//MongoDBRepository contains the repository persistence implementation based on MongoDB
 type MongoDBRepository struct {
 	session  *mgo.Session
 	database *mgo.Database
 }
 
+//CreateMongoDBRepository creates a new instance of the MongoDBRepository with the database configurarion read from a configuration file
 func CreateMongoDBRepository() (MongoDBRepository, error) {
 	config := viper.New()
 
 	config.SetConfigName(mongoConfigName)
 	config.AddConfigPath(model.UnixConfigPath)
-	config.SetDefault(connectionUrl, defaultUrl)
+	config.SetDefault(connectionURL, defaultURL)
 
 	confError := config.ReadInConfig()
 	if confError != nil {
@@ -53,7 +55,7 @@ func CreateMongoDBRepository() (MongoDBRepository, error) {
 		log.Println("Using defaults")
 	}
 
-	session, err := mgo.Dial(config.GetString(connectionUrl))
+	session, err := mgo.Dial(config.GetString(connectionURL))
 	if err != nil {
 		log.Fatal("Error getting connection to Mongo DB: " + err.Error())
 	}
@@ -61,6 +63,7 @@ func CreateMongoDBRepository() (MongoDBRepository, error) {
 	return MongoDBRepository{session, session.DB(repositoryDbName)}, err
 }
 
+//SetDatabase sets the database URL value. Useful for testing.
 func (r *MongoDBRepository) SetDatabase(database string, empty bool) {
 	if empty {
 		err := r.session.DB(database).DropDatabase()
