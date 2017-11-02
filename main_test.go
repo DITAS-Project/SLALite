@@ -37,16 +37,16 @@ var prefix = "pf_" + strconv.Itoa(rand.Int())
 
 // TestMain runs the tests
 func TestMain(m *testing.M) {
-	repo := repositories.MemRepository{}
+	//repo := repositories.MemRepository{}
 	var err error = nil
 	//repo,err := repositories.CreateBBoltRepository()
-	//repo, err := repositories.CreateMongoDBRepository()
+	repo, err := repositories.CreateMongoDBRepository()
 	if err == nil {
 		//BBolt test database
 		//repo.SetDatabase(dbName)
 
 		//MongoDB test database
-		//repo.SetDatabase("slaliteTest", true)
+		repo.SetDatabase("slaliteTest", true)
 		repo.CreateProvider(&p1)
 		a = App{}
 		a.Initialize(repo)

@@ -84,3 +84,19 @@ func (r MemRepository) DeleteProvider(provider *model.Provider) error {
 	}
 	return err
 }
+
+func (r MemRepository) GetAllAgreements() (model.Agreements, error) {
+	return nil, nil
+}
+
+func (r MemRepository) GetAgreement(id string) (*model.Agreement, error) {
+	return nil, nil
+}
+
+func (r MemRepository) CreateAgreement(agreement *model.Agreement) (*model.Agreement, error) {
+	return nil, nil
+}
+
+func (r MemRepository) DeleteAgreement(agreement *model.Agreement) error {
+	return nil
+}

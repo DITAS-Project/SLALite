@@ -151,3 +151,19 @@ func (r BBoltRepository) DeleteProvider(provider *model.Provider) error {
 		}
 	})
 }
+
+func (r BBoltRepository) GetAllAgreements() (model.Agreements, error) {
+	return nil, nil
+}
+
+func (r BBoltRepository) GetAgreement(id string) (*model.Agreement, error) {
+	return nil, nil
+}
+
+func (r BBoltRepository) CreateAgreement(agreement *model.Agreement) (*model.Agreement, error) {
+	return nil, nil
+}
+
+func (r BBoltRepository) DeleteAgreement(agreement *model.Agreement) error {
+	return nil
+}

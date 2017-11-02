@@ -25,13 +25,18 @@ import (
 var ErrNotFound error = errors.New("Entity not found")
 var ErrAlreadyExist error = errors.New("Entity already exists")
 
+type Identity interface {
+	GetId() string
+}
+
 type Provider struct {
 	Id   string `json:"id"`
 	Name string `json:"name"`
 }
 
-type Providers []Provider
-type Agreements []Agreement
+func (p Provider) GetId() string {
+	return p.Id
+}
 
 type Assessment struct {
 	Id             string    `json:"id"`
@@ -41,25 +46,32 @@ type Assessment struct {
 }
 
 type Penalty struct {
-	Type  string `json:type`
-	Value string `json:value`
-	Unit  string `json:unit`
+	Type  string `json:"type"`
+	Value string `json:"value"`
+	Unit  string `json:"unit"`
 }
 
 type Guarantee struct {
-	Name       string    `json:name`
-	Constraint string    `json:constraints`
-	Warning    string    `json:warning`
-	Penalties  []Penalty `json:penalties`
+	Name       string    `json:"name"`
+	Constraint string    `json:"constraints"`
+	Warning    string    `json:"warning"`
+	Penalties  []Penalty `json:"penalties"`
 }
 
 type Agreement struct {
-	Type       string         `json:type`
-	Id         string         `json:id`
-	Name       string         `json:name`
-	Provider   Provider       `json:provider`
-	Client     Provider       `json:client`
-	Creation   timeutils.Time `json:creation`
-	Expiration timeutils.Time `json:expiration`
-	Guarantees []Guarantee    `json:guarantees`
+	Type       string         `json:"type"`
+	Id         string         `json:"id"`
+	Name       string         `json:"name"`
+	Provider   Provider       `json:"provider"`
+	Client     Provider       `json:"client"`
+	Creation   timeutils.Time `json:"creation"`
+	Expiration timeutils.Time `json:"expiration"`
+	Guarantees []Guarantee    `json:"guarantees"`
 }
+
+func (a Agreement) GetId() string {
+	return a.Id
+}
+
+type Providers []Provider
+type Agreements []Agreement
