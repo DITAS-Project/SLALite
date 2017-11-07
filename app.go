@@ -141,6 +141,8 @@ func (a *App) create(w http.ResponseWriter, r *http.Request, decode func() error
 		case model.ErrAlreadyExist:
 			respondWithError(w, http.StatusConflict,
 				fmt.Sprintf("Object {id: %s} already exists", created.GetId()))
+		case model.ErrNotFound:
+			respondWithError(w, http.StatusNotFound, "Can't find provider")
 		default:
 			respondWithError(w, http.StatusInternalServerError, err.Error())
 		}

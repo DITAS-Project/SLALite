@@ -26,33 +26,57 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"reflect"
 	"strconv"
 	"testing"
+	"time"
+
+	"github.com/simplereach/timeutils"
 )
 
 var a App
+var repo model.IRepository
 var p1 = model.Provider{Id: "01", Name: "Provider01"}
 var dbName = "test.db"
 var providerPrefix = "pf_" + strconv.Itoa(rand.Int())
 var agreementPrefix = "apf_" + strconv.Itoa(rand.Int())
 
+var a1 = createAgreement("01", "01", "02", "Agreement 01")
+
+func createRepository(repoType string) model.IRepository {
+	var repo model.IRepository
+
+	switch repoType {
+	case defaultRepositoryType:
+		repo = repositories.MemRepository{}
+	case "bbolt":
+		boltRepo, errRepo := repositories.CreateBBoltRepository()
+		if errRepo != nil {
+			log.Fatal("Error creating bbolt repository: ", errRepo.Error())
+		}
+		boltRepo.SetDatabase(dbName)
+		repo = boltRepo
+	case "mongodb":
+		mongoRepo, errMongo := repositories.CreateMongoDBRepository()
+		if errMongo != nil {
+			log.Fatal("Error creating mongo repository: ", errMongo.Error())
+		}
+		mongoRepo.SetDatabase("slaliteTest", true)
+		repo = mongoRepo
+	}
+	return repo
+}
+
 // TestMain runs the tests
 func TestMain(m *testing.M) {
-	//repo := repositories.MemRepository{}
-	var err error = nil
-	//repo,err := repositories.CreateBBoltRepository()
-	repo, err := repositories.CreateMongoDBRepository()
-	if err == nil {
-		//BBolt test database
-		//repo.SetDatabase(dbName)
-
-		//MongoDB test database
-		repo.SetDatabase("slaliteTest", true)
+	repo = createRepository("mongodb")
+	if repo != nil {
 		repo.CreateProvider(&p1)
+		repo.CreateAgreement(&a1)
 		a = App{}
 		a.Initialize(repo)
 	} else {
-		log.Fatal(err)
+		log.Fatal("Error initializing repository")
 	}
 
 	result := m.Run()
@@ -135,6 +159,111 @@ func TestDeleteProviderThatNotExists(t *testing.T) {
 
 func TestDeleteProvider(t *testing.T) {
 	req, _ := http.NewRequest("DELETE", "/providers/01", nil)
+	res := request(req)
+
+	checkStatus(t, http.StatusNoContent, res.Code)
+	body, _ := ioutil.ReadAll(res.Body)
+
+	if len(body) > 0 {
+		t.Errorf("Expected empty body. Actual: %s", body)
+	}
+}
+
+/********************************************************************
+*****************AGREEMENTS******************************************
+********************************************************************/
+func TestGetAgreements(t *testing.T) {
+	req, _ := http.NewRequest("GET", "/agreements", nil)
+	res := request(req)
+	checkStatus(t, http.StatusOK, res.Code)
+
+	var agreements model.Agreements
+	_ = json.NewDecoder(res.Body).Decode(&agreements)
+	if len(agreements) != 1 {
+		t.Errorf("Expected 1 agreement. Received: %v", agreements)
+	}
+}
+
+func TestGetAgreementExists(t *testing.T) {
+	req, _ := http.NewRequest("GET", "/agreements/01", nil)
+	res := request(req)
+	checkStatus(t, http.StatusOK, res.Code)
+	/*
+	 * Check body
+	 */
+	var agreement model.Agreement
+	_ = json.NewDecoder(res.Body).Decode(&agreement)
+	if reflect.DeepEqual(agreement, a1) {
+		t.Errorf("Expected: %v. Actual: %v", p1, agreement)
+	}
+}
+
+func TestGetAgreementNotExists(t *testing.T) {
+	req, _ := http.NewRequest("GET", "/agreements/doesnotexist", nil)
+	res := request(req)
+	checkError(t, res, http.StatusNotFound, res.Code)
+}
+
+func prepareCreateAgreement() {
+	_, err := repo.GetProvider("01")
+	if err != nil {
+		repo.CreateProvider(&p1)
+	}
+}
+
+func TestCreateAgreementThatExists(t *testing.T) {
+	prepareCreateAgreement()
+	body, err := json.Marshal(a1)
+	if err != nil {
+		t.Error("Unexpected marshalling error")
+	}
+	req, _ := http.NewRequest("POST", "/agreements", bytes.NewBuffer(body))
+	res := request(req)
+
+	checkStatus(t, http.StatusConflict, res.Code)
+}
+
+func TestCreateAgreementWrongProvider(t *testing.T) {
+	prepareCreateAgreement()
+	posted := createAgreement("02", "02", "02", "Agreement 02")
+	body, err := json.Marshal(posted)
+	if err != nil {
+		t.Error("Unexpected marshalling error")
+	}
+	req, _ := http.NewRequest("POST", "/agreements", bytes.NewBuffer(body))
+	res := request(req)
+
+	checkStatus(t, http.StatusNotFound, res.Code)
+}
+
+func TestCreateAgreement(t *testing.T) {
+	posted := createAgreement("02", "01", "02", "Agreement 02")
+	body, err := json.Marshal(posted)
+	if err != nil {
+		t.Error("Unexpected marshalling error")
+	}
+	req, _ := http.NewRequest("POST", "/agreements", bytes.NewBuffer(body))
+	res := request(req)
+
+	checkStatus(t, http.StatusCreated, res.Code)
+
+	var created model.Agreement
+	_ = json.NewDecoder(res.Body).Decode(&created)
+	if reflect.DeepEqual(created, posted) {
+		t.Errorf("Expected: %v. Actual: %v", posted, created)
+	}
+}
+
+func TestDeleteAgreementThatNotExists(t *testing.T) {
+	req, _ := http.NewRequest("DELETE", "/agreements/doesnotexist", nil)
+	res := request(req)
+
+	checkStatus(t, http.StatusNotFound, res.Code)
+	// TODO Check body
+}
+
+func TestDeleteAgreement(t *testing.T) {
+	req, _ := http.NewRequest("DELETE", "/agreements/01", nil)
 	res := request(req)
 
 	checkStatus(t, http.StatusNoContent, res.Code)
@@ -236,4 +365,12 @@ func executeDelete(b *testing.B) {
 
 func getProviderId(i int) string {
 	return providerPrefix + "_" + strconv.Itoa(i)
+}
+
+func createAgreement(aid, pid, cid, name string) model.Agreement {
+	return model.Agreement{Id: aid, Name: name, Type: "Agreement",
+		Provider: model.Provider{Id: pid}, Client: model.Provider{Id: cid},
+		Creation:   timeutils.NewTime(time.Now(), timeutils.ANSIC),
+		Expiration: timeutils.NewTime(time.Now().Add(60*time.Minute), timeutils.ANSIC),
+	}
 }

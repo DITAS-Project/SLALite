@@ -127,7 +127,7 @@ func (r MongoDBRepository) DeleteProvider(provider *model.Provider) error {
 
 func (r MongoDBRepository) GetAllAgreements() (model.Agreements, error) {
 	res, err := r.getAll(agreementCollectionName, new(model.Agreements))
-	return (res).(model.Agreements), err
+	return *((res).(*model.Agreements)), err
 }
 
 func (r MongoDBRepository) GetAgreement(id string) (*model.Agreement, error) {
@@ -136,8 +136,12 @@ func (r MongoDBRepository) GetAgreement(id string) (*model.Agreement, error) {
 }
 
 func (r MongoDBRepository) CreateAgreement(agreement *model.Agreement) (*model.Agreement, error) {
-	res, err := r.create(agreementCollectionName, agreement)
-	return res.(*model.Agreement), err
+	_, err := r.GetProvider(agreement.Provider.Id)
+	if err == nil {
+		res, err := r.create(agreementCollectionName, agreement)
+		return res.(*model.Agreement), err
+	}
+	return agreement, model.ErrNotFound
 }
 
 func (r MongoDBRepository) DeleteAgreement(agreement *model.Agreement) error {
