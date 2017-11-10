@@ -89,6 +89,10 @@ func (r MemRepository) GetAllAgreements() (model.Agreements, error) {
 	return nil, nil
 }
 
+func (r MemRepository) GetActiveAgreements() (model.Agreements, error) {
+	return nil, nil
+}
+
 func (r MemRepository) GetAgreement(id string) (*model.Agreement, error) {
 	return nil, nil
 }
@@ -98,5 +102,13 @@ func (r MemRepository) CreateAgreement(agreement *model.Agreement) (*model.Agree
 }
 
 func (r MemRepository) DeleteAgreement(agreement *model.Agreement) error {
+	return nil
+}
+
+func (r MemRepository) StartAgreement(id string) error {
+	return nil
+}
+
+func (r MemRepository) StopAgreement(id string) error {
 	return nil
 }

@@ -18,7 +18,6 @@ package main
 import (
 	"SLALite/model"
 	"encoding/json"
-	"fmt"
 	"log"
 	"net/http"
 	"strconv"
@@ -63,16 +62,18 @@ func (a *App) Initialize(repository model.IRepository) {
 
 	a.Router.HandleFunc("/", a.Index).Methods("GET")
 
-	a.Router.Methods("GET").Path("/providers").Handler(
-		LoggerDecorator(http.HandlerFunc(a.GetAllProviders), "All Providers"))
+	a.Router.Methods("GET").Path("/providers").
+		Handler(LoggerDecorator(http.HandlerFunc(a.GetAllProviders), "All Providers"))
 	a.Router.HandleFunc("/providers/{id}", a.GetProvider).Methods("GET")
 	a.Router.HandleFunc("/providers", a.CreateProvider).Methods("POST")
 	a.Router.HandleFunc("/providers/{id}", a.DeleteProvider).Methods("DELETE")
 
-	a.Router.Methods("GET").Path("/agreements").Handler(
-		LoggerDecorator(http.HandlerFunc(a.GetAllAgreements), "All Providers"))
+	a.Router.Methods("GET").Path("/agreements").
+		Handler(LoggerDecorator(http.HandlerFunc(a.GetAgreements), "Agreements"))
 	a.Router.HandleFunc("/agreements/{id}", a.GetAgreement).Methods("GET")
 	a.Router.HandleFunc("/agreements", a.CreateAgreement).Methods("POST")
+	a.Router.HandleFunc("/agreements/{id}/start", a.StartAgreement).Methods("PUT")
+	a.Router.HandleFunc("/agreements/{id}/stop", a.StopAgreement).Methods("PUT")
 	a.Router.HandleFunc("/agreements/{id}", a.DeleteAgreement).Methods("DELETE")
 }
 
@@ -117,12 +118,7 @@ func (a *App) get(w http.ResponseWriter, r *http.Request, f func(string) (interf
 
 	provider, err := f(id)
 	if err != nil {
-		switch err {
-		case model.ErrNotFound:
-			respondWithError(w, http.StatusNotFound, fmt.Sprintf("Object with {id:%s} not found", id))
-		default:
-			respondWithError(w, http.StatusInternalServerError, err.Error())
-		}
+		manageError(err, w)
 	} else {
 		respondSuccessJSON(w, provider)
 	}
@@ -137,34 +133,20 @@ func (a *App) create(w http.ResponseWriter, r *http.Request, decode func() error
 	/* check errors */
 	created, err := create()
 	if err != nil {
-		switch err {
-		case model.ErrAlreadyExist:
-			respondWithError(w, http.StatusConflict,
-				fmt.Sprintf("Object {id: %s} already exists", created.GetId()))
-		case model.ErrNotFound:
-			respondWithError(w, http.StatusNotFound, "Can't find provider")
-		default:
-			respondWithError(w, http.StatusInternalServerError, err.Error())
-		}
+		manageError(err, w)
 	} else {
 		respondWithJSON(w, http.StatusCreated, created)
 	}
 }
 
-func (a *App) delete(w http.ResponseWriter, r *http.Request, del func(string) error) {
+func (a *App) update(w http.ResponseWriter, r *http.Request, upd func(string) error) {
 	vars := mux.Vars(r)
 	id := vars["id"]
 
-	err := del(id)
+	err := upd(id)
 
 	if err != nil {
-		switch err {
-		case model.ErrNotFound:
-			respondWithError(w, http.StatusNotFound,
-				fmt.Sprintf("Object{id: %s} not found", id))
-		default:
-			respondWithError(w, http.StatusInternalServerError, err.Error())
-		}
+		manageError(err, w)
 	} else {
 		respondNoContent(w)
 	}
@@ -200,14 +182,20 @@ func (a *App) CreateProvider(w http.ResponseWriter, r *http.Request) {
 
 // DeleteProvider deletes /provider/id
 func (a *App) DeleteProvider(w http.ResponseWriter, r *http.Request) {
-	a.delete(w, r, func(id string) error {
+	a.update(w, r, func(id string) error {
 		return a.Repository.DeleteProvider(&model.Provider{Id: id})
 	})
 }
 
 // GetAllAgreements return all agreements in db
-func (a *App) GetAllAgreements(w http.ResponseWriter, r *http.Request) {
+func (a *App) GetAgreements(w http.ResponseWriter, r *http.Request) {
+	v := r.URL.Query()
+	active := v.Get("active")
+
 	a.getAll(w, r, func() (interface{}, error) {
+		if active != "" {
+			return a.Repository.GetActiveAgreements()
+		}
 		return a.Repository.GetAllAgreements()
 	})
 }
@@ -235,9 +223,34 @@ func (a *App) CreateAgreement(w http.ResponseWriter, r *http.Request) {
 
 // DeleteAgreement deletes an agreement by id
 func (a *App) DeleteAgreement(w http.ResponseWriter, r *http.Request) {
-	a.delete(w, r, func(id string) error {
+	a.update(w, r, func(id string) error {
 		return a.Repository.DeleteAgreement(&model.Agreement{Id: id})
 	})
+}
+
+// StartAgreement starts monitoring an agreement
+func (a *App) StartAgreement(w http.ResponseWriter, r *http.Request) {
+	a.update(w, r, func(id string) error {
+		return a.Repository.StartAgreement(id)
+	})
+}
+
+// StopAgreement stop monitoring an agreement
+func (a *App) StopAgreement(w http.ResponseWriter, r *http.Request) {
+	a.update(w, r, func(id string) error {
+		return a.Repository.StopAgreement(id)
+	})
+}
+
+func manageError(err error, w http.ResponseWriter) {
+	switch err {
+	case model.ErrAlreadyExist:
+		respondWithError(w, http.StatusConflict, "Object already exist")
+	case model.ErrNotFound:
+		respondWithError(w, http.StatusNotFound, "Can't find object")
+	default:
+		respondWithError(w, http.StatusInternalServerError, err.Error())
+	}
 }
 
 func respondWithError(w http.ResponseWriter, code int, message string) {

@@ -18,8 +18,6 @@ package model
 import (
 	"errors"
 	"time"
-
-	"github.com/simplereach/timeutils"
 )
 
 var ErrNotFound error = errors.New("Entity not found")
@@ -59,14 +57,15 @@ type Guarantee struct {
 }
 
 type Agreement struct {
-	Type       string         `json:"type"`
-	Id         string         `json:"id"`
-	Name       string         `json:"name"`
-	Provider   Provider       `json:"provider"`
-	Client     Provider       `json:"client"`
-	Creation   timeutils.Time `json:"creation"`
-	Expiration timeutils.Time `json:"expiration"`
-	Guarantees []Guarantee    `json:"guarantees"`
+	Type       string      `json:"type"`
+	Id         string      `json:"id"`
+	Name       string      `json:"name"`
+	Active     bool        `json:"active"`
+	Provider   Provider    `json:"provider"`
+	Client     Provider    `json:"client"`
+	Creation   time.Time   `json:"creation"`
+	Expiration time.Time   `json:"expiration"`
+	Guarantees []Guarantee `json:"guarantees"`
 }
 
 func (a Agreement) GetId() string {

@@ -18,6 +18,7 @@ package repositories
 import (
 	"SLALite/model"
 	"log"
+	"time"
 
 	"github.com/spf13/viper"
 	"gopkg.in/mgo.v2"
@@ -74,9 +75,13 @@ func (r *MongoDBRepository) SetDatabase(database string, empty bool) {
 	r.database = r.session.DB(database)
 }
 
-func (r MongoDBRepository) getAll(collection string, result interface{}) (interface{}, error) {
-	err := r.database.C(collection).Find(bson.M{}).All(result)
+func (r MongoDBRepository) getList(collection string, query, result interface{}) (interface{}, error) {
+	err := r.database.C(collection).Find(query).All(result)
 	return result, err
+}
+
+func (r MongoDBRepository) getAll(collection string, result interface{}) (interface{}, error) {
+	return r.getList(collection, bson.M{}, result)
 }
 
 func (r MongoDBRepository) get(collection string, id string, result model.Identity) (model.Identity, error) {
@@ -97,8 +102,16 @@ func (r MongoDBRepository) create(collection string, object model.Identity) (mod
 	return object, errCreate
 }
 
-func (r MongoDBRepository) delete(collection string, object model.Identity) error {
-	error := r.database.C(collection).Remove(bson.M{"id": object.GetId()})
+func (r MongoDBRepository) update(collection, id string, upd bson.M) error {
+	err := r.database.C(collection).Update(bson.M{"id": id}, upd)
+	if err == mgo.ErrNotFound {
+		return model.ErrNotFound
+	}
+	return err
+}
+
+func (r MongoDBRepository) delete(collection, id string) error {
+	error := r.database.C(collection).Remove(bson.M{"id": id})
 	if error == mgo.ErrNotFound {
 		return model.ErrNotFound
 	}
@@ -122,7 +135,7 @@ func (r MongoDBRepository) CreateProvider(provider *model.Provider) (*model.Prov
 }
 
 func (r MongoDBRepository) DeleteProvider(provider *model.Provider) error {
-	return r.delete(providersCollectionName, provider)
+	return r.delete(providersCollectionName, provider.Id)
 }
 
 func (r MongoDBRepository) GetAllAgreements() (model.Agreements, error) {
@@ -135,6 +148,13 @@ func (r MongoDBRepository) GetAgreement(id string) (*model.Agreement, error) {
 	return res.(*model.Agreement), err
 }
 
+func (r MongoDBRepository) GetActiveAgreements() (model.Agreements, error) {
+	output := new(model.Agreements)
+	query := bson.M{"active": true, "expiration": bson.M{"$gte": time.Now()}}
+	result, err := r.getList(agreementCollectionName, query, output)
+	return *((result).(*model.Agreements)), err
+}
+
 func (r MongoDBRepository) CreateAgreement(agreement *model.Agreement) (*model.Agreement, error) {
 	_, err := r.GetProvider(agreement.Provider.Id)
 	if err == nil {
@@ -145,5 +165,13 @@ func (r MongoDBRepository) CreateAgreement(agreement *model.Agreement) (*model.A
 }
 
 func (r MongoDBRepository) DeleteAgreement(agreement *model.Agreement) error {
-	return r.delete(agreementCollectionName, agreement)
+	return r.delete(agreementCollectionName, agreement.Id)
+}
+
+func (r MongoDBRepository) StartAgreement(id string) error {
+	return r.update(agreementCollectionName, id, bson.M{"$set": bson.M{"active": true}})
+}
+
+func (r MongoDBRepository) StopAgreement(id string) error {
+	return r.update(agreementCollectionName, id, bson.M{"$set": bson.M{"active": false}})
 }

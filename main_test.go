@@ -30,8 +30,6 @@ import (
 	"strconv"
 	"testing"
 	"time"
-
-	"github.com/simplereach/timeutils"
 )
 
 var a App
@@ -184,6 +182,41 @@ func TestGetAgreements(t *testing.T) {
 	}
 }
 
+func TestGetActiveAgreements(t *testing.T) {
+
+	repo.StartAgreement("01")
+
+	inactive := createAgreement("in1", "01", "02", "inactive")
+	inactive.Active = false
+
+	repo.CreateAgreement(&inactive)
+
+	expired := createAgreement("expired", "01", "02", "expired")
+	expired.Active = true
+	expired.Expiration = time.Now().Add(-10 * time.Minute)
+
+	repo.CreateAgreement(&expired)
+
+	active := createAgreement("active", "01", "02", "active")
+	active.Active = true
+	repo.CreateAgreement(&active)
+
+	req, _ := http.NewRequest("GET", "/agreements?active=true", nil)
+	res := request(req)
+
+	var agreements model.Agreements
+	_ = json.NewDecoder(res.Body).Decode(&agreements)
+	if len(agreements) != 2 {
+		t.Errorf("Expected 2 agreement. Received: %v", agreements)
+	}
+
+	for _, agreement := range agreements {
+		if !(agreement.Id == p1.Id || agreement.Id == active.Id) {
+			t.Errorf("Got unexpected active agreement %s", agreement.Id)
+		}
+	}
+}
+
 func TestGetAgreementExists(t *testing.T) {
 	req, _ := http.NewRequest("GET", "/agreements/01", nil)
 	res := request(req)
@@ -254,6 +287,46 @@ func TestCreateAgreement(t *testing.T) {
 	}
 }
 
+func TestStartAgreementNotExist(t *testing.T) {
+	req, _ := http.NewRequest("PUT", "/agreements/doesnotexist/start", nil)
+	res := request(req)
+
+	checkStatus(t, http.StatusNotFound, res.Code)
+}
+
+func TestStartAgreementExist(t *testing.T) {
+	agreement, _ := repo.GetAgreement("01")
+
+	req, _ := http.NewRequest("PUT", "/agreements/01/start", nil)
+	res := request(req)
+
+	checkStatus(t, http.StatusNoContent, res.Code)
+
+	agreement, _ = repo.GetAgreement("01")
+	if !agreement.Active {
+		t.Error("Expected active agreement but it's not")
+	}
+}
+
+func TestStopAgreementNotExist(t *testing.T) {
+	req, _ := http.NewRequest("PUT", "/agreements/doesnotexist/stop", nil)
+	res := request(req)
+
+	checkStatus(t, http.StatusNotFound, res.Code)
+}
+
+func TestStopAgreementExist(t *testing.T) {
+	req, _ := http.NewRequest("PUT", "/agreements/01/stop", nil)
+	res := request(req)
+
+	checkStatus(t, http.StatusNoContent, res.Code)
+
+	agreement, _ := repo.GetAgreement("01")
+	if agreement.Active {
+		t.Error("Expected inactive agreement but it's active")
+	}
+}
+
 func TestDeleteAgreementThatNotExists(t *testing.T) {
 	req, _ := http.NewRequest("DELETE", "/agreements/doesnotexist", nil)
 	res := request(req)
@@ -271,6 +344,42 @@ func TestDeleteAgreement(t *testing.T) {
 
 	if len(body) > 0 {
 		t.Errorf("Expected empty body. Actual: %s", body)
+	}
+}
+
+func TestEvaluationSuccess(t *testing.T) {
+
+	data := map[string]map[string]interface{}{
+		"TestGuarantee": map[string]interface{}{
+			"test_value": 11,
+		},
+	}
+
+	failed, err := evaluateAgreement(a1, data)
+	if err != nil {
+		t.Errorf("Error evaluating agreement: %s", err.Error())
+	}
+
+	if len(failed) > 0 {
+		t.Errorf("Found penalties but none were expected")
+	}
+}
+
+func TestEvaluationFailure(t *testing.T) {
+
+	data := map[string]map[string]interface{}{
+		"TestGuarantee": map[string]interface{}{
+			"test_value": 9,
+		},
+	}
+
+	failed, err := evaluateAgreement(a1, data)
+	if err != nil {
+		t.Errorf("Error evaluating agreement: %s", err.Error())
+	}
+
+	if len(failed) != 1 {
+		t.Errorf("Penalty expected but none found")
 	}
 }
 
@@ -368,9 +477,12 @@ func getProviderId(i int) string {
 }
 
 func createAgreement(aid, pid, cid, name string) model.Agreement {
-	return model.Agreement{Id: aid, Name: name, Type: "Agreement",
+	return model.Agreement{Id: aid, Name: name, Type: "Agreement", Active: false,
 		Provider: model.Provider{Id: pid}, Client: model.Provider{Id: cid},
-		Creation:   timeutils.NewTime(time.Now(), timeutils.ANSIC),
-		Expiration: timeutils.NewTime(time.Now().Add(60*time.Minute), timeutils.ANSIC),
+		Creation:   time.Now(),
+		Expiration: time.Now().Add(24 * time.Hour),
+		Guarantees: []model.Guarantee{
+			model.Guarantee{Name: "TestGuarantee", Constraint: "[test_value] > 10"},
+		},
 	}
 }

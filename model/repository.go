@@ -51,6 +51,12 @@ type IRepository interface {
 	GetAgreement(id string) (*Agreement, error)
 
 	/*
+	 * GetActiveAgreements returns the list of active agreements
+	 * error != nil on error
+	 */
+	GetActiveAgreements() (Agreements, error)
+
+	/*
 	 * CreateAgreement stores a new Agreement
 	 * error != nil on error
 	 * error is sql.ErrNoRows if the Agreement already exists
@@ -63,6 +69,18 @@ type IRepository interface {
 	 * error is sql.ErrNoRows if the Agreement does not exist.
 	 */
 	DeleteAgreement(agreement *Agreement) error
+
+	/*
+	 * StartAgreement starts monitoring the agreement provided by id
+	 * error != nil on error
+	 */
+	StartAgreement(id string) error
+
+	/*
+	 * StopAgreement stops monitoring the agreement provided by id
+	 * error != nil on error
+	 */
+	StopAgreement(id string) error
 }
 
 // DbRepository is a repository backed up on a database
