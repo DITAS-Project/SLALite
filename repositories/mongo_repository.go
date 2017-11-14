@@ -34,6 +34,8 @@ const (
 	mongoConfigName string = "mongodb.yml"
 
 	connectionURL string = "connection"
+	mongoDatabase string = "database"
+	clearOnBoot   string = "clear_on_boot"
 )
 
 //MongoDBRepository contains the repository persistence implementation based on MongoDB
@@ -42,13 +44,14 @@ type MongoDBRepository struct {
 	database *mgo.Database
 }
 
-//CreateMongoDBRepository creates a new instance of the MongoDBRepository with the database configurarion read from a configuration file
-func CreateMongoDBRepository() (MongoDBRepository, error) {
+func CreateDefaultMongoDbConfig() (*viper.Viper, error) {
 	config := viper.New()
 
 	config.SetConfigName(mongoConfigName)
 	config.AddConfigPath(model.UnixConfigPath)
 	config.SetDefault(connectionURL, defaultURL)
+	config.SetDefault(mongoDatabase, repositoryDbName)
+	config.SetDefault(clearOnBoot, false)
 
 	confError := config.ReadInConfig()
 	if confError != nil {
@@ -56,23 +59,35 @@ func CreateMongoDBRepository() (MongoDBRepository, error) {
 		log.Println("Using defaults")
 	}
 
+	return config, confError
+}
+
+//CreateMongoDBRepository creates a new instance of the MongoDBRepository with the database configurarion read from a configuration file
+func CreateMongoDBRepository(config *viper.Viper) (MongoDBRepository, error) {
+	if config == nil {
+		config, _ = CreateDefaultMongoDbConfig()
+	}
+
+	repo := new(MongoDBRepository)
+
 	session, err := mgo.Dial(config.GetString(connectionURL))
 	if err != nil {
 		log.Fatal("Error getting connection to Mongo DB: " + err.Error())
 	}
 
-	return MongoDBRepository{session, session.DB(repositoryDbName)}, err
-}
-
-//SetDatabase sets the database URL value. Useful for testing.
-func (r *MongoDBRepository) SetDatabase(database string, empty bool) {
-	if empty {
-		err := r.session.DB(database).DropDatabase()
+	database := session.DB(config.GetString(mongoDatabase))
+	clear := config.GetBool(clearOnBoot)
+	if clear {
+		err := database.DropDatabase()
 		if err != nil {
-			log.Println("Error dropping database " + database + ": " + err.Error())
+			log.Println("Error dropping database " + repositoryDbName + ": " + err.Error())
 		}
 	}
-	r.database = r.session.DB(database)
+
+	repo.session = session
+	repo.database = database
+
+	return *repo, err
 }
 
 func (r MongoDBRepository) getList(collection string, query, result interface{}) (interface{}, error) {

@@ -55,11 +55,13 @@ func createRepository(repoType string) model.IRepository {
 		boltRepo.SetDatabase(dbName)
 		repo = boltRepo
 	case "mongodb":
-		mongoRepo, errMongo := repositories.CreateMongoDBRepository()
+		config, _ := repositories.CreateDefaultMongoDbConfig()
+		config.Set("database", "slaliteTest")
+		config.Set("clear_on_boot", true)
+		mongoRepo, errMongo := repositories.CreateMongoDBRepository(config)
 		if errMongo != nil {
 			log.Fatal("Error creating mongo repository: ", errMongo.Error())
 		}
-		mongoRepo.SetDatabase("slaliteTest", true)
 		repo = mongoRepo
 	}
 	return repo
