@@ -18,10 +18,11 @@ package main
 import (
 	"SLALite/model"
 	"SLALite/repositories"
-	"github.com/spf13/viper"
 	"log"
 	"strconv"
 	"time"
+
+	"github.com/spf13/viper"
 )
 
 const (
@@ -69,7 +70,7 @@ func main() {
 		}
 		repo = boltRepo
 	case "mongodb":
-		mongoRepo, errMongo := repositories.CreateMongoDBRepository()
+		mongoRepo, errMongo := repositories.CreateMongoDBRepository(nil)
 		if errMongo != nil {
 			log.Fatal("Error creating mongo repository: ", errMongo.Error())
 		}

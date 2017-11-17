@@ -18,6 +18,7 @@ package repositories
 import (
 	"SLALite/model"
 	"log"
+	"time"
 
 	"github.com/spf13/viper"
 	"gopkg.in/mgo.v2"
@@ -25,26 +26,32 @@ import (
 )
 
 const (
-	defaultUrl              string = "localhost"
+	defaultURL              string = "localhost"
 	repositoryDbName        string = "slalite"
 	providersCollectionName string = "Providers"
+	agreementCollectionName string = "Agreements"
 
 	mongoConfigName string = "mongodb.yml"
 
-	connectionUrl string = "connection"
+	connectionURL string = "connection"
+	mongoDatabase string = "database"
+	clearOnBoot   string = "clear_on_boot"
 )
 
+//MongoDBRepository contains the repository persistence implementation based on MongoDB
 type MongoDBRepository struct {
 	session  *mgo.Session
 	database *mgo.Database
 }
 
-func CreateMongoDBRepository() (MongoDBRepository, error) {
+func CreateDefaultMongoDbConfig() (*viper.Viper, error) {
 	config := viper.New()
 
 	config.SetConfigName(mongoConfigName)
 	config.AddConfigPath(model.UnixConfigPath)
-	config.SetDefault(connectionUrl, defaultUrl)
+	config.SetDefault(connectionURL, defaultURL)
+	config.SetDefault(mongoDatabase, repositoryDbName)
+	config.SetDefault(clearOnBoot, false)
 
 	confError := config.ReadInConfig()
 	if confError != nil {
@@ -52,57 +59,134 @@ func CreateMongoDBRepository() (MongoDBRepository, error) {
 		log.Println("Using defaults")
 	}
 
-	session, err := mgo.Dial(config.GetString(connectionUrl))
+	return config, confError
+}
+
+//CreateMongoDBRepository creates a new instance of the MongoDBRepository with the database configurarion read from a configuration file
+func CreateMongoDBRepository(config *viper.Viper) (MongoDBRepository, error) {
+	if config == nil {
+		config, _ = CreateDefaultMongoDbConfig()
+	}
+
+	repo := new(MongoDBRepository)
+
+	session, err := mgo.Dial(config.GetString(connectionURL))
 	if err != nil {
 		log.Fatal("Error getting connection to Mongo DB: " + err.Error())
 	}
 
-	return MongoDBRepository{session, session.DB(repositoryDbName)}, err
-}
-
-func (r *MongoDBRepository) SetDatabase(database string, empty bool) {
-	if empty {
-		err := r.session.DB(database).DropDatabase()
+	database := session.DB(config.GetString(mongoDatabase))
+	clear := config.GetBool(clearOnBoot)
+	if clear {
+		err := database.DropDatabase()
 		if err != nil {
-			log.Println("Error dropping database " + database + ": " + err.Error())
+			log.Println("Error dropping database " + repositoryDbName + ": " + err.Error())
 		}
 	}
-	r.database = r.session.DB(database)
+
+	repo.session = session
+	repo.database = database
+
+	return *repo, err
 }
 
-func (r MongoDBRepository) GetAllProviders() (model.Providers, error) {
-	var result *model.Providers = new(model.Providers)
-
-	err := r.database.C(providersCollectionName).Find(bson.M{}).All(result)
-
-	return *result, err
+func (r MongoDBRepository) getList(collection string, query, result interface{}) (interface{}, error) {
+	err := r.database.C(collection).Find(query).All(result)
+	return result, err
 }
 
-func (r MongoDBRepository) GetProvider(id string) (*model.Provider, error) {
-	var result *model.Provider = new(model.Provider)
+func (r MongoDBRepository) getAll(collection string, result interface{}) (interface{}, error) {
+	return r.getList(collection, bson.M{}, result)
+}
 
-	err := r.database.C(providersCollectionName).Find(bson.M{"id": id}).One(result)
-	if result.Id == "" {
+func (r MongoDBRepository) get(collection string, id string, result model.Identity) (model.Identity, error) {
+	err := r.database.C(collection).Find(bson.M{"id": id}).One(result)
+	if err == mgo.ErrNotFound {
 		return result, model.ErrNotFound
 	}
 
 	return result, err
 }
 
-func (r MongoDBRepository) CreateProvider(provider *model.Provider) (*model.Provider, error) {
-	existing, _ := r.GetProvider(provider.Id)
-	if existing.Id != "" {
-		return existing, model.ErrAlreadyExist
+func (r MongoDBRepository) create(collection string, object model.Identity) (model.Identity, error) {
+	_, err := r.get(collection, object.GetId(), object)
+	if err != model.ErrNotFound {
+		return object, model.ErrAlreadyExist
 	}
-	errCreate := r.database.C(providersCollectionName).Insert(provider)
-	return provider, errCreate
+	errCreate := r.database.C(collection).Insert(object)
+	return object, errCreate
+}
+
+func (r MongoDBRepository) update(collection, id string, upd bson.M) error {
+	err := r.database.C(collection).Update(bson.M{"id": id}, upd)
+	if err == mgo.ErrNotFound {
+		return model.ErrNotFound
+	}
+	return err
+}
+
+func (r MongoDBRepository) delete(collection, id string) error {
+	error := r.database.C(collection).Remove(bson.M{"id": id})
+	if error == mgo.ErrNotFound {
+		return model.ErrNotFound
+	}
+	return error
+
+}
+
+func (r MongoDBRepository) GetAllProviders() (model.Providers, error) {
+	res, err := r.getAll(providersCollectionName, new(model.Providers))
+	return *((res).(*model.Providers)), err
+}
+
+func (r MongoDBRepository) GetProvider(id string) (*model.Provider, error) {
+	res, err := r.get(providersCollectionName, id, new(model.Provider))
+	return res.(*model.Provider), err
+}
+
+func (r MongoDBRepository) CreateProvider(provider *model.Provider) (*model.Provider, error) {
+	res, err := r.create(providersCollectionName, provider)
+	return res.(*model.Provider), err
 }
 
 func (r MongoDBRepository) DeleteProvider(provider *model.Provider) error {
-	error := r.database.C(providersCollectionName).Remove(bson.M{"id": provider.Id})
-	if error == mgo.ErrNotFound {
-		return model.ErrNotFound
-	} else {
-		return error
+	return r.delete(providersCollectionName, provider.Id)
+}
+
+func (r MongoDBRepository) GetAllAgreements() (model.Agreements, error) {
+	res, err := r.getAll(agreementCollectionName, new(model.Agreements))
+	return *((res).(*model.Agreements)), err
+}
+
+func (r MongoDBRepository) GetAgreement(id string) (*model.Agreement, error) {
+	res, err := r.get(agreementCollectionName, id, new(model.Agreement))
+	return res.(*model.Agreement), err
+}
+
+func (r MongoDBRepository) GetActiveAgreements() (model.Agreements, error) {
+	output := new(model.Agreements)
+	query := bson.M{"active": true, "expiration": bson.M{"$gte": time.Now()}}
+	result, err := r.getList(agreementCollectionName, query, output)
+	return *((result).(*model.Agreements)), err
+}
+
+func (r MongoDBRepository) CreateAgreement(agreement *model.Agreement) (*model.Agreement, error) {
+	_, err := r.GetProvider(agreement.Provider.Id)
+	if err == nil {
+		res, err := r.create(agreementCollectionName, agreement)
+		return res.(*model.Agreement), err
 	}
+	return agreement, model.ErrNotFound
+}
+
+func (r MongoDBRepository) DeleteAgreement(agreement *model.Agreement) error {
+	return r.delete(agreementCollectionName, agreement.Id)
+}
+
+func (r MongoDBRepository) StartAgreement(id string) error {
+	return r.update(agreementCollectionName, id, bson.M{"$set": bson.M{"active": true}})
+}
+
+func (r MongoDBRepository) StopAgreement(id string) error {
+	return r.update(agreementCollectionName, id, bson.M{"$set": bson.M{"active": false}})
 }

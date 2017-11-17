@@ -18,7 +18,6 @@ package main
 import (
 	"SLALite/model"
 	"encoding/json"
-	"fmt"
 	"log"
 	"net/http"
 	"strconv"
@@ -50,7 +49,8 @@ type endpoint struct {
 }
 
 var api = map[string]endpoint{
-	"providers": endpoint{"GET", "/providers", "Providers"},
+	"providers":  endpoint{"GET", "/providers", "Providers"},
+	"agreements": endpoint{"GET", "/agreements", "Agreements"},
 }
 
 // Initialize initializes the REST API passing the db connection
@@ -62,11 +62,19 @@ func (a *App) Initialize(repository model.IRepository) {
 
 	a.Router.HandleFunc("/", a.Index).Methods("GET")
 
-	a.Router.Methods("GET").Path("/providers").Handler(
-		LoggerDecorator(http.HandlerFunc(a.GetAllProviders), "All Providers"))
+	a.Router.Methods("GET").Path("/providers").
+		Handler(LoggerDecorator(http.HandlerFunc(a.GetAllProviders), "All Providers"))
 	a.Router.HandleFunc("/providers/{id}", a.GetProvider).Methods("GET")
 	a.Router.HandleFunc("/providers", a.CreateProvider).Methods("POST")
 	a.Router.HandleFunc("/providers/{id}", a.DeleteProvider).Methods("DELETE")
+
+	a.Router.Methods("GET").Path("/agreements").
+		Handler(LoggerDecorator(http.HandlerFunc(a.GetAgreements), "Agreements"))
+	a.Router.HandleFunc("/agreements/{id}", a.GetAgreement).Methods("GET")
+	a.Router.HandleFunc("/agreements", a.CreateAgreement).Methods("POST")
+	a.Router.HandleFunc("/agreements/{id}/start", a.StartAgreement).Methods("PUT")
+	a.Router.HandleFunc("/agreements/{id}/stop", a.StopAgreement).Methods("PUT")
+	a.Router.HandleFunc("/agreements/{id}", a.DeleteAgreement).Methods("DELETE")
 }
 
 // Run starts the REST API
@@ -95,76 +103,153 @@ func LoggerDecorator(inner http.Handler, name string) http.Handler {
 	})
 }
 
-// GetAllProviders return all providers in db
-func (a *App) GetAllProviders(w http.ResponseWriter, r *http.Request) {
-	providers, err := a.Repository.GetAllProviders()
+func (a *App) getAll(w http.ResponseWriter, r *http.Request, f func() (interface{}, error)) {
+	list, err := f()
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, err.Error())
 	} else {
-		respondSuccessJSON(w, providers)
+		respondSuccessJSON(w, list)
 	}
+}
+
+func (a *App) get(w http.ResponseWriter, r *http.Request, f func(string) (interface{}, error)) {
+	vars := mux.Vars(r)
+	id := vars["id"]
+
+	provider, err := f(id)
+	if err != nil {
+		manageError(err, w)
+	} else {
+		respondSuccessJSON(w, provider)
+	}
+}
+
+func (a *App) create(w http.ResponseWriter, r *http.Request, decode func() error, create func() (model.Identity, error)) {
+
+	errDec := decode()
+	if errDec != nil {
+		respondWithError(w, http.StatusBadRequest, errDec.Error())
+	}
+	/* check errors */
+	created, err := create()
+	if err != nil {
+		manageError(err, w)
+	} else {
+		respondWithJSON(w, http.StatusCreated, created)
+	}
+}
+
+func (a *App) update(w http.ResponseWriter, r *http.Request, upd func(string) error) {
+	vars := mux.Vars(r)
+	id := vars["id"]
+
+	err := upd(id)
+
+	if err != nil {
+		manageError(err, w)
+	} else {
+		respondNoContent(w)
+	}
+}
+
+// GetAllProviders return all providers in db
+func (a *App) GetAllProviders(w http.ResponseWriter, r *http.Request) {
+	a.getAll(w, r, func() (interface{}, error) {
+		return a.Repository.GetAllProviders()
+	})
 }
 
 // GetProvider gets a provider by REST ID
 func (a *App) GetProvider(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	id := vars["id"]
-
-	provider, err := a.Repository.GetProvider(id)
-	if err != nil {
-		switch err {
-		case model.ErrNotFound:
-			respondWithError(w, http.StatusNotFound, fmt.Sprintf("Provider{id:%s} not found", id))
-		default:
-			respondWithError(w, http.StatusInternalServerError, err.Error())
-		}
-		return
-	} else {
-		respondSuccessJSON(w, provider)
-	}
+	a.get(w, r, func(id string) (interface{}, error) {
+		return a.Repository.GetProvider(id)
+	})
 }
 
 // CreateProvider creates a provider passed by REST params
 func (a *App) CreateProvider(w http.ResponseWriter, r *http.Request) {
 
 	var provider model.Provider
-	errDec := json.NewDecoder(r.Body).Decode(&provider)
-	if errDec != nil {
-		respondWithError(w, http.StatusBadRequest, errDec.Error())
-	}
-	/* check errors */
-	created, err := a.Repository.CreateProvider(&provider)
-	if err != nil {
-		switch err {
-		case model.ErrAlreadyExist:
-			respondWithError(w, http.StatusConflict,
-				fmt.Sprintf("Provider{id: %s} already exists", provider.Id))
-		default:
-			respondWithError(w, http.StatusInternalServerError, err.Error())
-		}
-	} else {
-		respondWithJSON(w, http.StatusCreated, created)
-	}
+
+	a.create(w, r,
+		func() error {
+			return json.NewDecoder(r.Body).Decode(&provider)
+		},
+		func() (model.Identity, error) {
+			return a.Repository.CreateProvider(&provider)
+		})
 }
 
 // DeleteProvider deletes /provider/id
 func (a *App) DeleteProvider(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	id := vars["id"]
+	a.update(w, r, func(id string) error {
+		return a.Repository.DeleteProvider(&model.Provider{Id: id})
+	})
+}
 
-	p := model.Provider{Id: id}
-	err := a.Repository.DeleteProvider(&p)
+// GetAllAgreements return all agreements in db
+func (a *App) GetAgreements(w http.ResponseWriter, r *http.Request) {
+	v := r.URL.Query()
+	active := v.Get("active")
 
-	if err != nil {
-		switch err {
-		case model.ErrNotFound:
-			respondWithError(w, http.StatusNotFound,
-				fmt.Sprintf("Provider{id: %s} not found", p.Id))
-		default:
-			respondWithError(w, http.StatusInternalServerError, err.Error())
+	a.getAll(w, r, func() (interface{}, error) {
+		if active != "" {
+			return a.Repository.GetActiveAgreements()
 		}
-	} else {
-		respondNoContent(w)
+		return a.Repository.GetAllAgreements()
+	})
+}
+
+// GetAgreement gets an agreement by REST ID
+func (a *App) GetAgreement(w http.ResponseWriter, r *http.Request) {
+	a.get(w, r, func(id string) (interface{}, error) {
+		return a.Repository.GetAgreement(id)
+	})
+}
+
+// CreateAgreement creates a agreement passed by REST params
+func (a *App) CreateAgreement(w http.ResponseWriter, r *http.Request) {
+
+	var agreement model.Agreement
+
+	a.create(w, r,
+		func() error {
+			return json.NewDecoder(r.Body).Decode(&agreement)
+		},
+		func() (model.Identity, error) {
+			return a.Repository.CreateAgreement(&agreement)
+		})
+}
+
+// DeleteAgreement deletes an agreement by id
+func (a *App) DeleteAgreement(w http.ResponseWriter, r *http.Request) {
+	a.update(w, r, func(id string) error {
+		return a.Repository.DeleteAgreement(&model.Agreement{Id: id})
+	})
+}
+
+// StartAgreement starts monitoring an agreement
+func (a *App) StartAgreement(w http.ResponseWriter, r *http.Request) {
+	a.update(w, r, func(id string) error {
+		return a.Repository.StartAgreement(id)
+	})
+}
+
+// StopAgreement stop monitoring an agreement
+func (a *App) StopAgreement(w http.ResponseWriter, r *http.Request) {
+	a.update(w, r, func(id string) error {
+		return a.Repository.StopAgreement(id)
+	})
+}
+
+func manageError(err error, w http.ResponseWriter) {
+	switch err {
+	case model.ErrAlreadyExist:
+		respondWithError(w, http.StatusConflict, "Object already exist")
+	case model.ErrNotFound:
+		respondWithError(w, http.StatusNotFound, "Can't find object")
+	default:
+		respondWithError(w, http.StatusInternalServerError, err.Error())
 	}
 }
 

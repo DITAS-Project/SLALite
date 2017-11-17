@@ -1,18 +1,3 @@
-/*
-   Copyright 2017 Atos
-
-   Licensed under the Apache License, Version 2.0 (the "License");
-   you may not use this file except in compliance with the License.
-   You may obtain a copy of the License at
-
-     http://www.apache.org/licenses/LICENSE-2.0
-
-   Unless required by applicable law or agreed to in writing, software
-   distributed under the License is distributed on an "AS IS" BASIS,
-   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-   See the License for the specific language governing permissions and
-   limitations under the License.
-*/
 package model
 
 import "database/sql"
@@ -50,6 +35,52 @@ type IRepository interface {
 	 * error is sql.ErrNoRows if the provider does not exist.
 	 */
 	DeleteProvider(provider *Provider) error
+
+	/*
+	 * GetAllAgreements returns the list of agreements.
+	 * The list is empty when there are no agreements
+	 * error != nil on error
+	 */
+	GetAllAgreements() (Agreements, error)
+
+	/*
+	 * GetAgreement returns the Agreement identified by id
+	 * error != nil on error
+	 * error is sql.ErrNoRows if the Agreement is not found
+	 */
+	GetAgreement(id string) (*Agreement, error)
+
+	/*
+	 * GetActiveAgreements returns the list of active agreements
+	 * error != nil on error
+	 */
+	GetActiveAgreements() (Agreements, error)
+
+	/*
+	 * CreateAgreement stores a new Agreement
+	 * error != nil on error
+	 * error is sql.ErrNoRows if the Agreement already exists
+	 */
+	CreateAgreement(agreement *Agreement) (*Agreement, error)
+
+	/*
+	 * DeleteAgreement deletes from the repository the Agreement whose id is provider.Id.
+	 * error != nil on error
+	 * error is sql.ErrNoRows if the Agreement does not exist.
+	 */
+	DeleteAgreement(agreement *Agreement) error
+
+	/*
+	 * StartAgreement starts monitoring the agreement provided by id
+	 * error != nil on error
+	 */
+	StartAgreement(id string) error
+
+	/*
+	 * StopAgreement stops monitoring the agreement provided by id
+	 * error != nil on error
+	 */
+	StopAgreement(id string) error
 }
 
 // DbRepository is a repository backed up on a database

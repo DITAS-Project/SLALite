@@ -26,32 +26,57 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"reflect"
 	"strconv"
 	"testing"
+	"time"
 )
 
 var a App
+var repo model.IRepository
 var p1 = model.Provider{Id: "01", Name: "Provider01"}
 var dbName = "test.db"
-var prefix = "pf_" + strconv.Itoa(rand.Int())
+var providerPrefix = "pf_" + strconv.Itoa(rand.Int())
+var agreementPrefix = "apf_" + strconv.Itoa(rand.Int())
+
+var a1 = createAgreement("01", "01", "02", "Agreement 01")
+
+func createRepository(repoType string) model.IRepository {
+	var repo model.IRepository
+
+	switch repoType {
+	case defaultRepositoryType:
+		repo = repositories.MemRepository{}
+	case "bbolt":
+		boltRepo, errRepo := repositories.CreateBBoltRepository()
+		if errRepo != nil {
+			log.Fatal("Error creating bbolt repository: ", errRepo.Error())
+		}
+		boltRepo.SetDatabase(dbName)
+		repo = boltRepo
+	case "mongodb":
+		config, _ := repositories.CreateDefaultMongoDbConfig()
+		config.Set("database", "slaliteTest")
+		config.Set("clear_on_boot", true)
+		mongoRepo, errMongo := repositories.CreateMongoDBRepository(config)
+		if errMongo != nil {
+			log.Fatal("Error creating mongo repository: ", errMongo.Error())
+		}
+		repo = mongoRepo
+	}
+	return repo
+}
 
 // TestMain runs the tests
 func TestMain(m *testing.M) {
-	repo := repositories.MemRepository{}
-	var err error = nil
-	//repo,err := repositories.CreateBBoltRepository()
-	//repo, err := repositories.CreateMongoDBRepository()
-	if err == nil {
-		//BBolt test database
-		//repo.SetDatabase(dbName)
-
-		//MongoDB test database
-		//repo.SetDatabase("slaliteTest", true)
+	repo = createRepository("mongodb")
+	if repo != nil {
 		repo.CreateProvider(&p1)
+		repo.CreateAgreement(&a1)
 		a = App{}
 		a.Initialize(repo)
 	} else {
-		log.Fatal(err)
+		log.Fatal("Error initializing repository")
 	}
 
 	result := m.Run()
@@ -141,6 +166,222 @@ func TestDeleteProvider(t *testing.T) {
 
 	if len(body) > 0 {
 		t.Errorf("Expected empty body. Actual: %s", body)
+	}
+}
+
+/********************************************************************
+*****************AGREEMENTS******************************************
+********************************************************************/
+func TestGetAgreements(t *testing.T) {
+	req, _ := http.NewRequest("GET", "/agreements", nil)
+	res := request(req)
+	checkStatus(t, http.StatusOK, res.Code)
+
+	var agreements model.Agreements
+	_ = json.NewDecoder(res.Body).Decode(&agreements)
+	if len(agreements) != 1 {
+		t.Errorf("Expected 1 agreement. Received: %v", agreements)
+	}
+}
+
+func TestGetActiveAgreements(t *testing.T) {
+
+	repo.StartAgreement("01")
+
+	inactive := createAgreement("in1", "01", "02", "inactive")
+	inactive.Active = false
+
+	repo.CreateAgreement(&inactive)
+
+	expired := createAgreement("expired", "01", "02", "expired")
+	expired.Active = true
+	expired.Expiration = time.Now().Add(-10 * time.Minute)
+
+	repo.CreateAgreement(&expired)
+
+	active := createAgreement("active", "01", "02", "active")
+	active.Active = true
+	repo.CreateAgreement(&active)
+
+	req, _ := http.NewRequest("GET", "/agreements?active=true", nil)
+	res := request(req)
+
+	var agreements model.Agreements
+	_ = json.NewDecoder(res.Body).Decode(&agreements)
+	if len(agreements) != 2 {
+		t.Errorf("Expected 2 agreement. Received: %v", agreements)
+	}
+
+	for _, agreement := range agreements {
+		if !(agreement.Id == p1.Id || agreement.Id == active.Id) {
+			t.Errorf("Got unexpected active agreement %s", agreement.Id)
+		}
+	}
+}
+
+func TestGetAgreementExists(t *testing.T) {
+	req, _ := http.NewRequest("GET", "/agreements/01", nil)
+	res := request(req)
+	checkStatus(t, http.StatusOK, res.Code)
+	/*
+	 * Check body
+	 */
+	var agreement model.Agreement
+	_ = json.NewDecoder(res.Body).Decode(&agreement)
+	if reflect.DeepEqual(agreement, a1) {
+		t.Errorf("Expected: %v. Actual: %v", p1, agreement)
+	}
+}
+
+func TestGetAgreementNotExists(t *testing.T) {
+	req, _ := http.NewRequest("GET", "/agreements/doesnotexist", nil)
+	res := request(req)
+	checkError(t, res, http.StatusNotFound, res.Code)
+}
+
+func prepareCreateAgreement() {
+	_, err := repo.GetProvider("01")
+	if err != nil {
+		repo.CreateProvider(&p1)
+	}
+}
+
+func TestCreateAgreementThatExists(t *testing.T) {
+	prepareCreateAgreement()
+	body, err := json.Marshal(a1)
+	if err != nil {
+		t.Error("Unexpected marshalling error")
+	}
+	req, _ := http.NewRequest("POST", "/agreements", bytes.NewBuffer(body))
+	res := request(req)
+
+	checkStatus(t, http.StatusConflict, res.Code)
+}
+
+func TestCreateAgreementWrongProvider(t *testing.T) {
+	prepareCreateAgreement()
+	posted := createAgreement("02", "02", "02", "Agreement 02")
+	body, err := json.Marshal(posted)
+	if err != nil {
+		t.Error("Unexpected marshalling error")
+	}
+	req, _ := http.NewRequest("POST", "/agreements", bytes.NewBuffer(body))
+	res := request(req)
+
+	checkStatus(t, http.StatusNotFound, res.Code)
+}
+
+func TestCreateAgreement(t *testing.T) {
+	posted := createAgreement("02", "01", "02", "Agreement 02")
+	body, err := json.Marshal(posted)
+	if err != nil {
+		t.Error("Unexpected marshalling error")
+	}
+	req, _ := http.NewRequest("POST", "/agreements", bytes.NewBuffer(body))
+	res := request(req)
+
+	checkStatus(t, http.StatusCreated, res.Code)
+
+	var created model.Agreement
+	_ = json.NewDecoder(res.Body).Decode(&created)
+	if reflect.DeepEqual(created, posted) {
+		t.Errorf("Expected: %v. Actual: %v", posted, created)
+	}
+}
+
+func TestStartAgreementNotExist(t *testing.T) {
+	req, _ := http.NewRequest("PUT", "/agreements/doesnotexist/start", nil)
+	res := request(req)
+
+	checkStatus(t, http.StatusNotFound, res.Code)
+}
+
+func TestStartAgreementExist(t *testing.T) {
+	agreement, _ := repo.GetAgreement("01")
+
+	req, _ := http.NewRequest("PUT", "/agreements/01/start", nil)
+	res := request(req)
+
+	checkStatus(t, http.StatusNoContent, res.Code)
+
+	agreement, _ = repo.GetAgreement("01")
+	if !agreement.Active {
+		t.Error("Expected active agreement but it's not")
+	}
+}
+
+func TestStopAgreementNotExist(t *testing.T) {
+	req, _ := http.NewRequest("PUT", "/agreements/doesnotexist/stop", nil)
+	res := request(req)
+
+	checkStatus(t, http.StatusNotFound, res.Code)
+}
+
+func TestStopAgreementExist(t *testing.T) {
+	req, _ := http.NewRequest("PUT", "/agreements/01/stop", nil)
+	res := request(req)
+
+	checkStatus(t, http.StatusNoContent, res.Code)
+
+	agreement, _ := repo.GetAgreement("01")
+	if agreement.Active {
+		t.Error("Expected inactive agreement but it's active")
+	}
+}
+
+func TestDeleteAgreementThatNotExists(t *testing.T) {
+	req, _ := http.NewRequest("DELETE", "/agreements/doesnotexist", nil)
+	res := request(req)
+
+	checkStatus(t, http.StatusNotFound, res.Code)
+	// TODO Check body
+}
+
+func TestDeleteAgreement(t *testing.T) {
+	req, _ := http.NewRequest("DELETE", "/agreements/01", nil)
+	res := request(req)
+
+	checkStatus(t, http.StatusNoContent, res.Code)
+	body, _ := ioutil.ReadAll(res.Body)
+
+	if len(body) > 0 {
+		t.Errorf("Expected empty body. Actual: %s", body)
+	}
+}
+
+func TestEvaluationSuccess(t *testing.T) {
+
+	data := map[string]map[string]interface{}{
+		"TestGuarantee": map[string]interface{}{
+			"test_value": 11,
+		},
+	}
+
+	failed, err := evaluateAgreement(a1, data)
+	if err != nil {
+		t.Errorf("Error evaluating agreement: %s", err.Error())
+	}
+
+	if len(failed) > 0 {
+		t.Errorf("Found penalties but none were expected")
+	}
+}
+
+func TestEvaluationFailure(t *testing.T) {
+
+	data := map[string]map[string]interface{}{
+		"TestGuarantee": map[string]interface{}{
+			"test_value": 9,
+		},
+	}
+
+	failed, err := evaluateAgreement(a1, data)
+	if err != nil {
+		t.Errorf("Error evaluating agreement: %s", err.Error())
+	}
+
+	if len(failed) != 1 {
+		t.Errorf("Penalty expected but none found")
 	}
 }
 
@@ -234,5 +475,16 @@ func executeDelete(b *testing.B) {
 }
 
 func getProviderId(i int) string {
-	return prefix + "_" + strconv.Itoa(i)
+	return providerPrefix + "_" + strconv.Itoa(i)
+}
+
+func createAgreement(aid, pid, cid, name string) model.Agreement {
+	return model.Agreement{Id: aid, Name: name, Type: "Agreement", Active: false,
+		Provider: model.Provider{Id: pid}, Client: model.Provider{Id: cid},
+		Creation:   time.Now(),
+		Expiration: time.Now().Add(24 * time.Hour),
+		Guarantees: []model.Guarantee{
+			model.Guarantee{Name: "TestGuarantee", Constraint: "[test_value] > 10"},
+		},
+	}
 }

@@ -23,16 +23,17 @@ import (
 var ErrNotFound error = errors.New("Entity not found")
 var ErrAlreadyExist error = errors.New("Entity already exists")
 
+type Identity interface {
+	GetId() string
+}
+
 type Provider struct {
 	Id   string `json:"id"`
 	Name string `json:"name"`
 }
 
-type Providers []Provider
-
-type Agreement struct {
-	Id   string
-	Text string
+func (p Provider) GetId() string {
+	return p.Id
 }
 
 type Assessment struct {
@@ -41,3 +42,35 @@ type Assessment struct {
 	FirstExecution time.Time `json:"first_execution"`
 	LastExecution  time.Time `json:"last_execution"`
 }
+
+type Penalty struct {
+	Type  string `json:"type"`
+	Value string `json:"value"`
+	Unit  string `json:"unit"`
+}
+
+type Guarantee struct {
+	Name       string    `json:"name"`
+	Constraint string    `json:"constraints"`
+	Warning    string    `json:"warning"`
+	Penalties  []Penalty `json:"penalties"`
+}
+
+type Agreement struct {
+	Type       string      `json:"type"`
+	Id         string      `json:"id"`
+	Name       string      `json:"name"`
+	Active     bool        `json:"active"`
+	Provider   Provider    `json:"provider"`
+	Client     Provider    `json:"client"`
+	Creation   time.Time   `json:"creation"`
+	Expiration time.Time   `json:"expiration"`
+	Guarantees []Guarantee `json:"guarantees"`
+}
+
+func (a Agreement) GetId() string {
+	return a.Id
+}
+
+type Providers []Provider
+type Agreements []Agreement
