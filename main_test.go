@@ -28,25 +28,28 @@ import (
 	"os"
 	"reflect"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 )
 
 var a App
 var repo model.IRepository
-var p1 = model.Provider{Id: "01", Name: "Provider01"}
+var p1 = model.Provider{Id: "p01", Name: "Provider01"}
+var pdelete = model.Provider{Id: "pdelete", Name: "Removable provider"}
 var dbName = "test.db"
 var providerPrefix = "pf_" + strconv.Itoa(rand.Int())
 var agreementPrefix = "apf_" + strconv.Itoa(rand.Int())
 
-var a1 = createAgreement("01", "01", "02", "Agreement 01")
+var a1 = createAgreement("a01", "p01", "c02", "Agreement 01")
 
 func createRepository(repoType string) model.IRepository {
 	var repo model.IRepository
 
 	switch repoType {
 	case defaultRepositoryType:
-		repo = repositories.MemRepository{}
+		memrepo := repositories.MemRepository{}
+		repo = memrepo
 	case "bbolt":
 		boltRepo, errRepo := repositories.CreateBBoltRepository()
 		if errRepo != nil {
@@ -69,9 +72,15 @@ func createRepository(repoType string) model.IRepository {
 
 // TestMain runs the tests
 func TestMain(m *testing.M) {
-	repo = createRepository("mongodb")
+	envvar := strings.ToUpper(repositoryTypePropertyName)
+	repotype, ok := os.LookupEnv(envvar)
+	if !ok {
+		repotype = defaultRepositoryType
+	}
+	repo = createRepository(repotype)
 	if repo != nil {
 		repo.CreateProvider(&p1)
+		repo.CreateProvider(&pdelete)
 		repo.CreateAgreement(&a1)
 		a = App{}
 		a.Initialize(repo)
@@ -87,20 +96,30 @@ func TestMain(m *testing.M) {
 	os.Exit(result)
 }
 
-func TestGetProviders(t *testing.T) {
+func TestProviders(t *testing.T) {
+	t.Run("GetProviders", testGetProviders)
+	t.Run("GetProviderExists", testGetProviderExists)
+	t.Run("GetProviderNotExists", testGetProviderNotExists)
+	t.Run("CreateProviderThatExists", testCreateProviderThatExists)
+	t.Run("CreateProvider", testCreateProvider)
+	t.Run("DeleteProviderThatNotExists", testDeleteProviderThatNotExists)
+	t.Run("DeleteProvider", testDeleteProvider)
+}
+
+func testGetProviders(t *testing.T) {
 	req, _ := http.NewRequest("GET", "/providers", nil)
 	res := request(req)
 	checkStatus(t, http.StatusOK, res.Code)
 
 	var providers model.Providers
 	_ = json.NewDecoder(res.Body).Decode(&providers)
-	if len(providers) != 1 {
-		t.Errorf("Expected 1 provider. Received: %v", providers)
+	if len(providers) != 2 {
+		t.Errorf("Expected 2 provider. Received: %v", providers)
 	}
 }
 
-func TestGetProviderExists(t *testing.T) {
-	req, _ := http.NewRequest("GET", "/providers/01", nil)
+func testGetProviderExists(t *testing.T) {
+	req, _ := http.NewRequest("GET", "/providers/p01", nil)
 	res := request(req)
 	checkStatus(t, http.StatusOK, res.Code)
 	/*
@@ -113,14 +132,14 @@ func TestGetProviderExists(t *testing.T) {
 	}
 }
 
-func TestGetProviderNotExists(t *testing.T) {
+func testGetProviderNotExists(t *testing.T) {
 	req, _ := http.NewRequest("GET", "/providers/doesnotexist", nil)
 	res := request(req)
 	checkError(t, res, http.StatusNotFound, res.Code)
 
 }
 
-func TestCreateProviderThatExists(t *testing.T) {
+func testCreateProviderThatExists(t *testing.T) {
 	body, err := json.Marshal(p1)
 	if err != nil {
 		t.Error("Unexpected marshalling error")
@@ -131,7 +150,7 @@ func TestCreateProviderThatExists(t *testing.T) {
 	checkStatus(t, http.StatusConflict, res.Code)
 }
 
-func TestCreateProvider(t *testing.T) {
+func testCreateProvider(t *testing.T) {
 	posted := model.Provider{Id: "new", Name: "New provider"}
 	body, err := json.Marshal(posted)
 	if err != nil {
@@ -149,7 +168,7 @@ func TestCreateProvider(t *testing.T) {
 	}
 }
 
-func TestDeleteProviderThatNotExists(t *testing.T) {
+func testDeleteProviderThatNotExists(t *testing.T) {
 	req, _ := http.NewRequest("DELETE", "/providers/doesnotexist", nil)
 	res := request(req)
 
@@ -157,8 +176,8 @@ func TestDeleteProviderThatNotExists(t *testing.T) {
 	// TODO Check body
 }
 
-func TestDeleteProvider(t *testing.T) {
-	req, _ := http.NewRequest("DELETE", "/providers/01", nil)
+func testDeleteProvider(t *testing.T) {
+	req, _ := http.NewRequest("DELETE", "/providers/pdelete", nil)
 	res := request(req)
 
 	checkStatus(t, http.StatusNoContent, res.Code)
@@ -172,7 +191,24 @@ func TestDeleteProvider(t *testing.T) {
 /********************************************************************
 *****************AGREEMENTS******************************************
 ********************************************************************/
-func TestGetAgreements(t *testing.T) {
+
+func TestAgreements(t *testing.T) {
+	t.Run("GetAgreements", testGetAgreements)
+	t.Run("GetActiveAgreements", testGetActiveAgreements)
+	t.Run("GetAgreementExists", testGetAgreementExists)
+	t.Run("GetAgreementNotExists", testGetAgreementNotExists)
+	t.Run("CreateAgreementThatExists", testCreateAgreementThatExists)
+	t.Run("CreateAgreementWrongProvider", testCreateAgreementWrongProvider)
+	t.Run("CreateAgreement", testCreateAgreement)
+	t.Run("StartAgreementNotExist", testStartAgreementNotExist)
+	t.Run("StartAgreementExist", testStartAgreementExist)
+	t.Run("StopAgreementNotExist", testStopAgreementNotExist)
+	t.Run("StopAgreementExist", testStopAgreementExist)
+	t.Run("DeleteAgreementThatNotExists", testDeleteAgreementThatNotExists)
+	t.Run("DeleteAgreement", testDeleteAgreement)
+}
+
+func testGetAgreements(t *testing.T) {
 	req, _ := http.NewRequest("GET", "/agreements", nil)
 	res := request(req)
 	checkStatus(t, http.StatusOK, res.Code)
@@ -184,32 +220,38 @@ func TestGetAgreements(t *testing.T) {
 	}
 }
 
-func TestGetActiveAgreements(t *testing.T) {
+func testGetActiveAgreements(t *testing.T) {
 
 	repo.StartAgreement("01")
 
-	inactive := createAgreement("in1", "01", "02", "inactive")
+	inactive := createAgreement("in1", "p01", "c02", "inactive")
 	inactive.Active = false
 
 	repo.CreateAgreement(&inactive)
 
-	expired := createAgreement("expired", "01", "02", "expired")
+	expired := createAgreement("expired", "p01", "c02", "expired")
 	expired.Active = true
 	expired.Expiration = time.Now().Add(-10 * time.Minute)
 
 	repo.CreateAgreement(&expired)
 
-	active := createAgreement("active", "01", "02", "active")
+	active := createAgreement("a_active", "p01", "c02", "active")
 	active.Active = true
 	repo.CreateAgreement(&active)
+
+	as, _ := repo.GetAllAgreements()
+	if len(as) != 4 {
+		t.Fatalf("Cannot create initial conditions for test (wrong number of agreements). "+
+			"Expected: %d. Actual: %d", 4, len(as))
+	}
 
 	req, _ := http.NewRequest("GET", "/agreements?active=true", nil)
 	res := request(req)
 
 	var agreements model.Agreements
 	_ = json.NewDecoder(res.Body).Decode(&agreements)
-	if len(agreements) != 2 {
-		t.Errorf("Expected 2 agreement. Received: %v", agreements)
+	if len(agreements) != 1 {
+		t.Errorf("Expected 1 agreement. Received: %v", agreements)
 	}
 
 	for _, agreement := range agreements {
@@ -219,8 +261,8 @@ func TestGetActiveAgreements(t *testing.T) {
 	}
 }
 
-func TestGetAgreementExists(t *testing.T) {
-	req, _ := http.NewRequest("GET", "/agreements/01", nil)
+func testGetAgreementExists(t *testing.T) {
+	req, _ := http.NewRequest("GET", "/agreements/a01", nil)
 	res := request(req)
 	checkStatus(t, http.StatusOK, res.Code)
 	/*
@@ -229,11 +271,11 @@ func TestGetAgreementExists(t *testing.T) {
 	var agreement model.Agreement
 	_ = json.NewDecoder(res.Body).Decode(&agreement)
 	if reflect.DeepEqual(agreement, a1) {
-		t.Errorf("Expected: %v. Actual: %v", p1, agreement)
+		t.Errorf("Expected: %v. Actual: %v", a1, agreement)
 	}
 }
 
-func TestGetAgreementNotExists(t *testing.T) {
+func testGetAgreementNotExists(t *testing.T) {
 	req, _ := http.NewRequest("GET", "/agreements/doesnotexist", nil)
 	res := request(req)
 	checkError(t, res, http.StatusNotFound, res.Code)
@@ -246,7 +288,7 @@ func prepareCreateAgreement() {
 	}
 }
 
-func TestCreateAgreementThatExists(t *testing.T) {
+func testCreateAgreementThatExists(t *testing.T) {
 	prepareCreateAgreement()
 	body, err := json.Marshal(a1)
 	if err != nil {
@@ -258,9 +300,9 @@ func TestCreateAgreementThatExists(t *testing.T) {
 	checkStatus(t, http.StatusConflict, res.Code)
 }
 
-func TestCreateAgreementWrongProvider(t *testing.T) {
+func testCreateAgreementWrongProvider(t *testing.T) {
 	prepareCreateAgreement()
-	posted := createAgreement("02", "02", "02", "Agreement 02")
+	posted := createAgreement("a02", "p02", "c02", "Agreement 02")
 	body, err := json.Marshal(posted)
 	if err != nil {
 		t.Error("Unexpected marshalling error")
@@ -271,8 +313,8 @@ func TestCreateAgreementWrongProvider(t *testing.T) {
 	checkStatus(t, http.StatusNotFound, res.Code)
 }
 
-func TestCreateAgreement(t *testing.T) {
-	posted := createAgreement("02", "01", "02", "Agreement 02")
+func testCreateAgreement(t *testing.T) {
+	posted := createAgreement("a02", "p01", "c02", "Agreement 02")
 	body, err := json.Marshal(posted)
 	if err != nil {
 		t.Error("Unexpected marshalling error")
@@ -289,47 +331,45 @@ func TestCreateAgreement(t *testing.T) {
 	}
 }
 
-func TestStartAgreementNotExist(t *testing.T) {
+func testStartAgreementNotExist(t *testing.T) {
 	req, _ := http.NewRequest("PUT", "/agreements/doesnotexist/start", nil)
 	res := request(req)
 
 	checkStatus(t, http.StatusNotFound, res.Code)
 }
 
-func TestStartAgreementExist(t *testing.T) {
-	agreement, _ := repo.GetAgreement("01")
-
-	req, _ := http.NewRequest("PUT", "/agreements/01/start", nil)
+func testStartAgreementExist(t *testing.T) {
+	req, _ := http.NewRequest("PUT", "/agreements/a01/start", nil)
 	res := request(req)
 
 	checkStatus(t, http.StatusNoContent, res.Code)
 
-	agreement, _ = repo.GetAgreement("01")
+	agreement, _ := repo.GetAgreement("a01")
 	if !agreement.Active {
 		t.Error("Expected active agreement but it's not")
 	}
 }
 
-func TestStopAgreementNotExist(t *testing.T) {
+func testStopAgreementNotExist(t *testing.T) {
 	req, _ := http.NewRequest("PUT", "/agreements/doesnotexist/stop", nil)
 	res := request(req)
 
 	checkStatus(t, http.StatusNotFound, res.Code)
 }
 
-func TestStopAgreementExist(t *testing.T) {
-	req, _ := http.NewRequest("PUT", "/agreements/01/stop", nil)
+func testStopAgreementExist(t *testing.T) {
+	req, _ := http.NewRequest("PUT", "/agreements/a01/stop", nil)
 	res := request(req)
 
 	checkStatus(t, http.StatusNoContent, res.Code)
 
-	agreement, _ := repo.GetAgreement("01")
+	agreement, _ := repo.GetAgreement("a01")
 	if agreement.Active {
 		t.Error("Expected inactive agreement but it's active")
 	}
 }
 
-func TestDeleteAgreementThatNotExists(t *testing.T) {
+func testDeleteAgreementThatNotExists(t *testing.T) {
 	req, _ := http.NewRequest("DELETE", "/agreements/doesnotexist", nil)
 	res := request(req)
 
@@ -337,8 +377,8 @@ func TestDeleteAgreementThatNotExists(t *testing.T) {
 	// TODO Check body
 }
 
-func TestDeleteAgreement(t *testing.T) {
-	req, _ := http.NewRequest("DELETE", "/agreements/01", nil)
+func testDeleteAgreement(t *testing.T) {
+	req, _ := http.NewRequest("DELETE", "/agreements/a01", nil)
 	res := request(req)
 
 	checkStatus(t, http.StatusNoContent, res.Code)
