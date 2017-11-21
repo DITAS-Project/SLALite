@@ -225,18 +225,18 @@ func testGetActiveAgreements(t *testing.T) {
 	repo.StartAgreement("01")
 
 	inactive := createAgreement("in1", "p01", "c02", "inactive")
-	inactive.Active = false
+	inactive.State = model.STOPPED
 
 	repo.CreateAgreement(&inactive)
 
 	expired := createAgreement("expired", "p01", "c02", "expired")
-	expired.Active = true
-	expired.Expiration = time.Now().Add(-10 * time.Minute)
+	expired.State = model.STARTED
+	expired.Text.Expiration = time.Now().Add(-10 * time.Minute)
 
 	repo.CreateAgreement(&expired)
 
 	active := createAgreement("a_active", "p01", "c02", "active")
-	active.Active = true
+	active.State = model.STARTED
 	repo.CreateAgreement(&active)
 
 	as, _ := repo.GetAllAgreements()
@@ -345,7 +345,7 @@ func testStartAgreementExist(t *testing.T) {
 	checkStatus(t, http.StatusNoContent, res.Code)
 
 	agreement, _ := repo.GetAgreement("a01")
-	if !agreement.Active {
+	if !agreement.IsStarted() {
 		t.Error("Expected active agreement but it's not")
 	}
 }
@@ -364,7 +364,7 @@ func testStopAgreementExist(t *testing.T) {
 	checkStatus(t, http.StatusNoContent, res.Code)
 
 	agreement, _ := repo.GetAgreement("a01")
-	if agreement.Active {
+	if agreement.IsStarted() {
 		t.Error("Expected inactive agreement but it's active")
 	}
 }
@@ -519,12 +519,20 @@ func getProviderId(i int) string {
 }
 
 func createAgreement(aid, pid, cid, name string) model.Agreement {
-	return model.Agreement{Id: aid, Name: name, Type: "Agreement", Active: false,
-		Provider: model.Provider{Id: pid}, Client: model.Provider{Id: cid},
-		Creation:   time.Now(),
-		Expiration: time.Now().Add(24 * time.Hour),
-		Guarantees: []model.Guarantee{
-			model.Guarantee{Name: "TestGuarantee", Constraint: "[test_value] > 10"},
+	return model.Agreement{
+		Id:    aid,
+		Name:  name,
+		State: model.STOPPED,
+		Text: model.AgreementText{
+			Id:       aid,
+			Name:     name,
+			Type:     model.AGREEMENT,
+			Provider: model.Provider{Id: pid}, Client: model.Provider{Id: cid},
+			Creation:   time.Now(),
+			Expiration: time.Now().Add(24 * time.Hour),
+			Guarantees: []model.Guarantee{
+				model.Guarantee{Name: "TestGuarantee", Constraint: "[test_value] > 10"},
+			},
 		},
 	}
 }

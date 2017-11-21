@@ -165,13 +165,13 @@ func (r MongoDBRepository) GetAgreement(id string) (*model.Agreement, error) {
 
 func (r MongoDBRepository) GetActiveAgreements() (model.Agreements, error) {
 	output := new(model.Agreements)
-	query := bson.M{"active": true, "expiration": bson.M{"$gte": time.Now()}}
+	query := bson.M{"state": model.STARTED, "text.expiration": bson.M{"$gte": time.Now()}}
 	result, err := r.getList(agreementCollectionName, query, output)
 	return *((result).(*model.Agreements)), err
 }
 
 func (r MongoDBRepository) CreateAgreement(agreement *model.Agreement) (*model.Agreement, error) {
-	_, err := r.GetProvider(agreement.Provider.Id)
+	_, err := r.GetProvider(agreement.Text.Provider.Id)
 	if err == nil {
 		res, err := r.create(agreementCollectionName, agreement)
 		return res.(*model.Agreement), err
@@ -184,9 +184,9 @@ func (r MongoDBRepository) DeleteAgreement(agreement *model.Agreement) error {
 }
 
 func (r MongoDBRepository) StartAgreement(id string) error {
-	return r.update(agreementCollectionName, id, bson.M{"$set": bson.M{"active": true}})
+	return r.update(agreementCollectionName, id, bson.M{"$set": bson.M{"state": model.STARTED}})
 }
 
 func (r MongoDBRepository) StopAgreement(id string) error {
-	return r.update(agreementCollectionName, id, bson.M{"$set": bson.M{"active": false}})
+	return r.update(agreementCollectionName, id, bson.M{"$set": bson.M{"state": model.STOPPED}})
 }

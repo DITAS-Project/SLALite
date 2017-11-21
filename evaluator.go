@@ -44,7 +44,7 @@ func evaluate(condition string, data map[string]interface{}) (bool, error) {
 func evaluateAgreement(agreement model.Agreement,
 	data map[string]map[string]interface{}) ([]model.Guarantee, error) {
 
-	guarantees := agreement.Guarantees
+	guarantees := agreement.Text.Guarantees
 	failed := []model.Guarantee{}
 
 	for _, guarantee := range guarantees {
