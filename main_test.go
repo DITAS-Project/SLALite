@@ -72,7 +72,7 @@ func createRepository(repoType string) model.IRepository {
 
 // TestMain runs the tests
 func TestMain(m *testing.M) {
-	envvar := strings.ToUpper(repositoryTypePropertyName)
+	envvar := "SLA_" + strings.ToUpper(repositoryTypePropertyName)
 	repotype, ok := os.LookupEnv(envvar)
 	if !ok {
 		repotype = defaultRepositoryType

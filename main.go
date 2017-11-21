@@ -18,6 +18,7 @@ package main
 import (
 	"SLALite/model"
 	"SLALite/repositories"
+	"flag"
 	"log"
 	"strconv"
 	"time"
@@ -40,24 +41,43 @@ const (
 
 func main() {
 
-	log.Println("Initializing")
-	viper.SetConfigName(configName)
-	viper.AddConfigPath(unixConfigPath)
 	// TODO: Add windows path
+	configPath := flag.String("d", unixConfigPath, "Directory where to search config files")
+	configBasename := flag.String("b", configName, "Filename (w/o extension) of config file")
+	configFile := flag.String("f", "", "Path of configuration file. Overrides -b and -d")
+	flag.Parse()
 
-	viper.SetDefault(portPropertyName, defaultPort)
-	viper.SetDefault(checkPeriodPropertyName, defaultCheckPeriod)
-	viper.SetDefault(repositoryTypePropertyName, defaultRepositoryType)
+	config := viper.New()
+	log.Println("Initializing")
+	if *configFile != "" {
+		config.SetConfigFile(*configFile)
+	} else {
+		config.SetConfigName(*configBasename)
+		config.AddConfigPath(*configPath)
+	}
 
-	errConfig := viper.ReadInConfig()
+	config.SetEnvPrefix("sla") // Env vars start with 'SLA_'
+	config.AutomaticEnv()
+	config.SetDefault(portPropertyName, defaultPort)
+	config.SetDefault(checkPeriodPropertyName, defaultCheckPeriod)
+	config.SetDefault(repositoryTypePropertyName, defaultRepositoryType)
+
+	errConfig := config.ReadInConfig()
 	if errConfig != nil {
 		log.Println("Can't find configuration file: " + errConfig.Error())
 		log.Println("Using defaults")
 	}
 
-	port := viper.GetString(portPropertyName)
-	checkPeriod := viper.GetDuration(checkPeriodPropertyName)
-	repoType := viper.GetString(repositoryTypePropertyName)
+	port := config.GetString(portPropertyName)
+	checkPeriod := config.GetDuration(checkPeriodPropertyName)
+	repoType := config.GetString(repositoryTypePropertyName)
+
+	log.Printf("SLALite initialization\n"+
+		"\tConfigfile: %s\n"+
+		"\tRepository type: %s\n"+
+		"\tPort: %s\n"+
+		"\tCheck period:%d\n",
+		config.ConfigFileUsed(), repoType, port, checkPeriod)
 
 	var repo model.IRepository = nil
 	switch repoType {
@@ -70,7 +90,7 @@ func main() {
 		}
 		repo = boltRepo
 	case "mongodb":
-		mongoRepo, errMongo := repositories.CreateMongoDBRepository(nil)
+		mongoRepo, errMongo := repositories.CreateMongoDBRepository(config)
 		if errMongo != nil {
 			log.Fatal("Error creating mongo repository: ", errMongo.Error())
 		}
