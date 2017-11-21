@@ -17,23 +17,43 @@ package memrepository
 
 import (
 	"SLALite/model"
+	"time"
+
+	"github.com/spf13/viper"
 )
 
 // MemRepository is a repository in memory
 type MemRepository struct {
+	providers  map[string]model.Provider
+	agreements map[string]model.Agreement
 }
 
-var providers = map[string]model.Provider{
-// "01": Provider{Id: "01", Name: "provider01"},
-// "02": Provider{Id: "02", Name: "provider02"},
+func NewMemRepository(providers map[string]model.Provider, agreements map[string]model.Agreement) MemRepository {
+	var r MemRepository
+
+	if providers == nil {
+		providers = make(map[string]model.Provider)
+	}
+	if agreements == nil {
+		agreements = make(map[string]model.Agreement)
+	}
+	r = MemRepository{
+		providers:  providers,
+		agreements: agreements,
+	}
+	return r
+}
+
+//New creates a new instance of MemRepository
+func New(config *viper.Viper) (MemRepository, error) {
+	return NewMemRepository(nil, nil), nil
 }
 
 // GetAllProviders ...
 func (r MemRepository) GetAllProviders() (model.Providers, error) {
+	result := make(model.Providers, 0, len(r.providers))
 
-	result := make(model.Providers, 0, len(providers))
-
-	for _, value := range providers {
+	for _, value := range r.providers {
 		result = append(result, value)
 	}
 	return result, nil
@@ -43,7 +63,7 @@ func (r MemRepository) GetAllProviders() (model.Providers, error) {
 func (r MemRepository) GetProvider(id string) (*model.Provider, error) {
 	var err error
 
-	item, ok := providers[id]
+	item, ok := r.providers[id]
 
 	if ok {
 		err = nil
@@ -58,12 +78,12 @@ func (r MemRepository) CreateProvider(provider *model.Provider) (*model.Provider
 	var err error
 
 	id := provider.Id
-	_, ok := providers[id]
+	_, ok := r.providers[id]
 
 	if ok {
 		err = model.ErrAlreadyExist
 	} else {
-		providers[id] = *provider
+		r.providers[id] = *provider
 		err = nil
 	}
 	return provider, err
@@ -75,9 +95,9 @@ func (r MemRepository) DeleteProvider(provider *model.Provider) error {
 
 	id := provider.Id
 
-	_, ok := providers[id]
+	_, ok := r.providers[id]
 	if ok {
-		delete(providers, id)
+		delete(r.providers, id)
 		err = nil
 	} else {
 		err = model.ErrNotFound
@@ -86,29 +106,91 @@ func (r MemRepository) DeleteProvider(provider *model.Provider) error {
 }
 
 func (r MemRepository) GetAllAgreements() (model.Agreements, error) {
-	return nil, nil
+	result := make(model.Agreements, 0, len(r.agreements))
+
+	for _, value := range r.agreements {
+		result = append(result, value)
+	}
+	return result, nil
 }
 
 func (r MemRepository) GetActiveAgreements() (model.Agreements, error) {
-	return nil, nil
+	result := make(model.Agreements, 0, len(r.agreements))
+
+	now := time.Now()
+	for _, value := range r.agreements {
+		if value.State == model.STARTED && now.Before(value.Text.Expiration) {
+			result = append(result, value)
+		}
+	}
+	return result, nil
 }
 
 func (r MemRepository) GetAgreement(id string) (*model.Agreement, error) {
-	return nil, nil
+	var err error
+
+	item, ok := r.agreements[id]
+
+	if ok {
+		err = nil
+	} else {
+		err = model.ErrNotFound
+	}
+	return &item, err
 }
 
 func (r MemRepository) CreateAgreement(agreement *model.Agreement) (*model.Agreement, error) {
-	return nil, nil
+	var err error
+
+	id := agreement.Id
+	_, ok := r.agreements[id]
+
+	if ok {
+		err = model.ErrAlreadyExist
+	} else {
+		r.agreements[id] = *agreement
+	}
+	return agreement, err
 }
 
 func (r MemRepository) DeleteAgreement(agreement *model.Agreement) error {
-	return nil
+	var err error
+
+	id := agreement.Id
+
+	_, ok := r.agreements[id]
+	if ok {
+		delete(r.agreements, id)
+	} else {
+		err = model.ErrNotFound
+	}
+	return err
 }
 
 func (r MemRepository) StartAgreement(id string) error {
-	return nil
+	var err error
+
+	a, ok := r.agreements[id]
+
+	if ok {
+		a.State = model.STARTED
+		r.agreements[id] = a
+	} else {
+		err = model.ErrNotFound
+	}
+	return err
 }
 
 func (r MemRepository) StopAgreement(id string) error {
-	return nil
+	var err error
+
+	a, ok := r.agreements[id]
+
+	if ok {
+		a.State = model.STOPPED
+		r.agreements[id] = a
+	} else {
+		err = model.ErrNotFound
+	}
+	return err
 }

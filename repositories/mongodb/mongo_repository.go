@@ -190,12 +190,8 @@ func (r MongoDBRepository) GetActiveAgreements() (model.Agreements, error) {
 }
 
 func (r MongoDBRepository) CreateAgreement(agreement *model.Agreement) (*model.Agreement, error) {
-	_, err := r.GetProvider(agreement.Text.Provider.Id)
-	if err == nil {
-		res, err := r.create(agreementCollectionName, agreement)
-		return res.(*model.Agreement), err
-	}
-	return agreement, model.ErrNotFound
+	res, err := r.create(agreementCollectionName, agreement)
+	return res.(*model.Agreement), err
 }
 
 func (r MongoDBRepository) DeleteAgreement(agreement *model.Agreement) error {
