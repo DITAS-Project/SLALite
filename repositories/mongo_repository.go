@@ -47,11 +47,11 @@ type MongoDBRepository struct {
 func CreateDefaultMongoDbConfig() (*viper.Viper, error) {
 	config := viper.New()
 
+	config.SetEnvPrefix("sla") // Env vars start with 'SLA_'
+	config.AutomaticEnv()
 	config.SetConfigName(mongoConfigName)
 	config.AddConfigPath(model.UnixConfigPath)
-	config.SetDefault(connectionURL, defaultURL)
-	config.SetDefault(mongoDatabase, repositoryDbName)
-	config.SetDefault(clearOnBoot, false)
+	setDefaults(config)
 
 	confError := config.ReadInConfig()
 	if confError != nil {
@@ -62,11 +62,21 @@ func CreateDefaultMongoDbConfig() (*viper.Viper, error) {
 	return config, confError
 }
 
+func setDefaults(config *viper.Viper) {
+	config.SetDefault(connectionURL, defaultURL)
+	config.SetDefault(mongoDatabase, repositoryDbName)
+	config.SetDefault(clearOnBoot, false)
+}
+
 //CreateMongoDBRepository creates a new instance of the MongoDBRepository with the database configurarion read from a configuration file
 func CreateMongoDBRepository(config *viper.Viper) (MongoDBRepository, error) {
 	if config == nil {
 		config, _ = CreateDefaultMongoDbConfig()
+	} else {
+		setDefaults(config)
 	}
+
+	logConfig(config)
 
 	repo := new(MongoDBRepository)
 
@@ -88,6 +98,15 @@ func CreateMongoDBRepository(config *viper.Viper) (MongoDBRepository, error) {
 	repo.database = database
 
 	return *repo, err
+}
+
+func logConfig(config *viper.Viper) {
+	log.Printf("MongoDB configuration\n"+
+		"\tconnectionURL: %v\n"+
+		"\tdatabaseName: %v\n"+
+		"\tclear on boot: %v\n",
+		config.GetString(connectionURL),
+		config.GetString(mongoDatabase), config.GetBool(clearOnBoot))
 }
 
 func (r MongoDBRepository) getList(collection string, query, result interface{}) (interface{}, error) {

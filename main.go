@@ -21,12 +21,14 @@ import (
 	"flag"
 	"log"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/spf13/viper"
 )
 
 const (
+	configPrefix          string        = "sla"
 	defaultPort           string        = "8090"
 	defaultCheckPeriod    time.Duration = 60
 	defaultRepositoryType string        = "memory"
@@ -34,52 +36,34 @@ const (
 	portPropertyName           = "port"
 	checkPeriodPropertyName    = "checkPeriod"
 	repositoryTypePropertyName = "repository"
+	singleFilePropertyName     = "singlefile"
 
-	unixConfigPath = "/etc/slalite"
+	unixConfigPath = "/etc/slalite:."
 	configName     = "slalite"
 )
 
 func main() {
 
 	// TODO: Add windows path
-	configPath := flag.String("d", unixConfigPath, "Directory where to search config files")
+	configPath := flag.String("d", unixConfigPath, "Directories where to search config files")
 	configBasename := flag.String("b", configName, "Filename (w/o extension) of config file")
 	configFile := flag.String("f", "", "Path of configuration file. Overrides -b and -d")
 	flag.Parse()
 
-	config := viper.New()
 	log.Println("Initializing")
-	if *configFile != "" {
-		config.SetConfigFile(*configFile)
-	} else {
-		config.SetConfigName(*configBasename)
-		config.AddConfigPath(*configPath)
-	}
+	config := createMainConfig(configFile, configPath, configBasename)
+	logMainConfig(config)
 
-	config.SetEnvPrefix("sla") // Env vars start with 'SLA_'
-	config.AutomaticEnv()
-	config.SetDefault(portPropertyName, defaultPort)
-	config.SetDefault(checkPeriodPropertyName, defaultCheckPeriod)
-	config.SetDefault(repositoryTypePropertyName, defaultRepositoryType)
-
-	errConfig := config.ReadInConfig()
-	if errConfig != nil {
-		log.Println("Can't find configuration file: " + errConfig.Error())
-		log.Println("Using defaults")
-	}
-
+	singlefile := config.GetBool(singleFilePropertyName)
 	port := config.GetString(portPropertyName)
 	checkPeriod := config.GetDuration(checkPeriodPropertyName)
 	repoType := config.GetString(repositoryTypePropertyName)
 
-	log.Printf("SLALite initialization\n"+
-		"\tConfigfile: %s\n"+
-		"\tRepository type: %s\n"+
-		"\tPort: %s\n"+
-		"\tCheck period:%d\n",
-		config.ConfigFileUsed(), repoType, port, checkPeriod)
-
 	var repo model.IRepository = nil
+	var repoconfig *viper.Viper = nil
+	if singlefile {
+		repoconfig = config
+	}
 	switch repoType {
 	case defaultRepositoryType:
 		repo = repositories.MemRepository{}
@@ -90,7 +74,7 @@ func main() {
 		}
 		repo = boltRepo
 	case "mongodb":
-		mongoRepo, errMongo := repositories.CreateMongoDBRepository(config)
+		mongoRepo, errMongo := repositories.CreateMongoDBRepository(repoconfig)
 		if errMongo != nil {
 			log.Fatal("Error creating mongo repository: ", errMongo.Error())
 		}
@@ -102,6 +86,52 @@ func main() {
 		go createValidationThread(repo, checkPeriod)
 		a.Run(":" + port)
 	}
+}
+
+//
+// Creates the main Viper configuration.
+// file: if set, is the path to a configuration file. If not set, paths and basename will be used
+// paths: colon separated paths where to search a config file
+// basename: basename of a configuration file accepted by Viper (extension is automatic)
+//
+func createMainConfig(file *string, paths *string, basename *string) *viper.Viper {
+	config := viper.New()
+
+	config.SetEnvPrefix(configPrefix) // Env vars start with 'SLA_'
+	config.AutomaticEnv()
+	config.SetDefault(portPropertyName, defaultPort)
+	config.SetDefault(checkPeriodPropertyName, defaultCheckPeriod)
+	config.SetDefault(repositoryTypePropertyName, defaultRepositoryType)
+
+	if *file != "" {
+		config.SetConfigFile(*file)
+	} else {
+		config.SetConfigName(*basename)
+		for _, path := range strings.Split(*paths, ":") {
+			config.AddConfigPath(path)
+		}
+	}
+
+	errConfig := config.ReadInConfig()
+	if errConfig != nil {
+		log.Println("Can't find configuration file: " + errConfig.Error())
+		log.Println("Using defaults")
+	}
+	return config
+}
+
+func logMainConfig(config *viper.Viper) {
+
+	port := config.GetString(portPropertyName)
+	checkPeriod := config.GetDuration(checkPeriodPropertyName)
+	repoType := config.GetString(repositoryTypePropertyName)
+
+	log.Printf("SLALite initialization\n"+
+		"\tConfigfile: %s\n"+
+		"\tRepository type: %s\n"+
+		"\tPort: %s\n"+
+		"\tCheck period:%d\n",
+		config.ConfigFileUsed(), repoType, port, checkPeriod)
 }
 
 func createValidationThread(repo model.IRepository, checkPeriod time.Duration) {
