@@ -13,7 +13,7 @@
    See the License for the specific language governing permissions and
    limitations under the License.
 */
-package repositories
+package mongodb
 
 import (
 	"SLALite/model"
@@ -44,7 +44,7 @@ type MongoDBRepository struct {
 	database *mgo.Database
 }
 
-func CreateDefaultMongoDbConfig() (*viper.Viper, error) {
+func NewDefaultConfig() (*viper.Viper, error) {
 	config := viper.New()
 
 	config.SetEnvPrefix("sla") // Env vars start with 'SLA_'
@@ -69,9 +69,9 @@ func setDefaults(config *viper.Viper) {
 }
 
 //CreateMongoDBRepository creates a new instance of the MongoDBRepository with the database configurarion read from a configuration file
-func CreateMongoDBRepository(config *viper.Viper) (MongoDBRepository, error) {
+func New(config *viper.Viper) (MongoDBRepository, error) {
 	if config == nil {
-		config, _ = CreateDefaultMongoDbConfig()
+		config, _ = NewDefaultConfig()
 	} else {
 		setDefaults(config)
 	}

@@ -17,7 +17,8 @@ package main
 
 import (
 	"SLALite/model"
-	"SLALite/repositories"
+	"SLALite/repositories/memrepository"
+	"SLALite/repositories/mongodb"
 	"bytes"
 	"encoding/json"
 	"io/ioutil"
@@ -48,20 +49,13 @@ func createRepository(repoType string) model.IRepository {
 
 	switch repoType {
 	case defaultRepositoryType:
-		memrepo := repositories.MemRepository{}
+		memrepo := memrepository.MemRepository{}
 		repo = memrepo
-	case "bbolt":
-		boltRepo, errRepo := repositories.CreateBBoltRepository()
-		if errRepo != nil {
-			log.Fatal("Error creating bbolt repository: ", errRepo.Error())
-		}
-		boltRepo.SetDatabase(dbName)
-		repo = boltRepo
 	case "mongodb":
-		config, _ := repositories.CreateDefaultMongoDbConfig()
+		config, _ := mongodb.NewDefaultConfig()
 		config.Set("database", "slaliteTest")
 		config.Set("clear_on_boot", true)
-		mongoRepo, errMongo := repositories.CreateMongoDBRepository(config)
+		mongoRepo, errMongo := mongodb.New(config)
 		if errMongo != nil {
 			log.Fatal("Error creating mongo repository: ", errMongo.Error())
 		}

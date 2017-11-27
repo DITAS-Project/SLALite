@@ -17,7 +17,8 @@ package main
 
 import (
 	"SLALite/model"
-	"SLALite/repositories"
+	"SLALite/repositories/memrepository"
+	"SLALite/repositories/mongodb"
 	"flag"
 	"log"
 	"strconv"
@@ -66,15 +67,9 @@ func main() {
 	}
 	switch repoType {
 	case defaultRepositoryType:
-		repo = repositories.MemRepository{}
-	case "bbolt":
-		boltRepo, errRepo := repositories.CreateBBoltRepository()
-		if errRepo != nil {
-			log.Fatal("Error creating bbolt repository: ", errRepo.Error())
-		}
-		repo = boltRepo
+		repo = memrepository.MemRepository{}
 	case "mongodb":
-		mongoRepo, errMongo := repositories.CreateMongoDBRepository(repoconfig)
+		mongoRepo, errMongo := mongodb.New(repoconfig)
 		if errMongo != nil {
 			log.Fatal("Error creating mongo repository: ", errMongo.Error())
 		}

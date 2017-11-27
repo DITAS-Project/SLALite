@@ -13,7 +13,7 @@
    See the License for the specific language governing permissions and
    limitations under the License.
 */
-package repositories
+package bolt
 
 import (
 	"SLALite/model"
@@ -37,7 +37,7 @@ type BBoltRepository struct {
 	dbFile string
 }
 
-func CreateBBoltRepository() (BBoltRepository, error) {
+func New() (BBoltRepository, error) {
 	config := viper.New()
 
 	config.SetConfigName(bboltConfigName)
