@@ -19,6 +19,7 @@ import (
 	"SLALite/model"
 	"SLALite/repositories/memrepository"
 	"SLALite/repositories/mongodb"
+	"SLALite/repositories/validation"
 	"bytes"
 	"encoding/json"
 	"io/ioutil"
@@ -37,12 +38,14 @@ import (
 var a App
 var repo model.IRepository
 var p1 = model.Provider{Id: "p01", Name: "Provider01"}
+var p2 = model.Provider{Id: "p02", Name: "Provider02"}
+var c2 = model.Provider{Id: "c02", Name: "A client"}
 var pdelete = model.Provider{Id: "pdelete", Name: "Removable provider"}
 var dbName = "test.db"
 var providerPrefix = "pf_" + strconv.Itoa(rand.Int())
 var agreementPrefix = "apf_" + strconv.Itoa(rand.Int())
 
-var a1 = createAgreement("a01", "p01", "c02", "Agreement 01")
+var a1 = createAgreement("a01", p1, c2, "Agreement 01")
 
 func createRepository(repoType string) model.IRepository {
 	var repo model.IRepository
@@ -61,6 +64,7 @@ func createRepository(repoType string) model.IRepository {
 		}
 		repo = mongoRepo
 	}
+	repo, _ = validation.New(repo)
 	return repo
 }
 
@@ -71,11 +75,19 @@ func TestMain(m *testing.M) {
 	if !ok {
 		repotype = defaultRepositoryType
 	}
+	repotype = "mongodb"
 	repo = createRepository(repotype)
 	if repo != nil {
-		repo.CreateProvider(&p1)
-		repo.CreateProvider(&pdelete)
-		repo.CreateAgreement(&a1)
+		_, err := repo.CreateProvider(&p1)
+		if err == nil {
+			_, err = repo.CreateProvider(&pdelete)
+		}
+		if err == nil {
+			_, err = repo.CreateAgreement(&a1)
+		}
+		if err != nil {
+			log.Fatalf("Error creating initial state: %v", err)
+		}
 		a = App{}
 		a.Initialize(repo)
 	} else {
@@ -218,18 +230,18 @@ func testGetActiveAgreements(t *testing.T) {
 
 	repo.StartAgreement("01")
 
-	inactive := createAgreement("in1", "p01", "c02", "inactive")
+	inactive := createAgreement("in1", p1, c2, "inactive")
 	inactive.State = model.STOPPED
 
 	repo.CreateAgreement(&inactive)
 
-	expired := createAgreement("expired", "p01", "c02", "expired")
+	expired := createAgreement("expired", p1, c2, "expired")
 	expired.State = model.STARTED
 	expired.Text.Expiration = time.Now().Add(-10 * time.Minute)
 
 	repo.CreateAgreement(&expired)
 
-	active := createAgreement("a_active", "p01", "c02", "active")
+	active := createAgreement("a_active", p1, c2, "active")
 	active.State = model.STARTED
 	repo.CreateAgreement(&active)
 
@@ -296,7 +308,7 @@ func testCreateAgreementThatExists(t *testing.T) {
 
 func testCreateAgreementWrongProvider(t *testing.T) {
 	prepareCreateAgreement()
-	posted := createAgreement("a02", "p02", "c02", "Agreement 02")
+	posted := createAgreement("a02", p2, c2, "Agreement 02")
 	body, err := json.Marshal(posted)
 	if err != nil {
 		t.Error("Unexpected marshalling error")
@@ -308,7 +320,7 @@ func testCreateAgreementWrongProvider(t *testing.T) {
 }
 
 func testCreateAgreement(t *testing.T) {
-	posted := createAgreement("a02", "p01", "c02", "Agreement 02")
+	posted := createAgreement("a02", p1, c2, "Agreement 02")
 	body, err := json.Marshal(posted)
 	if err != nil {
 		t.Error("Unexpected marshalling error")
@@ -512,7 +524,7 @@ func getProviderId(i int) string {
 	return providerPrefix + "_" + strconv.Itoa(i)
 }
 
-func createAgreement(aid, pid, cid, name string) model.Agreement {
+func createAgreement(aid string, provider, client model.Provider, name string) model.Agreement {
 	return model.Agreement{
 		Id:    aid,
 		Name:  name,
@@ -521,7 +533,7 @@ func createAgreement(aid, pid, cid, name string) model.Agreement {
 			Id:       aid,
 			Name:     name,
 			Type:     model.AGREEMENT,
-			Provider: model.Provider{Id: pid}, Client: model.Provider{Id: cid},
+			Provider: provider, Client: client,
 			Creation:   time.Now(),
 			Expiration: time.Now().Add(24 * time.Hour),
 			Guarantees: []model.Guarantee{

@@ -19,6 +19,7 @@ import (
 	"SLALite/model"
 	"SLALite/repositories/memrepository"
 	"SLALite/repositories/mongodb"
+	"SLALite/repositories/validation"
 	"flag"
 	"log"
 	"strconv"
@@ -75,6 +76,7 @@ func main() {
 		}
 		repo = mongoRepo
 	}
+	repo, _ = validation.New(repo)
 	if repo != nil {
 		a := App{}
 		a.Initialize(repo)
