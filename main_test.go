@@ -16,6 +16,7 @@
 package main
 
 import (
+	"SLALite/enforcement"
 	"SLALite/model"
 	"SLALite/repositories/memrepository"
 	"SLALite/repositories/mongodb"
@@ -49,6 +50,38 @@ var agreementPrefix = "apf_" + strconv.Itoa(rand.Int())
 
 var a1 = createAgreement("a01", p1, c2, "Agreement 01")
 
+<<<<<<< HEAD
+=======
+type DummyMonitoring struct {
+	Result enforcement.EvaluationData
+}
+
+func (m DummyMonitoring) GetValues(vars []string) enforcement.EvaluationData {
+	return m.Result
+}
+
+func createRepository(repoType string) model.IRepository {
+	var repo model.IRepository
+
+	switch repoType {
+	case defaultRepositoryType:
+		memrepo := memrepository.MemRepository{}
+		repo = memrepo
+	case "mongodb":
+		config, _ := mongodb.NewDefaultConfig()
+		config.Set("database", "slaliteTest")
+		config.Set("clear_on_boot", true)
+		mongoRepo, errMongo := mongodb.New(config)
+		if errMongo != nil {
+			log.Fatal("Error creating mongo repository: ", errMongo.Error())
+		}
+		repo = mongoRepo
+	}
+	repo, _ = validation.New(repo)
+	return repo
+}
+
+>>>>>>> Use Knetic evaluator and initial dummy monitoring interface
 // TestMain runs the tests
 func TestMain(m *testing.M) {
 	envvar := "SLA_" + strings.ToUpper(repositoryTypePropertyName)
@@ -494,13 +527,11 @@ func testAgreementNotEscaped(t *testing.T) {
 
 func TestEvaluationSuccess(t *testing.T) {
 
-	data := map[string]map[string]interface{}{
-		"TestGuarantee": map[string]interface{}{
-			"test_value": 11,
-		},
+	monitoring := DummyMonitoring{
+		Result: enforcement.EvaluationData{"test_value": 11},
 	}
 
-	failed, err := evaluateAgreement(a1, data)
+	failed, err := enforcement.EvaluateAgreement(a1, monitoring)
 	if err != nil {
 		t.Errorf("Error evaluating agreement: %s", err.Error())
 	}
@@ -512,13 +543,11 @@ func TestEvaluationSuccess(t *testing.T) {
 
 func TestEvaluationFailure(t *testing.T) {
 
-	data := map[string]map[string]interface{}{
-		"TestGuarantee": map[string]interface{}{
-			"test_value": 9,
-		},
+	monitoring := DummyMonitoring{
+		Result: enforcement.EvaluationData{"test_value": 9},
 	}
 
-	failed, err := evaluateAgreement(a1, data)
+	failed, err := enforcement.EvaluateAgreement(a1, monitoring)
 	if err != nil {
 		t.Errorf("Error evaluating agreement: %s", err.Error())
 	}
@@ -634,7 +663,7 @@ func createAgreement(aid string, provider model.Provider, client model.Client, n
 			Creation:   time.Now(),
 			Expiration: time.Now().Add(24 * time.Hour),
 			Guarantees: []model.Guarantee{
-				model.Guarantee{Name: "TestGuarantee", Constraint: "[test_value] > 10"},
+				model.Guarantee{Name: "TestGuarantee", Constraint: "test_value > 10"},
 			},
 		},
 	}
