@@ -16,7 +16,7 @@
 package main
 
 import (
-	"SLALite/enforcement"
+	"SLALite/assessment"
 	"SLALite/model"
 	"SLALite/repositories/memrepository"
 	"SLALite/repositories/mongodb"
@@ -53,10 +53,10 @@ var a1 = createAgreement("a01", p1, c2, "Agreement 01")
 <<<<<<< HEAD
 =======
 type DummyMonitoring struct {
-	Result enforcement.EvaluationData
+	Result assessment.EvaluationData
 }
 
-func (m DummyMonitoring) GetValues(vars []string) enforcement.EvaluationData {
+func (m DummyMonitoring) GetValues(vars []string) assessment.EvaluationData {
 	return m.Result
 }
 
@@ -528,10 +528,10 @@ func testAgreementNotEscaped(t *testing.T) {
 func TestEvaluationSuccess(t *testing.T) {
 
 	monitoring := DummyMonitoring{
-		Result: enforcement.EvaluationData{"test_value": 11},
+		Result: assessment.EvaluationData{"test_value": 11},
 	}
 
-	failed, err := enforcement.EvaluateAgreement(a1, monitoring)
+	failed, err := assessment.EvaluateAgreement(a1, monitoring)
 	if err != nil {
 		t.Errorf("Error evaluating agreement: %s", err.Error())
 	}
@@ -544,10 +544,10 @@ func TestEvaluationSuccess(t *testing.T) {
 func TestEvaluationFailure(t *testing.T) {
 
 	monitoring := DummyMonitoring{
-		Result: enforcement.EvaluationData{"test_value": 9},
+		Result: assessment.EvaluationData{"test_value": 9},
 	}
 
-	failed, err := enforcement.EvaluateAgreement(a1, monitoring)
+	failed, err := assessment.EvaluateAgreement(a1, monitoring)
 	if err != nil {
 		t.Errorf("Error evaluating agreement: %s", err.Error())
 	}
