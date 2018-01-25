@@ -52,7 +52,7 @@ func main() {
 	configFile := flag.String("f", "", "Path of configuration file. Overrides -b and -d")
 	flag.Parse()
 
-	log.Println("Initializing")
+	log.Println("Initializing", *configPath, *configBasename)
 	config := createMainConfig(configFile, configPath, configBasename)
 	logMainConfig(config)
 

@@ -125,7 +125,6 @@ func (a *App) get(w http.ResponseWriter, r *http.Request, f func(string) (interf
 }
 
 func (a *App) create(w http.ResponseWriter, r *http.Request, decode func() error, create func() (model.Identity, error)) {
-
 	errDec := decode()
 	if errDec != nil {
 		respondWithError(w, http.StatusBadRequest, errDec.Error())
@@ -170,10 +169,11 @@ func (a *App) GetProvider(w http.ResponseWriter, r *http.Request) {
 func (a *App) CreateProvider(w http.ResponseWriter, r *http.Request) {
 
 	var provider model.Provider
-
 	a.create(w, r,
 		func() error {
-			return json.NewDecoder(r.Body).Decode(&provider)
+			err := json.NewDecoder(r.Body).Decode(&provider)
+			log.Print("Decoded data: ", provider)
+			return err
 		},
 		func() (model.Identity, error) {
 			return a.Repository.CreateProvider(&provider)
