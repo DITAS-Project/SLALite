@@ -18,18 +18,36 @@ package main
 import (
 	"SLALite/model"
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"strconv"
 	"time"
 
 	"github.com/gorilla/mux"
+	"github.com/spf13/viper"
+)
+
+const (
+	defaultPort        string = "8090"
+	defaultEnableSsl   bool   = false
+	defaultSslCertPath string = "cert.pem"
+	defaultSslKeyPath  string = "key.pem"
+
+	portPropertyName        = "port"
+	enableSslPropertyName   = "enableSsl"
+	sslCertPathPropertyName = "sslCertPath"
+	sslKeyPathPropertyName  = "sslKeyPath"
 )
 
 // App is a main application "object", to be built by main and testmain
 type App struct {
-	Router     *mux.Router
-	Repository model.IRepository
+	Router      *mux.Router
+	Repository  model.IRepository
+	Port        string
+	SslEnabled  bool
+	SslCertPath string
+	SslKeyPath  string
 }
 
 // ApiError is the struct sent to client on errors
@@ -53,8 +71,49 @@ var api = map[string]endpoint{
 	"agreements": endpoint{"GET", "/agreements", "Agreements"},
 }
 
+func NewApp(config *viper.Viper, repository model.IRepository) (App, error) {
+
+	setDefaults(config)
+	logConfig(config)
+
+	a := App{
+		Port:        config.GetString(portPropertyName),
+		SslEnabled:  config.GetBool(enableSslPropertyName),
+		SslCertPath: config.GetString(sslCertPathPropertyName),
+		SslKeyPath:  config.GetString(sslKeyPathPropertyName),
+	}
+
+	a.initialize(repository)
+	/*
+	 * TODO Return error if files not found, for ex.
+	 */
+	return a, nil
+}
+
+func setDefaults(config *viper.Viper) {
+	config.SetDefault(portPropertyName, defaultPort)
+	config.SetDefault(sslCertPathPropertyName, defaultSslCertPath)
+	config.SetDefault(sslKeyPathPropertyName, defaultSslKeyPath)
+}
+
+func logConfig(config *viper.Viper) {
+	ssl := "no"
+	if config.GetBool(enableSslPropertyName) == true {
+		ssl = fmt.Sprintf(
+			"(cert='%s', key='%s')",
+			config.GetString(sslCertPathPropertyName),
+			config.GetString(sslKeyPathPropertyName))
+	}
+
+	log.Printf("HTTP/S configuration\n"+
+		"\tport: %v\n"+
+		"\tssl: %v\n",
+		config.GetString(portPropertyName),
+		ssl)
+}
+
 // Initialize initializes the REST API passing the db connection
-func (a *App) Initialize(repository model.IRepository) {
+func (a *App) initialize(repository model.IRepository) {
 
 	a.Repository = repository
 
@@ -78,8 +137,14 @@ func (a *App) Initialize(repository model.IRepository) {
 }
 
 // Run starts the REST API
-func (a *App) Run(addr string) {
-	log.Fatal(http.ListenAndServe(addr, a.Router))
+func (a *App) Run() {
+	addr := ":" + a.Port
+
+	if a.SslEnabled {
+		log.Fatal(http.ListenAndServeTLS(addr, a.SslCertPath, a.SslKeyPath, a.Router))
+	} else {
+		log.Fatal(http.ListenAndServe(addr, a.Router))
+	}
 }
 
 // Index is the API index

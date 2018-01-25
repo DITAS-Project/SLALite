@@ -33,6 +33,7 @@ import (
 	"strings"
 	"testing"
 	"time"
+	"github.com/spf13/viper"
 )
 
 var a App
@@ -66,8 +67,7 @@ func TestMain(m *testing.M) {
 		if err != nil {
 			log.Fatalf("Error creating initial state: %v", err)
 		}
-		a = App{}
-		a.Initialize(repo)
+		a, _ = NewApp(viper.New(), repo)
 	} else {
 		log.Fatal("Error initializing repository")
 	}

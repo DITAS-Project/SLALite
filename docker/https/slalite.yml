@@ -1,0 +1,5 @@
+repository: mongodb
+singlefile: true
+enableSsl: true
+sslCertPath: /etc/slalite/cert.pem
+sslKeyPath: /etc/slalite/key.pem

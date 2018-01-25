@@ -31,11 +31,9 @@ import (
 
 const (
 	configPrefix          string        = "sla"
-	defaultPort           string        = "8090"
 	defaultCheckPeriod    time.Duration = 60
 	defaultRepositoryType string        = "memory"
 
-	portPropertyName           = "port"
 	checkPeriodPropertyName    = "checkPeriod"
 	repositoryTypePropertyName = "repository"
 	singleFilePropertyName     = "singlefile"
@@ -57,7 +55,6 @@ func main() {
 	logMainConfig(config)
 
 	singlefile := config.GetBool(singleFilePropertyName)
-	port := config.GetString(portPropertyName)
 	checkPeriod := config.GetDuration(checkPeriodPropertyName)
 	repoType := config.GetString(repositoryTypePropertyName)
 
@@ -78,10 +75,9 @@ func main() {
 	}
 	repo, _ = validation.New(repo)
 	if repo != nil {
-		a := App{}
-		a.Initialize(repo)
+		a, _ := NewApp(config, repo)
 		go createValidationThread(repo, checkPeriod)
-		a.Run(":" + port)
+		a.Run()
 	}
 }
 
@@ -96,7 +92,6 @@ func createMainConfig(file *string, paths *string, basename *string) *viper.Vipe
 
 	config.SetEnvPrefix(configPrefix) // Env vars start with 'SLA_'
 	config.AutomaticEnv()
-	config.SetDefault(portPropertyName, defaultPort)
 	config.SetDefault(checkPeriodPropertyName, defaultCheckPeriod)
 	config.SetDefault(repositoryTypePropertyName, defaultRepositoryType)
 
@@ -119,16 +114,14 @@ func createMainConfig(file *string, paths *string, basename *string) *viper.Vipe
 
 func logMainConfig(config *viper.Viper) {
 
-	port := config.GetString(portPropertyName)
 	checkPeriod := config.GetDuration(checkPeriodPropertyName)
 	repoType := config.GetString(repositoryTypePropertyName)
 
 	log.Printf("SLALite initialization\n"+
 		"\tConfigfile: %s\n"+
 		"\tRepository type: %s\n"+
-		"\tPort: %s\n"+
 		"\tCheck period:%d\n",
-		config.ConfigFileUsed(), repoType, port, checkPeriod)
+		config.ConfigFileUsed(), repoType, checkPeriod)
 }
 
 func createValidationThread(repo model.IRepository, checkPeriod time.Duration) {
