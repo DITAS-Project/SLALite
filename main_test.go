@@ -109,6 +109,7 @@ func TestProviders(t *testing.T) {
 	t.Run("CreateProvider", testCreateProvider)
 	t.Run("DeleteProviderThatNotExists", testDeleteProviderThatNotExists)
 	t.Run("DeleteProvider", testDeleteProvider)
+	t.Run("Issue7 - Create provider with wrong input", testCreateProviderWithWrongInput)
 }
 
 func testGetProviders(t *testing.T) {
@@ -170,6 +171,28 @@ func testCreateProvider(t *testing.T) {
 	_ = json.NewDecoder(res.Body).Decode(&created)
 	if created != posted {
 		t.Errorf("Expected: %v. Actual: %v", posted, created)
+	}
+}
+
+func testCreateProviderWithWrongInput(t *testing.T) {
+	body := "{\"id\": \"id\" \"name\": \"name\"}"         // note the missing ','
+	req, _ := http.NewRequest("POST", "/providers", strings.NewReader(body))
+	res := request(req)
+
+	checkStatus(t, http.StatusBadRequest, res.Code)
+
+	data := res.Body.Bytes()
+
+	var restError ApiError
+
+	/*
+	 * Decode works! Using Unmarshal
+	 */
+	 err := json.Unmarshal(data, &restError)
+	 //err := json.NewDecoder(res.Body).Decode(&restError)
+
+	if err != nil {
+		t.Errorf("Could not deserialize body request: %s", data)
 	}
 }
 

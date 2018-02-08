@@ -194,6 +194,7 @@ func (a *App) create(w http.ResponseWriter, r *http.Request, decode func() error
 	errDec := decode()
 	if errDec != nil {
 		respondWithError(w, http.StatusBadRequest, errDec.Error())
+		return
 	}
 	/* check errors */
 	created, err := create()
