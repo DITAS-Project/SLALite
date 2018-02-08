@@ -228,6 +228,7 @@ func TestAgreements(t *testing.T) {
 	t.Run("CreateAgreementThatExists", testCreateAgreementThatExists)
 	//t.Run("CreateAgreementWrongProvider", testCreateAgreementWrongProvider)
 	t.Run("CreateAgreement", testCreateAgreement)
+	t.Run("Fix issue - Comparisons operators escaped", testAgreementNotEscaped)
 	t.Run("StartAgreementNotExist", testStartAgreementNotExist)
 	t.Run("StartAgreementExist", testStartAgreementExist)
 	t.Run("StopAgreementNotExist", testStopAgreementNotExist)
@@ -414,6 +415,17 @@ func testDeleteAgreement(t *testing.T) {
 
 	if len(body) > 0 {
 		t.Errorf("Expected empty body. Actual: %s", body)
+	}
+}
+
+func testAgreementNotEscaped(t *testing.T) {
+	req, _ := http.NewRequest("GET", "/agreements/a01", nil)
+	res := request(req)
+	checkStatus(t, http.StatusOK, res.Code)
+
+	s := res.Body.String()
+	if strings.Contains(s, "\\u003e") {
+		t.Error("Agreement is HTML escaped")
 	}
 }
 
