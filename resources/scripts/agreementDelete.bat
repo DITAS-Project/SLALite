@@ -1,0 +1,1 @@
+curl -H "Accept: application/json" -X DELETE http://localhost:8090/agreements/%1
