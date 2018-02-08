@@ -5,3 +5,5 @@ projectFilesBackup/
 
 \.idea/
 debug.test
+debug
+mongodb/

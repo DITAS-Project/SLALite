@@ -1,0 +1,1 @@
+curl -X UPDATE -d@%1 localhost:8090/providers 
