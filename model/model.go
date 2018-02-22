@@ -21,13 +21,48 @@ import (
 	"time"
 )
 
-var ErrNotFound error = errors.New("Entity not found")
-var ErrAlreadyExist error = errors.New("Entity already exists")
+//
+// ErrNotFound is the sentinel error for an entity not found
+//
+var ErrNotFound = errors.New("Entity not found")
 
+//
+// ErrAlreadyExist is the sentinel error for creating an entity whose id already exists
+//
+var ErrAlreadyExist = errors.New("Entity already exists")
+
+/* 
+ * ValidationErrors following behavioral errors 
+ * (https://dave.cheney.net/2016/04/27/dont-just-check-errors-handle-them-gracefully)
+ */
+
+//
+// Validation errors must implement this interface
+//
+type validationError interface {
+	IsErrValidation() bool
+}
+
+//
+// IsErrValidation return true is an error is a validation error
+//
+func IsErrValidation(err error) bool {
+	v, ok := err.(validationError)
+	return ok && v.IsErrValidation()
+}
+
+// func IsErrNotFound(err error) bool
+
+//
+// Identity identifies entities with an Id field
+//
 type Identity interface {
 	GetId() string
 }
 
+//
+// Validable identifies entities that can be validated
+//
 type Validable interface {
 	Validate() []error
 }

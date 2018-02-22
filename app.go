@@ -315,7 +315,11 @@ func manageError(err error, w http.ResponseWriter) {
 	case model.ErrNotFound:
 		respondWithError(w, http.StatusNotFound, "Can't find object")
 	default:
-		respondWithError(w, http.StatusInternalServerError, err.Error())
+		if model.IsErrValidation(err) {
+			respondWithError(w, http.StatusBadRequest, err.Error())
+		} else {
+			respondWithError(w, http.StatusInternalServerError, err.Error())
+		}
 	}
 }
 

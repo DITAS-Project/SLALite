@@ -110,6 +110,7 @@ func TestProviders(t *testing.T) {
 	t.Run("DeleteProviderThatNotExists", testDeleteProviderThatNotExists)
 	t.Run("DeleteProvider", testDeleteProvider)
 	t.Run("Issue7 - Create provider with wrong input", testCreateProviderWithWrongInput)
+	t.Run("Issue - Missing required field should return 400", testCreateProviderWithMissingField)
 }
 
 func testGetProviders(t *testing.T) {
@@ -196,6 +197,25 @@ func testCreateProviderWithWrongInput(t *testing.T) {
 	}
 }
 
+func testCreateProviderWithMissingField(t *testing.T) {
+	posted := model.Provider{Id: "", Name: "name"}
+	body, err := json.Marshal(posted)
+	if err != nil {
+		t.Error("Unexpected marshalling error")
+	}
+	req, _ := http.NewRequest("POST", "/providers", bytes.NewBuffer(body))
+	res := request(req)
+
+	checkStatus(t, http.StatusBadRequest, res.Code)
+
+	var result ApiError
+	_ = json.NewDecoder(res.Body).Decode(&result)
+	if result.Code != strconv.Itoa(http.StatusBadRequest) {
+		t.Errorf("Expected: %v. Actual: %v", http.StatusBadRequest, result.Code)
+	}
+	
+}
+
 func testDeleteProviderThatNotExists(t *testing.T) {
 	req, _ := http.NewRequest("DELETE", "/providers/doesnotexist", nil)
 	res := request(req)
@@ -235,6 +255,7 @@ func TestAgreements(t *testing.T) {
 	t.Run("StopAgreementExist", testStopAgreementExist)
 	t.Run("DeleteAgreementThatNotExists", testDeleteAgreementThatNotExists)
 	t.Run("DeleteAgreement", testDeleteAgreement)
+	t.Run("Issue - Create agreement with missing required field", testCreateAgreementWithMissingField)
 }
 
 func testGetAgreements(t *testing.T) {
@@ -357,6 +378,25 @@ func testCreateAgreement(t *testing.T) {
 	_ = json.NewDecoder(res.Body).Decode(&created)
 	if reflect.DeepEqual(created, posted) {
 		t.Errorf("Expected: %v. Actual: %v", posted, created)
+	}
+}
+
+func testCreateAgreementWithMissingField(t *testing.T) {
+
+	posted := createAgreement("", p1, c2, "Agreement without id")
+	body, err := json.Marshal(posted)
+	if err != nil {
+		t.Error("Unexpected marshalling error")
+	}
+	req, _ := http.NewRequest("POST", "/agreements", bytes.NewBuffer(body))
+	res := request(req)
+
+	checkStatus(t, http.StatusBadRequest, res.Code)
+
+	var result ApiError
+	_ = json.NewDecoder(res.Body).Decode(&result)
+	if result.Code != strconv.Itoa(http.StatusBadRequest) {
+		t.Errorf("Expected: %v. Actual: %v", http.StatusBadRequest, result.Code)
 	}
 }
 
