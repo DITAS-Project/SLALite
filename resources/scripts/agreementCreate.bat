@@ -1,0 +1,1 @@
+curl -H "Accept: application/json" -H "Content-type: application/json" -d@../samples/%1 localhost:8090/agreements -X POST

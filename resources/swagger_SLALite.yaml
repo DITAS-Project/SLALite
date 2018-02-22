@@ -1,0 +1,449 @@
+swagger: "2.0"
+info:
+  description: "This is SLA Lite REST API specification"
+  version: "1.0.0"
+  title: "SLA Lite"
+  termsOfService: ""
+  license:
+    name: "Apache 2.0"
+    url: "http://www.apache.org/licenses/LICENSE-2.0.html"
+host: "localhost"
+basePath: "/api"
+tags:
+- name: "providers"
+  description: "Service providers that will have one or more SLA associated"
+- name: "agreements"
+  description: "Agreements between service provider and client"
+- name: "violations"
+  description: "Violations occured in an agreement"
+schemes:
+- "http"
+paths:
+  /providers:
+    post:
+      tags:
+      - "providers"
+      summary: "Add a new provider"
+      description: ""
+      operationId: "addProvider"
+      consumes:
+      - "application/json"
+      produces:
+      - "application/json"
+      parameters:
+      - in: "body"
+        name: "provider"
+        description: "Provider object to be stored"
+        required: true
+        schema:
+          $ref: "#/definitions/Provider"
+      responses:
+        201:
+          description: "Successful operation"
+        409: 
+          description: "Object already exists"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+        400:
+          description: "Wrong input (e.g., a mandatory field is empty)"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+        500: 
+          description: "Internal server error"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+    get:
+      tags:
+      - "providers"
+      summary: "Retrieve full list of providers"
+      description: ""
+      operationId: "getProvidersList"
+      consumes:
+      - "application/json"
+      produces:
+      - "application/json"
+      responses:
+        200:
+          description: "Successful operation"
+          schema:
+            type: "array"
+            items:
+              $ref: "#/definitions/Provider"
+        500: 
+          description: "Internal server error"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+  /providers/{providerId}:
+    get:
+      tags:
+      - "providers"
+      summary: "Find provider by ID"
+      description: "Returns a single provider"
+      operationId: "getProviderById"
+      produces:
+      - "application/json"
+      parameters:
+      - name: "providerId"
+        in: "path"
+        description: "ID of provider to return"
+        required: true
+        type: "string"
+      responses:
+        200:
+          description: "Successful operation"
+          schema:
+            $ref: "#/definitions/Provider"
+        404:
+          description: "Provider not found"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+        500: 
+          description: "Internal server error"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+    delete:
+      tags:
+      - "providers"
+      summary: "Deletes a provider"
+      description: ""
+      operationId: "deleteProvider"
+      produces:
+      - "application/json"
+      parameters:
+      - name: "providerId"
+        in: "path"
+        description: "Provider id to delete"
+        required: true
+        type: "string"
+      responses:
+        200:
+          description: "Successful operation"
+        404:
+          description: "Provider not found"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+        500: 
+          description: "Internal server error"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+  /agreements:
+    post:
+      tags:
+      - "agreements"
+      summary: "Add a new agreement"
+      description: ""
+      operationId: "addAgreement"
+      consumes:
+      - "application/json"
+      produces:
+      - "application/json"
+      parameters:
+      - in: "body"
+        name: "agreement"
+        description: "Agreement object to be stored"
+        required: true
+        schema:
+          $ref: "#/definitions/Agreement"
+      responses:
+        200:
+          description: "Successful operation"
+        400: 
+          description: "Wrong input"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+        409: 
+          description: "object already exists"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+        500: 
+          description: "Internal server error"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+    get:
+      tags:
+      - "agreements"
+      summary: "Retrieve full list of agreements"
+      description: ""
+      operationId: "getAgreementList"
+      consumes:
+      - "application/json"
+      produces:
+      - "application/json"
+      responses:
+        200:
+          description: "Successful operation"
+          schema:
+            type: "array"
+            items:
+              $ref: "#/definitions/Agreement"          
+        500: 
+          description: "Internal server error"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+  /agreements/{agreementId}:
+    get:
+      tags:
+      - "agreements"
+      summary: "Find agreement by ID"
+      description: "Returns a single agreement"
+      operationId: "getAgreementById"
+      produces:
+      - "application/json"
+      parameters:
+      - name: "agreementId"
+        in: "path"
+        description: "ID of agreement to return"
+        required: true
+        type: "string"
+      responses:
+        200:
+          description: "Successful operation"
+          schema:
+            $ref: "#/definitions/Agreement"
+        404:
+          description: "Agreement not found"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+        500: 
+          description: "Internal server error"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+    delete:
+      tags:
+      - "agreements"
+      summary: "Deletes an agreement"
+      description: ""
+      operationId: "deleteAgreement"
+      produces:
+      - "application/json"
+      parameters:
+      - name: "agreementId"
+        in: "path"
+        description: "Id of agreement to delete"
+        required: true
+        type: "string"
+      responses:
+        200:
+          description: "Successful operation"
+        404:
+          description: "Agreement not found"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+        500: 
+          description: "Internal server error"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+    put:
+      tags:
+      - "agreements"
+      summary: "Update the status of an existing agreement"
+      description: ""
+      operationId: "updateAgreement"
+      consumes:
+      - "application/json"
+      produces:
+      - "application/json"
+      parameters:
+      - name: "agreementId"
+        in: "path"
+        description: "Id of agreement to update"
+        required: true
+        type: "string"
+      - in: "body"
+        name: "agreement"
+        description: "Agreement status that needs to be added to the store"
+        required: true
+        schema:
+          $ref: "#/definitions/Agreement"
+      responses:
+        200:
+          description: "successful operation"
+          schema:
+            $ref: "#/definitions/Agreement"
+        404:
+          description: "Agreement not found"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+        500: 
+          description: "Internal server error"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+  /agreements/{agreementId}/detail:
+    get:
+      tags:
+      - "agreements"
+      summary: "Get agreement detail by ID"
+      description: "Returns a single agreement detail"
+      operationId: "getAgreementDetailById"
+      produces:
+      - "application/json"
+      parameters:
+      - name: "agreementId"
+        in: "path"
+        description: "ID of agreement to return"
+        required: true
+        type: "string"
+      responses:
+        200:
+          description: "successful operation"
+          schema:
+            $ref: "#/definitions/Agreement"
+        404:
+          description: "Agreement not found"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+        500: 
+          description: "Internal server error"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+definitions:
+  Provider:
+    type: "object"
+    required:
+    - "id"
+    - "name"    
+    properties:
+      id:
+        type: "string"
+        description: "Provider id"
+      name:
+        type: "string"
+        description: "Provider name"
+  Penalty:
+    type: "object"
+    required:
+    - "type"
+    - "value"    
+    properties:
+      type:
+        type: "string"
+      value:
+        type: "integer"
+        format: "int64"
+      unit:
+        type: "string"        
+  Violation:
+    type: "object"
+    properties:
+      id:
+        type: "string"
+        description: "Fix text with the word VIOLATION"
+      agreementid:
+        type: "string"
+        description: "Agrement ID whereby QoS was violated"
+      guaranteename:
+        type: "string"
+        description: "Name of the guarantee whereby QoS was violated"
+      metric:
+        type: "string"
+        description: "Metric name that produced the violation as it is in the agreement"
+      value:
+        type: "integer"
+        format: "int64"
+        description: "Value that produced the violation"
+      penalties:
+        type: "array"
+        description: "Penalties associated to the guarantee as defined in the agreement"
+        items:
+          $ref: "#/definitions/Penalty"
+      datetime:
+        type: "string"
+        format: "date-time"
+  Details: 
+    type: "object"
+    required:
+    - "type"
+    - "id"    
+    - "provider"    
+    - "client"    
+    - "creation"    
+    - "expiration"    
+    - "guarantees"    
+    properties:
+      type: 
+        type: "string"
+        description: "Fix text with the word AGREEMENT"
+      id: 
+        type: "string"
+        description: "Agreement id"
+      provider:
+        $ref: "#/definitions/Provider"
+      client:
+        $ref: "#/definitions/Provider"
+      creation:
+        type: "string"
+        format: "date-time"
+        description: "Agreement creation time"
+      expiration:
+        type: "string"
+        format: "date-time"
+        description: "Agreement expiration time"
+      guarantees:
+        type: "array"
+        items:
+          $ref: "#/definitions/Guarantee"
+  Assessment:
+    type: "object"
+    properties:
+      first: 
+        type: "string"
+        format: "date-time"
+      last: 
+        type: "string"
+        format: "date-time"
+  Guarantee:
+    type: "object"
+    required:
+    - "name"
+    - "constraint"
+    properties:
+      name:
+        type: "string"
+      constraint: 
+        type: "string"
+        description: "metricname operator threshold"
+        example: "availability > 90"
+      warning: 
+        type: "string"
+        description: "to be defined"
+      penalties:
+        type: "array"
+        items:
+          $ref: "#/definitions/Penalty"
+  Agreement:
+    type: "object"
+    required:
+    - "id"
+    - "name"
+    - "details"
+    properties:
+      id:
+        type: "string"
+        description: "Same as in detail field, id sub-field"
+      name:
+        type: "string"
+        description: "Descriptive name of the agreement"
+      state:     
+        enum:
+          - "started"
+          - "stopped"
+          - "terminated"
+        description: "Status of the agreement, if has to be assessed or not"
+      assesment:
+        $ref: "#/definitions/Assessment"
+      details:
+        $ref: "#/definitions/Details"
+      signature:
+        type: "string"
+        description: "Signature of the agreement. The system won't check it. Only usefull for third pary systems"
+  ErrorResponse:
+    type: "object"
+    properties:
+      code:
+        type: "integer"
+        format: "int32"
+      message:
+        type: "string"
+externalDocs:
+  description: "Find out more about Swagger"
+  url: "http://swagger.io"

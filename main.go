@@ -58,21 +58,23 @@ func main() {
 	checkPeriod := config.GetDuration(checkPeriodPropertyName)
 	repoType := config.GetString(repositoryTypePropertyName)
 
-	var repo model.IRepository = nil
-	var repoconfig *viper.Viper = nil
+	var repoconfig *viper.Viper
 	if singlefile {
 		repoconfig = config
 	}
+
+	var repo model.IRepository
+	var errRepo error
 	switch repoType {
 	case defaultRepositoryType:
-		repo = memrepository.MemRepository{}
+		repo, errRepo = memrepository.New(repoconfig)
 	case "mongodb":
-		mongoRepo, errMongo := mongodb.New(repoconfig)
-		if errMongo != nil {
-			log.Fatal("Error creating mongo repository: ", errMongo.Error())
-		}
-		repo = mongoRepo
+		repo, errRepo = mongodb.New(repoconfig)
 	}
+	if errRepo != nil {
+		log.Fatal("Error creating repository: ", errRepo.Error())
+	}
+
 	repo, _ = validation.New(repo)
 	if repo != nil {
 		a, _ := NewApp(config, repo)
