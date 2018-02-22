@@ -217,7 +217,7 @@ func (t *AgreementText) Validate() []error {
 func (g *Guarantee) Validate() []error {
 	result := make([]error, 0)
 	result = checkEmpty(g.Name, "Guarantee.Name", result)
-	result = checkEmpty(g.Constraint, fmt.Sprintf("Guarantee['%s']", g.Name), result)
+	result = checkEmpty(g.Constraint, fmt.Sprintf("Guarantee['%s'].Constraint", g.Name), result)
 
 	return result
 }
