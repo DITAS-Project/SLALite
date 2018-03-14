@@ -1,0 +1,32 @@
+{
+	"id": "agreement01",
+	"name": "ExampleAgreementName",
+	"context": {
+		"agreementInitiator": "client-prueba",
+		"expirationTime": "2014-03-07T12:00:00+0100",
+		"templateId": "template02",
+		"service": "service5",
+		"serviceProvider": "AgreementResponder",
+		"agreementResponder": "provider03"
+	},
+	"text": {
+		"type": "AGREEMENT",
+		"id": "agreement01",
+		"name": "ExampleAgreementName",
+		"provider": {
+			"id": "providerId0",
+			"name": "provider 0 Name"
+		},
+		"client": {
+			"id": "aclient0",
+			"name": "aClient 0 name"
+		},
+		"creation": "2007-11-03T16:18:05Z",
+		"expiration": "2037-11-03T16:18:05Z",
+		"guarantees": [{
+			"name": "delay",
+			"constraints": "delay LT 500"
+		}]
+	}
+}
+			
