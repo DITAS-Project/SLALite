@@ -13,7 +13,7 @@
         "guarantees": [
             {
                 "name": "TestGuarantee",
-                "constraints": "[test_value] < 10"
+                "constraint": "[test_value] < 10"
             }
         ]
     }

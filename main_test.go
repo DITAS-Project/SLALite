@@ -40,7 +40,7 @@ var a App
 var repo model.IRepository
 var p1 = model.Provider{Id: "p01", Name: "Provider01"}
 var p2 = model.Provider{Id: "p02", Name: "Provider02"}
-var c2 = model.Provider{Id: "c02", Name: "A client"}
+var c2 = model.Client{Id: "c02", Name: "A client"}
 var pdelete = model.Provider{Id: "pdelete", Name: "Removable provider"}
 var dbName = "test.db"
 var providerPrefix = "pf_" + strconv.Itoa(rand.Int())
@@ -281,7 +281,7 @@ func testGetActiveAgreements(t *testing.T) {
 
 	expired := createAgreement("expired", p1, c2, "expired")
 	expired.State = model.STARTED
-	expired.Text.Expiration = time.Now().Add(-10 * time.Minute)
+	expired.Details.Expiration = time.Now().Add(-10 * time.Minute)
 
 	repo.CreateAgreement(&expired)
 
@@ -598,12 +598,12 @@ func getProviderId(i int) string {
 	return providerPrefix + "_" + strconv.Itoa(i)
 }
 
-func createAgreement(aid string, provider, client model.Provider, name string) model.Agreement {
+func createAgreement(aid string, provider model.Provider, client model.Client, name string) model.Agreement {
 	return model.Agreement{
 		Id:    aid,
 		Name:  name,
 		State: model.STOPPED,
-		Text: model.AgreementText{
+		Details: model.Details {
 			Id:       aid,
 			Name:     name,
 			Type:     model.AGREEMENT,

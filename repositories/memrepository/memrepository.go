@@ -119,7 +119,7 @@ func (r MemRepository) GetActiveAgreements() (model.Agreements, error) {
 
 	now := time.Now()
 	for _, value := range r.agreements {
-		if value.State == model.STARTED && now.Before(value.Text.Expiration) {
+		if value.State == model.STARTED && now.Before(value.Details.Expiration) {
 			result = append(result, value)
 		}
 	}

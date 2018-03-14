@@ -31,8 +31,8 @@ var ErrNotFound = errors.New("Entity not found")
 //
 var ErrAlreadyExist = errors.New("Entity already exists")
 
-/* 
- * ValidationErrors following behavioral errors 
+/*
+ * ValidationErrors following behavioral errors
  * (https://dave.cheney.net/2016/04/27/dont-just-check-errors-handle-them-gracefully)
  */
 
@@ -92,21 +92,39 @@ const (
 // States is the list of possible states of an agreement/template
 var States = [...]State{STOPPED, STARTED, TERMINATED}
 
-// Provider is the entity that represents a service provider
-type Provider struct {
+// Party is the entity that represents a service provider or a client
+type Party struct {
 	Id   string `json:"id"`
 	Name string `json:"name"`
 }
+
+// Provider is the entity that represents a Provider
+type Provider Party
 
 func (p *Provider) GetId() string {
 	return p.Id
 }
 
 func (p *Provider) Validate() []error {
-	result := make([]error, 0, 10)
+	result := make([]error, 0, 2)
 
 	result = checkEmpty(p.Id, "Provider.Id", result)
 	result = checkEmpty(p.Name, "Provider.Name", result)
+
+	return result
+}
+
+type Client Party
+
+func (c *Client) GetId() string {
+	return c.Id
+}
+
+func (c *Client) Validate() []error {
+	result := make([]error, 0, 2)
+
+	result = checkEmpty(c.Id, "Client.Id", result)
+	result = checkEmpty(c.Name, "Client.Name", result)
 
 	return result
 }
@@ -116,11 +134,12 @@ func (p *Provider) Validate() []error {
 // The Assessment cannot be modified externally.
 // The Signature is the Text digitally signed by the Client (not used yet)
 type Agreement struct {
-	Id         string        `json:"id"`
-	Name       string        `json:"name"`
-	State      State         `json:"state"`
-	Assessment Assessment    `json:"assessment"`
-	Text       AgreementText `json:"text"`
+	Id         string     `json:"id"`
+	Name       string     `json:"name"`
+	State      State      `json:"state"`
+	Assessment Assessment `json:"assessment"`
+	Details    Details    `json:"details"`
+
 	/* Signature string `json:"signature"` */
 }
 
@@ -130,13 +149,13 @@ type Assessment struct {
 	LastExecution  time.Time `json:"last_execution"`
 }
 
-// AgreementText is the struct that represents the "contract" signed by the client
-type AgreementText struct {
+// Details is the struct that represents the "contract" signed by the client
+type Details struct {
 	Id         string      `json:"id"`
 	Type       TextType    `json:"type"`
 	Name       string      `json:"name"`
 	Provider   Provider    `json:"provider"`
-	Client     Provider    `json:"client"`
+	Client     Client      `json:"client"`
 	Creation   time.Time   `json:"creation"`
 	Expiration time.Time   `json:"expiration"`
 	Guarantees []Guarantee `json:"guarantees"`
@@ -144,17 +163,40 @@ type AgreementText struct {
 
 // Guarantee is the struct that represents an SLO
 type Guarantee struct {
-	Name       string    `json:"name"`
-	Constraint string    `json:"constraints"`
-	Warning    string    `json:"warning"`
-	Penalties  []Penalty `json:"penalties"`
+	Name       string       `json:"name"`
+	Constraint string       `json:"constraint"`
+	Warning    string       `json:"warning"`
+	Penalties  []PenaltyDef `json:"penalties"`
 }
 
-// Penalty is the struct that represents a penalty in case of an SLO violation
-type Penalty struct {
+// PenaltyDef is the struct that represents a penalty in case of an SLO violation
+type PenaltyDef struct {
 	Type  string `json:"type"`
 	Value string `json:"value"`
 	Unit  string `json:"unit"`
+}
+
+// Violation is generated when a guarantee term is not fulfilled
+type Violation struct {
+	Id string `json:"id"`
+	AgreementId string `json:"agreement_id"`
+	Guarantee string `json:"guarantee"`
+	Datetime time.Time `json:"datetime"`
+	/*
+	 * actual_value missing.
+	 * To research how to include a json map here. Sth like:
+	 * actual_value: { "availability" : 0.9, "responsetime": 200 }
+	 */
+}
+
+// Penalty is generated when a guarantee term is violated is the term has 
+// PenaltyDefs associated.
+type Penalty struct {
+	Id string `json:"id"`
+	AgreementId string `json:"agreement_id"`
+	Guarantee string `json:"guarantee"`
+	Datetime time.Time `json:"datetime"`
+	Definition PenaltyDef `json:"definition"`
 }
 
 func (a *Agreement) GetId() string {
@@ -182,12 +224,12 @@ func (a *Agreement) Validate() []error {
 	for _, e := range a.Assessment.Validate() {
 		result = append(result, e)
 	}
-	for _, e := range a.Text.Validate() {
+	for _, e := range a.Details.Validate() {
 		result = append(result, e)
 	}
 
-	result = checkEquals(a.Id, "Agreement.Id", a.Text.Id, "Agreement.Text.Id", result)
-	result = checkEquals(a.Name, "Agreement.Name", a.Text.Name, "Agreement.Text.Name", result)
+	result = checkEquals(a.Id, "Agreement.Id", a.Details.Id, "Agreement.Details.Id", result)
+	result = checkEquals(a.Name, "Agreement.Name", a.Details.Name, "Agreement.Details.Name", result)
 
 	return result
 }
@@ -196,7 +238,7 @@ func (as *Assessment) Validate() []error {
 	return []error{}
 }
 
-func (t *AgreementText) Validate() []error {
+func (t *Details) Validate() []error {
 	result := make([]error, 0)
 	result = checkEmpty(t.Id, "Text.Id", result)
 	result = checkEmpty(t.Name, "Text.Name", result)
