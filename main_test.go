@@ -50,15 +50,6 @@ var agreementPrefix = "apf_" + strconv.Itoa(rand.Int())
 
 var a1 = createAgreement("a01", p1, c2, "Agreement 01")
 
-<<<<<<< HEAD
-=======
-type DummyMonitoring struct {
-	Result assessment.EvaluationData
-}
-
-func (m DummyMonitoring) GetValues(vars []string) assessment.EvaluationData {
-	return m.Result
-}
 
 func createRepository(repoType string) model.IRepository {
 	var repo model.IRepository
@@ -81,7 +72,6 @@ func createRepository(repoType string) model.IRepository {
 	return repo
 }
 
->>>>>>> Use Knetic evaluator and initial dummy monitoring interface
 // TestMain runs the tests
 func TestMain(m *testing.M) {
 	envvar := "SLA_" + strings.ToUpper(repositoryTypePropertyName)
@@ -522,38 +512,6 @@ func testAgreementNotEscaped(t *testing.T) {
 	s := res.Body.String()
 	if strings.Contains(s, "\\u003e") {
 		t.Error("Agreement is HTML escaped")
-	}
-}
-
-func TestEvaluationSuccess(t *testing.T) {
-
-	monitoring := DummyMonitoring{
-		Result: assessment.EvaluationData{"test_value": 11},
-	}
-
-	failed, err := assessment.EvaluateAgreement(a1, monitoring)
-	if err != nil {
-		t.Errorf("Error evaluating agreement: %s", err.Error())
-	}
-
-	if len(failed) > 0 {
-		t.Errorf("Found penalties but none were expected")
-	}
-}
-
-func TestEvaluationFailure(t *testing.T) {
-
-	monitoring := DummyMonitoring{
-		Result: assessment.EvaluationData{"test_value": 9},
-	}
-
-	failed, err := assessment.EvaluateAgreement(a1, monitoring)
-	if err != nil {
-		t.Errorf("Error evaluating agreement: %s", err.Error())
-	}
-
-	if len(failed) != 1 {
-		t.Errorf("Penalty expected but none found")
 	}
 }
 

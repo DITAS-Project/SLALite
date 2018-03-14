@@ -15,7 +15,38 @@
 */
 package assessment
 
+import "SLALite/model"
+
 //MonitoringAdapter is an interface which should be implemented per monitoring solution
 type MonitoringAdapter interface {
-	GetValues(vars []string) EvaluationData
+	Initialize(a model.Agreement)
+	// GetValues(vars []string) EvaluationData
+	NextValues(gt model.Guarantee) map[string]MetricValue
+}
+
+type ArrayMonitoringAdapter struct {
+	agreement *model.Agreement
+	values    []map[string]MetricValue
+	i         int
+}
+
+func New(values []map[string]MetricValue) *ArrayMonitoringAdapter {
+	return &ArrayMonitoringAdapter{
+		agreement: nil,
+		values:    values,
+		i:         0,
+	}
+}
+
+func (ma *ArrayMonitoringAdapter) Initialize(a model.Agreement) {
+	ma.agreement = &a
+}
+
+func (ma *ArrayMonitoringAdapter) NextValues(gt model.Guarantee) map[string]MetricValue {
+	if ma.i == len(ma.values) {
+		return nil
+	}
+	result := ma.values[ma.i]
+	ma.i++
+	return result
 }
