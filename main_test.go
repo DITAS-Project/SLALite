@@ -33,6 +33,7 @@ import (
 	"strings"
 	"testing"
 	"time"
+
 	"github.com/spf13/viper"
 )
 
@@ -176,7 +177,7 @@ func testCreateProvider(t *testing.T) {
 }
 
 func testCreateProviderWithWrongInput(t *testing.T) {
-	body := "{\"id\": \"id\" \"name\": \"name\"}"         // note the missing ','
+	body := "{\"id\": \"id\" \"name\": \"name\"}" // note the missing ','
 	req, _ := http.NewRequest("POST", "/providers", strings.NewReader(body))
 	res := request(req)
 
@@ -189,8 +190,8 @@ func testCreateProviderWithWrongInput(t *testing.T) {
 	/*
 	 * Decode works! Using Unmarshal
 	 */
-	 err := json.Unmarshal(data, &restError)
-	 //err := json.NewDecoder(res.Body).Decode(&restError)
+	err := json.Unmarshal(data, &restError)
+	//err := json.NewDecoder(res.Body).Decode(&restError)
 
 	if err != nil {
 		t.Errorf("Could not deserialize body request: %s", data)
@@ -213,7 +214,7 @@ func testCreateProviderWithMissingField(t *testing.T) {
 	if result.Code != strconv.Itoa(http.StatusBadRequest) {
 		t.Errorf("Expected: %v. Actual: %v", http.StatusBadRequest, result.Code)
 	}
-	
+
 }
 
 func testDeleteProviderThatNotExists(t *testing.T) {
@@ -245,6 +246,8 @@ func TestAgreements(t *testing.T) {
 	t.Run("GetActiveAgreements", testGetActiveAgreements)
 	t.Run("GetAgreementExists", testGetAgreementExists)
 	t.Run("GetAgreementNotExists", testGetAgreementNotExists)
+	t.Run("GetAgreementDetailsExists", testGetAgreementDetailsExists)
+	t.Run("GetAgreementDetailsNotExists", testGetAgreementDetailsNotExists)
 	t.Run("CreateAgreementThatExists", testCreateAgreementThatExists)
 	//t.Run("CreateAgreementWrongProvider", testCreateAgreementWrongProvider)
 	t.Run("CreateAgreement", testCreateAgreement)
@@ -326,6 +329,26 @@ func testGetAgreementExists(t *testing.T) {
 }
 
 func testGetAgreementNotExists(t *testing.T) {
+	req, _ := http.NewRequest("GET", "/agreements/doesnotexist/details", nil)
+	res := request(req)
+	checkError(t, res, http.StatusNotFound, res.Code)
+}
+
+func testGetAgreementDetailsExists(t *testing.T) {
+	req, _ := http.NewRequest("GET", "/agreements/a01/details", nil)
+	res := request(req)
+	checkStatus(t, http.StatusOK, res.Code)
+	/*
+	 * Check body
+	 */
+	var agreement model.Agreement
+	_ = json.NewDecoder(res.Body).Decode(&agreement)
+	if reflect.DeepEqual(agreement, a1) {
+		t.Errorf("Expected: %v. Actual: %v", a1, agreement)
+	}
+}
+
+func testGetAgreementDetailsNotExists(t *testing.T) {
 	req, _ := http.NewRequest("GET", "/agreements/doesnotexist", nil)
 	res := request(req)
 	checkError(t, res, http.StatusNotFound, res.Code)
@@ -603,7 +626,7 @@ func createAgreement(aid string, provider model.Provider, client model.Client, n
 		Id:    aid,
 		Name:  name,
 		State: model.STOPPED,
-		Details: model.Details {
+		Details: model.Details{
 			Id:       aid,
 			Name:     name,
 			Type:     model.AGREEMENT,
