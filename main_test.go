@@ -16,7 +16,6 @@
 package main
 
 import (
-	"SLALite/assessment"
 	"SLALite/model"
 	"SLALite/repositories/memrepository"
 	"SLALite/repositories/mongodb"
@@ -49,28 +48,6 @@ var providerPrefix = "pf_" + strconv.Itoa(rand.Int())
 var agreementPrefix = "apf_" + strconv.Itoa(rand.Int())
 
 var a1 = createAgreement("a01", p1, c2, "Agreement 01")
-
-
-func createRepository(repoType string) model.IRepository {
-	var repo model.IRepository
-
-	switch repoType {
-	case defaultRepositoryType:
-		memrepo := memrepository.MemRepository{}
-		repo = memrepo
-	case "mongodb":
-		config, _ := mongodb.NewDefaultConfig()
-		config.Set("database", "slaliteTest")
-		config.Set("clear_on_boot", true)
-		mongoRepo, errMongo := mongodb.New(config)
-		if errMongo != nil {
-			log.Fatal("Error creating mongo repository: ", errMongo.Error())
-		}
-		repo = mongoRepo
-	}
-	repo, _ = validation.New(repo)
-	return repo
-}
 
 // TestMain runs the tests
 func TestMain(m *testing.M) {

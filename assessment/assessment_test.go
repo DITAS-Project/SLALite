@@ -25,7 +25,6 @@ import (
 	"github.com/Knetic/govaluate"
 )
 
-
 var a1 = createAgreement("a01", p1, c2, "Agreement 01", "m >= 0")
 var p1 = model.Provider{Id: "p01", Name: "Provider01"}
 var c2 = model.Client{Id: "c02", Name: "A client"}
@@ -46,8 +45,13 @@ func TestEvaluateAgreement(t *testing.T) {
 		t.Errorf("Unexpected error: %v", err)
 	}
 	gt := &a1.Details.Guarantees[0]
-	if len(invalid[gt]) != 1 {
-		t.Errorf("Error in number of violations. Expected: 1. Actual: %v. %v", invalid[gt], invalid)
+	gtev := invalid[gt.Name]
+	fmt.Printf("%v\n", gtev)
+	if len(gtev.Metrics) != 1 {
+		t.Errorf("Error in number of violated metrics. Expected: 1. Actual: %v. %v", gtev.Metrics, invalid)
+	}
+	if len(gtev.Violations) != 1 {
+		t.Errorf("Error in number of violations. Expected: 1. Actual: %v. %v", gtev.Violations, invalid)
 	}
 }
 
