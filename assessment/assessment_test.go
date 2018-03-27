@@ -34,13 +34,75 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
+func TestAssessAgreement(t *testing.T) {
+	a2 := createAgreement("a02", p1, c2, "Agreement 02", "m >= 0")
+	values := []map[string]MetricValue{
+		{"m": MetricValue{Key: "m", Value: 1, DateTime: t_(0)}},
+		{"m": MetricValue{Key: "m", Value: -1, DateTime: t_(1)}},
+	}
+	ma := NewSimpleMonitoring(values)
+
+	a2.State = model.STOPPED
+	result := AssessAgreement(&a2, ma, t0)
+	checkAssessmentResult(t, &a2, result, model.STOPPED, 0)
+
+	a2.State = model.TERMINATED
+	result = AssessAgreement(&a2, ma, t0)
+	checkAssessmentResult(t, &a2, result, model.TERMINATED, 0)
+
+	a2.State = model.STARTED
+	result = AssessAgreement(&a2, ma, t0)
+	checkAssessmentResult(t, &a2, result, model.STARTED, 1)	
+	checkTimes(t, &a2, t0, t0)
+
+	t1 := t_(1)
+	result = AssessAgreement(&a2, ma, t1)
+	checkTimes(t, &a2, t0, t1)
+	
+}
+
+func checkAssessmentResult(t *testing.T, a *model.Agreement, result Result, expectedState model.State, expectedViolatedGts int) {
+	if a.State != expectedState {
+		t.Errorf("Agreement in unexpected state. Expected: %v. Actual: %v", expectedState, a.State)
+	}
+	if len(result) != expectedViolatedGts {
+		t.Errorf("Unexpected violated GTs. Expected: %v. Actual:%v", expectedViolatedGts, len(result))
+	}
+}
+
+func checkTimes(t *testing.T, a *model.Agreement, expectedFirst time.Time, expectedLast time.Time) {
+
+	if a.Assessment.FirstExecution != expectedFirst {
+		t.Errorf("Unexpected firstExecution. Expected: %v. Actual: %v", expectedFirst, a.Assessment.FirstExecution)
+	}
+	if a.Assessment.LastExecution != expectedLast {
+		t.Errorf("Unexpected lastExecution. Expected: %v. Actual: %v", expectedLast, a.Assessment.LastExecution)
+	}
+}
+
+
+func TestAssessExpiredAgreement(t *testing.T) {
+	a2 := createAgreement("a02", p1, c2, "Agreement 02", "m >= 0")
+	ma := NewSimpleMonitoring(nil)
+
+	a2.State = model.STARTED
+	a2.Details.Expiration = t_(-1)
+	result := AssessAgreement(&a2, ma, t0)
+	if a2.State != model.TERMINATED {
+		t.Errorf("Agreement in unexpected state. Expected: terminated. Actual: %v", a2.State)
+	}
+	if len(result) != 0 {
+		t.Errorf("Unexpected violated GTs. Expected: 0. Actual:%v", len(result))
+	}
+}
+
 func TestEvaluateAgreement(t *testing.T) {
 	values := []map[string]MetricValue{
 		{"m": MetricValue{Key: "m", Value: 1, DateTime: t_(0)}},
 		{"m": MetricValue{Key: "m", Value: -1, DateTime: t_(1)}},
 	}
-	ma := New(values)
-	invalid, err := EvaluateAgreement(a1, ma)
+	ma := NewSimpleMonitoring(values)
+	invalid, err := EvaluateAgreement(&a1, ma)
 	if err != nil {
 		t.Errorf("Unexpected error: %v", err)
 	}
@@ -59,8 +121,8 @@ func TestEvaluateAgreementWithWrongValues(t *testing.T) {
 	values := []map[string]MetricValue{
 		{"n": MetricValue{Key: "n", Value: 1, DateTime: t_(0)}},
 	}
-	ma := New(values)
-	_, err := EvaluateAgreement(a1, ma)
+	ma := NewSimpleMonitoring(values)
+	_, err := EvaluateAgreement(&a1, ma)
 	if err == nil {
 		t.Errorf("Expected error evaluating agreement")
 	}
@@ -71,8 +133,8 @@ func TestEvaluateGuarantee(t *testing.T) {
 		{"m": MetricValue{Key: "m", Value: 1, DateTime: t_(0)}},
 		{"m": MetricValue{Key: "m", Value: -1, DateTime: t_(1)}},
 	}
-	ma := New(values)
-	invalid, err := EvaluateGuarantee(a1, a1.Details.Guarantees[0], ma)
+	ma := NewSimpleMonitoring(values)
+	invalid, err := EvaluateGuarantee(&a1, a1.Details.Guarantees[0], ma)
 	if err != nil {
 		t.Errorf("Unexpected error: %v", err)
 	}
@@ -87,9 +149,9 @@ func TestEvaluateGuarantee(t *testing.T) {
 }
 
 func TestEvaluateGuaranteeWithWrongExpression(t *testing.T) {
-	ma := New(nil)
+	ma := NewSimpleMonitoring(nil)
 	a := createAgreement("a01", p1, c2, "Agreement 01", "wrong expression >= 0")
-	_, err := EvaluateGuarantee(a, a.Details.Guarantees[0], ma)
+	_, err := EvaluateGuarantee(&a, a.Details.Guarantees[0], ma)
 	if err == nil {
 		t.Errorf("Expected error evaluating guarantee")
 	}
@@ -99,8 +161,8 @@ func TestEvaluateGuaranteeWithWrongValues(t *testing.T) {
 	values := []map[string]MetricValue{
 		{"n": MetricValue{Key: "n", Value: 1, DateTime: t_(0)}},
 	}
-	ma := New(values)
-	_, err := EvaluateGuarantee(a1, a1.Details.Guarantees[0], ma)
+	ma := NewSimpleMonitoring(values)
+	_, err := EvaluateGuarantee(&a1, a1.Details.Guarantees[0], ma)
 	if err == nil {
 		t.Errorf("Expected error evaluating guarantee")
 	}

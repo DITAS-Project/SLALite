@@ -58,7 +58,8 @@ type Result map[string]EvaluationGtResult
 //
 // The output is:
 // - parameter a is modified
-// - evaluation results are the function return (violated metrics and raised violations)
+// - evaluation results are the function return (violated metrics and raised violations).
+//   a guarantee term is filled in the result only if there are violations.
 //
 // The function results are not persisted. The output must be persisted/handled accordingly.
 // E.g.: agreement and violations must be persisted to DB. Violations must be notified to
@@ -73,9 +74,12 @@ func AssessAgreement(a *model.Agreement, ma MonitoringAdapter, now time.Time) Re
 	}
 
 	if a.State == model.STARTED {
-		result, err = EvaluateAgreement(*a, ma)
+		result, err = EvaluateAgreement(a, ma)
 		if err != nil {
 			// TODO
+		}
+		if a.Assessment.FirstExecution.IsZero() {
+			a.Assessment.FirstExecution = now
 		}
 		a.Assessment.LastExecution = now
 	}
@@ -87,7 +91,7 @@ func AssessAgreement(a *model.Agreement, ma MonitoringAdapter, now time.Time) Re
 // The MonitoringAdapter must feed the process correctly
 // (e.g. if the constraint of a guarantee term is of the type "A>B && C>D", the
 // MonitoringAdapter must supply pairs of values).
-func EvaluateAgreement(a model.Agreement, ma MonitoringAdapter) (Result, error) {
+func EvaluateAgreement(a *model.Agreement, ma MonitoringAdapter) (Result, error) {
 	ma.Initialize(a)
 
 	result := make(Result)
@@ -99,12 +103,14 @@ func EvaluateAgreement(a model.Agreement, ma MonitoringAdapter) (Result, error) 
 			log.Warn("Error evaluating expression " + gt.Constraint + ": " + err.Error())
 			return nil, err
 		}
-		violations := EvaluateGtViolations(a, gt, failed)
-		gtResult := EvaluationGtResult{
-			Metrics:    failed,
-			Violations: violations,
+		if len(failed) > 0 {
+			violations := EvaluateGtViolations(a, gt, failed)
+			gtResult := EvaluationGtResult{
+				Metrics:    failed,
+				Violations: violations,
+			}
+			result[gt.Name] = gtResult
 		}
-		result[gt.Name] = gtResult
 	}
 
 	return result, nil
@@ -114,7 +120,7 @@ func EvaluateAgreement(a model.Agreement, ma MonitoringAdapter) (Result, error) 
 // (see EvaluateAgreement)
 //
 // Returns the metrics that failed the GT constraint.
-func EvaluateGuarantee(a model.Agreement, gt model.Guarantee, ma MonitoringAdapter) (GuaranteeData, error) {
+func EvaluateGuarantee(a *model.Agreement, gt model.Guarantee, ma MonitoringAdapter) (GuaranteeData, error) {
 	failed := make(GuaranteeData, 0, 1)
 
 	expression, err := govaluate.NewEvaluableExpression(gt.Constraint)
@@ -136,7 +142,7 @@ func EvaluateGuarantee(a model.Agreement, gt model.Guarantee, ma MonitoringAdapt
 }
 
 // EvaluateGtViolations creates violations for the detected violated metrics in EvaluateGuarantee
-func EvaluateGtViolations(a model.Agreement, gt model.Guarantee, violated GuaranteeData) []model.Violation {
+func EvaluateGtViolations(a *model.Agreement, gt model.Guarantee, violated GuaranteeData) []model.Violation {
 	gtv := make([]model.Violation, 0, len(violated))
 	for _, tuple := range violated {
 		// find newer metric

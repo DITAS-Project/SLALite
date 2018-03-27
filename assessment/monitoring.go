@@ -19,7 +19,7 @@ import "SLALite/model"
 
 //MonitoringAdapter is an interface which should be implemented per monitoring solution
 type MonitoringAdapter interface {
-	Initialize(a model.Agreement)
+	Initialize(a *model.Agreement)
 	// GetValues(vars []string) EvaluationData
 	NextValues(gt model.Guarantee) map[string]MetricValue
 }
@@ -30,7 +30,7 @@ type ArrayMonitoringAdapter struct {
 	i         int
 }
 
-func New(values []map[string]MetricValue) *ArrayMonitoringAdapter {
+func NewSimpleMonitoring(values []map[string]MetricValue) *ArrayMonitoringAdapter {
 	return &ArrayMonitoringAdapter{
 		agreement: nil,
 		values:    values,
@@ -38,8 +38,8 @@ func New(values []map[string]MetricValue) *ArrayMonitoringAdapter {
 	}
 }
 
-func (ma *ArrayMonitoringAdapter) Initialize(a model.Agreement) {
-	ma.agreement = &a
+func (ma *ArrayMonitoringAdapter) Initialize(a *model.Agreement) {
+	ma.agreement = a
 }
 
 func (ma *ArrayMonitoringAdapter) NextValues(gt model.Guarantee) map[string]MetricValue {
