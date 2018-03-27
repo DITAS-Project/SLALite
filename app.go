@@ -134,6 +134,7 @@ func (a *App) initialize(repository model.IRepository) {
 	a.Router.HandleFunc("/agreements/{id}/start", a.StartAgreement).Methods("PUT")
 	a.Router.HandleFunc("/agreements/{id}/stop", a.StopAgreement).Methods("PUT")
 	a.Router.HandleFunc("/agreements/{id}", a.DeleteAgreement).Methods("DELETE")
+	a.Router.HandleFunc("/agreements/{id}/details", a.GetAgreementDetails).Methods("GET")
 }
 
 // Run starts the REST API
@@ -193,6 +194,7 @@ func (a *App) create(w http.ResponseWriter, r *http.Request, decode func() error
 	errDec := decode()
 	if errDec != nil {
 		respondWithError(w, http.StatusBadRequest, errDec.Error())
+		return
 	}
 	/* check errors */
 	created, err := create()
@@ -252,7 +254,7 @@ func (a *App) DeleteProvider(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// GetAllAgreements return all agreements in db
+// GetAgreements return all agreements in db
 func (a *App) GetAgreements(w http.ResponseWriter, r *http.Request) {
 	v := r.URL.Query()
 	active := v.Get("active")
@@ -269,6 +271,14 @@ func (a *App) GetAgreements(w http.ResponseWriter, r *http.Request) {
 func (a *App) GetAgreement(w http.ResponseWriter, r *http.Request) {
 	a.get(w, r, func(id string) (interface{}, error) {
 		return a.Repository.GetAgreement(id)
+	})
+}
+
+// GetAgreementDetails gets an agreement by REST ID
+func (a *App) GetAgreementDetails(w http.ResponseWriter, r *http.Request) {
+	a.get(w, r, func(id string) (interface{}, error) {
+		agreement, error := a.Repository.GetAgreement(id)
+		return agreement.Details, error
 	})
 }
 
@@ -314,7 +324,11 @@ func manageError(err error, w http.ResponseWriter) {
 	case model.ErrNotFound:
 		respondWithError(w, http.StatusNotFound, "Can't find object")
 	default:
-		respondWithError(w, http.StatusInternalServerError, err.Error())
+		if model.IsErrValidation(err) {
+			respondWithError(w, http.StatusBadRequest, err.Error())
+		} else {
+			respondWithError(w, http.StatusInternalServerError, err.Error())
+		}
 	}
 }
 
@@ -325,7 +339,10 @@ func respondWithError(w http.ResponseWriter, code int, message string) {
 func respondWithJSON(w http.ResponseWriter, code int, payload interface{}) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(code)
-	json.NewEncoder(w).Encode(payload)
+	enc := json.NewEncoder(w)
+	enc.SetEscapeHTML(false)
+	enc.Encode(payload)
+
 }
 
 func respondSuccessJSON(w http.ResponseWriter, payload interface{}) {

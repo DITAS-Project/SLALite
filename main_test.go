@@ -33,6 +33,7 @@ import (
 	"strings"
 	"testing"
 	"time"
+
 	"github.com/spf13/viper"
 )
 
@@ -40,7 +41,7 @@ var a App
 var repo model.IRepository
 var p1 = model.Provider{Id: "p01", Name: "Provider01"}
 var p2 = model.Provider{Id: "p02", Name: "Provider02"}
-var c2 = model.Provider{Id: "c02", Name: "A client"}
+var c2 = model.Client{Id: "c02", Name: "A client"}
 var pdelete = model.Provider{Id: "pdelete", Name: "Removable provider"}
 var dbName = "test.db"
 var providerPrefix = "pf_" + strconv.Itoa(rand.Int())
@@ -109,6 +110,8 @@ func TestProviders(t *testing.T) {
 	t.Run("CreateProvider", testCreateProvider)
 	t.Run("DeleteProviderThatNotExists", testDeleteProviderThatNotExists)
 	t.Run("DeleteProvider", testDeleteProvider)
+	t.Run("Issue7 - Create provider with wrong input", testCreateProviderWithWrongInput)
+	t.Run("Issue - Missing required field should return 400", testCreateProviderWithMissingField)
 }
 
 func testGetProviders(t *testing.T) {
@@ -173,6 +176,47 @@ func testCreateProvider(t *testing.T) {
 	}
 }
 
+func testCreateProviderWithWrongInput(t *testing.T) {
+	body := "{\"id\": \"id\" \"name\": \"name\"}" // note the missing ','
+	req, _ := http.NewRequest("POST", "/providers", strings.NewReader(body))
+	res := request(req)
+
+	checkStatus(t, http.StatusBadRequest, res.Code)
+
+	data := res.Body.Bytes()
+
+	var restError ApiError
+
+	/*
+	 * Decode works! Using Unmarshal
+	 */
+	err := json.Unmarshal(data, &restError)
+	//err := json.NewDecoder(res.Body).Decode(&restError)
+
+	if err != nil {
+		t.Errorf("Could not deserialize body request: %s", data)
+	}
+}
+
+func testCreateProviderWithMissingField(t *testing.T) {
+	posted := model.Provider{Id: "", Name: "name"}
+	body, err := json.Marshal(posted)
+	if err != nil {
+		t.Error("Unexpected marshalling error")
+	}
+	req, _ := http.NewRequest("POST", "/providers", bytes.NewBuffer(body))
+	res := request(req)
+
+	checkStatus(t, http.StatusBadRequest, res.Code)
+
+	var result ApiError
+	_ = json.NewDecoder(res.Body).Decode(&result)
+	if result.Code != strconv.Itoa(http.StatusBadRequest) {
+		t.Errorf("Expected: %v. Actual: %v", http.StatusBadRequest, result.Code)
+	}
+
+}
+
 func testDeleteProviderThatNotExists(t *testing.T) {
 	req, _ := http.NewRequest("DELETE", "/providers/doesnotexist", nil)
 	res := request(req)
@@ -202,15 +246,19 @@ func TestAgreements(t *testing.T) {
 	t.Run("GetActiveAgreements", testGetActiveAgreements)
 	t.Run("GetAgreementExists", testGetAgreementExists)
 	t.Run("GetAgreementNotExists", testGetAgreementNotExists)
+	t.Run("GetAgreementDetailsExists", testGetAgreementDetailsExists)
+	t.Run("GetAgreementDetailsNotExists", testGetAgreementDetailsNotExists)
 	t.Run("CreateAgreementThatExists", testCreateAgreementThatExists)
 	//t.Run("CreateAgreementWrongProvider", testCreateAgreementWrongProvider)
 	t.Run("CreateAgreement", testCreateAgreement)
+	t.Run("Fix issue - Comparisons operators escaped", testAgreementNotEscaped)
 	t.Run("StartAgreementNotExist", testStartAgreementNotExist)
 	t.Run("StartAgreementExist", testStartAgreementExist)
 	t.Run("StopAgreementNotExist", testStopAgreementNotExist)
 	t.Run("StopAgreementExist", testStopAgreementExist)
 	t.Run("DeleteAgreementThatNotExists", testDeleteAgreementThatNotExists)
 	t.Run("DeleteAgreement", testDeleteAgreement)
+	t.Run("Issue - Create agreement with missing required field", testCreateAgreementWithMissingField)
 }
 
 func testGetAgreements(t *testing.T) {
@@ -236,7 +284,7 @@ func testGetActiveAgreements(t *testing.T) {
 
 	expired := createAgreement("expired", p1, c2, "expired")
 	expired.State = model.STARTED
-	expired.Text.Expiration = time.Now().Add(-10 * time.Minute)
+	expired.Details.Expiration = time.Now().Add(-10 * time.Minute)
 
 	repo.CreateAgreement(&expired)
 
@@ -281,6 +329,26 @@ func testGetAgreementExists(t *testing.T) {
 }
 
 func testGetAgreementNotExists(t *testing.T) {
+	req, _ := http.NewRequest("GET", "/agreements/doesnotexist/details", nil)
+	res := request(req)
+	checkError(t, res, http.StatusNotFound, res.Code)
+}
+
+func testGetAgreementDetailsExists(t *testing.T) {
+	req, _ := http.NewRequest("GET", "/agreements/a01/details", nil)
+	res := request(req)
+	checkStatus(t, http.StatusOK, res.Code)
+	/*
+	 * Check body
+	 */
+	var agreement model.Agreement
+	_ = json.NewDecoder(res.Body).Decode(&agreement)
+	if reflect.DeepEqual(agreement, a1) {
+		t.Errorf("Expected: %v. Actual: %v", a1, agreement)
+	}
+}
+
+func testGetAgreementDetailsNotExists(t *testing.T) {
 	req, _ := http.NewRequest("GET", "/agreements/doesnotexist", nil)
 	res := request(req)
 	checkError(t, res, http.StatusNotFound, res.Code)
@@ -333,6 +401,25 @@ func testCreateAgreement(t *testing.T) {
 	_ = json.NewDecoder(res.Body).Decode(&created)
 	if reflect.DeepEqual(created, posted) {
 		t.Errorf("Expected: %v. Actual: %v", posted, created)
+	}
+}
+
+func testCreateAgreementWithMissingField(t *testing.T) {
+
+	posted := createAgreement("", p1, c2, "Agreement without id")
+	body, err := json.Marshal(posted)
+	if err != nil {
+		t.Error("Unexpected marshalling error")
+	}
+	req, _ := http.NewRequest("POST", "/agreements", bytes.NewBuffer(body))
+	res := request(req)
+
+	checkStatus(t, http.StatusBadRequest, res.Code)
+
+	var result ApiError
+	_ = json.NewDecoder(res.Body).Decode(&result)
+	if result.Code != strconv.Itoa(http.StatusBadRequest) {
+		t.Errorf("Expected: %v. Actual: %v", http.StatusBadRequest, result.Code)
 	}
 }
 
@@ -391,6 +478,17 @@ func testDeleteAgreement(t *testing.T) {
 
 	if len(body) > 0 {
 		t.Errorf("Expected empty body. Actual: %s", body)
+	}
+}
+
+func testAgreementNotEscaped(t *testing.T) {
+	req, _ := http.NewRequest("GET", "/agreements/a01", nil)
+	res := request(req)
+	checkStatus(t, http.StatusOK, res.Code)
+
+	s := res.Body.String()
+	if strings.Contains(s, "\\u003e") {
+		t.Error("Agreement is HTML escaped")
 	}
 }
 
@@ -523,12 +621,12 @@ func getProviderId(i int) string {
 	return providerPrefix + "_" + strconv.Itoa(i)
 }
 
-func createAgreement(aid string, provider, client model.Provider, name string) model.Agreement {
+func createAgreement(aid string, provider model.Provider, client model.Client, name string) model.Agreement {
 	return model.Agreement{
 		Id:    aid,
 		Name:  name,
 		State: model.STOPPED,
-		Text: model.AgreementText{
+		Details: model.Details{
 			Id:       aid,
 			Name:     name,
 			Type:     model.AGREEMENT,

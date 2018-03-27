@@ -28,10 +28,32 @@ package validation
 
 import (
 	"SLALite/model"
+	"bytes"
 )
 
 type repository struct {
 	backend model.IRepository
+}
+
+type valError struct {
+	msg string
+}
+
+func (e *valError) Error() string {
+	return e.msg
+}
+
+func newValError(errs []error) *valError {
+	var buffer bytes.Buffer
+	for _, err := range errs {
+		buffer.WriteString(err.Error())
+		buffer.WriteString(". ")
+	}
+	return &valError{msg: buffer.String() }
+}
+
+func (e *valError) IsErrValidation() bool {
+	return true
 }
 
 // New returns an IRepository that performs validation before calling the actual repository.
@@ -51,8 +73,9 @@ func (r repository) GetProvider(id string) (*model.Provider, error) {
 
 func (r repository) CreateProvider(provider *model.Provider) (*model.Provider, error) {
 	if errs := provider.Validate(); len(errs) > 0 {
-		return provider, errs[0]
-	}
+		err := newValError(errs)
+		return provider, err
+	}	
 	return r.backend.CreateProvider(provider)
 }
 
@@ -75,7 +98,8 @@ func (r repository) GetActiveAgreements() (model.Agreements, error) {
 
 func (r repository) CreateAgreement(agreement *model.Agreement) (*model.Agreement, error) {
 	if errs := agreement.Validate(); len(errs) > 0 {
-		return agreement, errs[0]
+		err := newValError(errs)
+		return agreement, err
 	}
 	return r.backend.CreateAgreement(agreement)
 }
