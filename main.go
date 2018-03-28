@@ -16,11 +16,14 @@
 package main
 
 import (
+	"SLALite/assessment"
+	"SLALite/assessment/monitor/dummyadapter"
 	"SLALite/model"
 	"SLALite/repositories/memrepository"
 	"SLALite/repositories/mongodb"
 	"SLALite/repositories/validation"
 	"flag"
+	"fmt"
 	"log"
 	"strconv"
 	"strings"
@@ -131,7 +134,7 @@ func createValidationThread(repo model.IRepository, checkPeriod time.Duration) {
 
 	for {
 		<-ticker.C
-		validateProviders(repo)
+		assessAgreements(repo)
 	}
 
 }
@@ -143,5 +146,23 @@ func validateProviders(repo model.IRepository) {
 		log.Println("There are " + strconv.Itoa(len(providers)) + " providers")
 	} else {
 		log.Println("Error: " + err.Error())
+	}
+}
+
+func assessAgreements(repo model.IRepository) {
+	log.Println("Running assessment")
+	agreements, err := repo.GetAllAgreements()
+	if err != nil {
+		log.Println("Error getting agreements")
+	}
+
+	now := time.Now()
+	ma := dummyadapter.New()
+
+	for _, a := range agreements {
+		ma.Initialize(&a)
+
+		result := assessment.AssessAgreement(&a, ma, now)
+		log.Println(fmt.Sprintf("Result: %v", result))
 	}
 }

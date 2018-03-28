@@ -18,6 +18,7 @@ package assessment
 import (
 	"SLALite/assessment/monitor"
 	"SLALite/model"
+	log2 "log"
 	"time"
 
 	"github.com/Knetic/govaluate"
@@ -158,6 +159,7 @@ func EvaluateGtViolations(a *model.Agreement, gt model.Guarantee, violated Guara
 // or nil if expression was true
 func evaluateExpression(expression *govaluate.EvaluableExpression, values ExpressionData) (ExpressionData, error) {
 
+	log2.Printf("Evaluating %v", values)
 	evalues := make(map[string]interface{})
 	for key, value := range values {
 		evalues[key] = value.Value
