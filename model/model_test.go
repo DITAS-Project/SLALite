@@ -29,7 +29,7 @@ func TestMain(m *testing.M) {
 }
 
 var pr = Provider{Id: "id", Name: "name"}
-var cl = Provider{Id: "id", Name: "name"}
+var cl = Client{Id: "id", Name: "name"}
 
 func TestProviders(t *testing.T) {
 	p := Provider{Id: "id", Name: "name"}
@@ -66,23 +66,23 @@ func TestGuarantee(t *testing.T) {
 
 }
 
-func TestAgreementText(t *testing.T) {
-	at := AgreementText{Id: "id", Name: "name", Provider: pr, Client: cl}
+func TestDetails(t *testing.T) {
+	at := Details{Id: "id", Name: "name", Provider: pr, Client: cl}
 	checkNumber(t, &at, 0)
 
-	at = AgreementText{Id: "", Name: "name", Provider: pr, Client: cl}
+	at = Details{Id: "", Name: "name", Provider: pr, Client: cl}
 	checkNumber(t, &at, 1)
 
-	at = AgreementText{Id: "id", Name: "", Provider: pr, Client: cl}
+	at = Details{Id: "id", Name: "", Provider: pr, Client: cl}
 	checkNumber(t, &at, 1)
 
-	at = AgreementText{Id: "id", Name: "name", Client: cl}
+	at = Details{Id: "id", Name: "name", Client: cl}
 	checkNumber(t, &at, 2)
 
-	at = AgreementText{Id: "id", Name: "name", Provider: pr}
+	at = Details{Id: "id", Name: "name", Provider: pr}
 	checkNumber(t, &at, 2)
 
-	at = AgreementText{
+	at = Details{
 		Id:       "id",
 		Name:     "name",
 		Provider: pr,
@@ -101,7 +101,7 @@ func TestAgreement(t *testing.T) {
 		Name:       "name",
 		State:      STOPPED,
 		Assessment: Assessment{},
-		Text: AgreementText{
+		Details: Details{
 			Id:       "id",
 			Name:     "name",
 			Provider: pr,
@@ -115,27 +115,27 @@ func TestAgreement(t *testing.T) {
 	}
 
 	a.Id = ""
-	a.Text.Id = ""
+	a.Details.Id = ""
 	a.Name = "name"
-	a.Text.Name = "name"
+	a.Details.Name = "name"
 	checkNumber(t, &a, 2) // one error per empty id
 
 	a.Id = "id"
-	a.Text.Id = "id"
+	a.Details.Id = "id"
 	a.Name = ""
-	a.Text.Name = ""
+	a.Details.Name = ""
 	checkNumber(t, &a, 2) // one error per empty name
 
 	a.Id = "id1"
-	a.Text.Id = "id2"
+	a.Details.Id = "id2"
 	a.Name = "name"
-	a.Text.Name = "name"
+	a.Details.Name = "name"
 	checkNumber(t, &a, 1)
 
 	a.Id = "id"
-	a.Text.Id = "id"
+	a.Details.Id = "id"
 	a.Name = "name1"
-	a.Text.Name = "name2"
+	a.Details.Name = "name2"
 	checkNumber(t, &a, 1)
 }
 
@@ -169,7 +169,7 @@ func TestAgreementSerialization(t *testing.T) {
 	s := `{
 		"id": "id", 
 		"name": "name", 
-		"text": {
+		"details": {
 			"id": "id",
 			"name": "name",
 			"provider": { "id": "pr-id", "name": "pr-name" },
@@ -187,7 +187,7 @@ func TestAgreementSerialization(t *testing.T) {
 	s = `{
 		"id": "id", 
 		"name": "name", 
-		"text": {
+		"details": {
 			"id": "id",
 			"name": "name",
 			"provider": { "id": "pr-id", "name": "pr-name" },
