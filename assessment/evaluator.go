@@ -16,27 +16,16 @@
 package assessment
 
 import (
+	"SLALite/assessment/monitor"
 	"SLALite/model"
-	"fmt"
 	"time"
 
 	"github.com/Knetic/govaluate"
 	"github.com/labstack/gommon/log"
 )
 
-// MetricValue is the SLALite representation of a metric value.
-type MetricValue struct {
-	Key      string
-	Value    interface{}
-	DateTime time.Time
-}
-
-func (v *MetricValue) String() string {
-	return fmt.Sprintf("{Key: %s, Value: %v, DateTime: %v}", v.Key, v.Value, v.DateTime)
-}
-
 // ExpressionData represents the set of values needed to evaluate an expression at a single time
-type ExpressionData map[string]MetricValue
+type ExpressionData map[string]monitor.MetricValue
 
 // GuaranteeData represents the list of values needed to evaluate an expression at several points
 // in time
@@ -64,7 +53,7 @@ type Result map[string]EvaluationGtResult
 // The function results are not persisted. The output must be persisted/handled accordingly.
 // E.g.: agreement and violations must be persisted to DB. Violations must be notified to
 // observers
-func AssessAgreement(a *model.Agreement, ma MonitoringAdapter, now time.Time) Result {
+func AssessAgreement(a *model.Agreement, ma monitor.MonitoringAdapter, now time.Time) Result {
 	var result Result
 	var err error
 
@@ -91,7 +80,7 @@ func AssessAgreement(a *model.Agreement, ma MonitoringAdapter, now time.Time) Re
 // The MonitoringAdapter must feed the process correctly
 // (e.g. if the constraint of a guarantee term is of the type "A>B && C>D", the
 // MonitoringAdapter must supply pairs of values).
-func EvaluateAgreement(a *model.Agreement, ma MonitoringAdapter) (Result, error) {
+func EvaluateAgreement(a *model.Agreement, ma monitor.MonitoringAdapter) (Result, error) {
 	ma.Initialize(a)
 
 	result := make(Result)
@@ -120,7 +109,7 @@ func EvaluateAgreement(a *model.Agreement, ma MonitoringAdapter) (Result, error)
 // (see EvaluateAgreement)
 //
 // Returns the metrics that failed the GT constraint.
-func EvaluateGuarantee(a *model.Agreement, gt model.Guarantee, ma MonitoringAdapter) (GuaranteeData, error) {
+func EvaluateGuarantee(a *model.Agreement, gt model.Guarantee, ma monitor.MonitoringAdapter) (GuaranteeData, error) {
 	failed := make(GuaranteeData, 0, 1)
 
 	expression, err := govaluate.NewEvaluableExpression(gt.Constraint)
