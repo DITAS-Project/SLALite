@@ -492,42 +492,6 @@ func testAgreementNotEscaped(t *testing.T) {
 	}
 }
 
-func TestEvaluationSuccess(t *testing.T) {
-
-	data := map[string]map[string]interface{}{
-		"TestGuarantee": map[string]interface{}{
-			"test_value": 11,
-		},
-	}
-
-	failed, err := evaluateAgreement(a1, data)
-	if err != nil {
-		t.Errorf("Error evaluating agreement: %s", err.Error())
-	}
-
-	if len(failed) > 0 {
-		t.Errorf("Found penalties but none were expected")
-	}
-}
-
-func TestEvaluationFailure(t *testing.T) {
-
-	data := map[string]map[string]interface{}{
-		"TestGuarantee": map[string]interface{}{
-			"test_value": 9,
-		},
-	}
-
-	failed, err := evaluateAgreement(a1, data)
-	if err != nil {
-		t.Errorf("Error evaluating agreement: %s", err.Error())
-	}
-
-	if len(failed) != 1 {
-		t.Errorf("Penalty expected but none found")
-	}
-}
-
 func request(req *http.Request) *httptest.ResponseRecorder {
 	rr := httptest.NewRecorder()
 	a.Router.ServeHTTP(rr, req)
@@ -634,7 +598,7 @@ func createAgreement(aid string, provider model.Provider, client model.Client, n
 			Creation:   time.Now(),
 			Expiration: time.Now().Add(24 * time.Hour),
 			Guarantees: []model.Guarantee{
-				model.Guarantee{Name: "TestGuarantee", Constraint: "[test_value] > 10"},
+				model.Guarantee{Name: "TestGuarantee", Constraint: "test_value > 10"},
 			},
 		},
 	}
