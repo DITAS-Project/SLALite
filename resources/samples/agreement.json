@@ -2,7 +2,7 @@
     "id": "a02",
     "name": "Agreement 02",
     "state": "stopped",
-    "text":{
+    "details":{
         "id": "a02",
         "type": "agreement",
         "name": "Agreement 02",
