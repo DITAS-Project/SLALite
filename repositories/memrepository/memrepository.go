@@ -153,6 +153,20 @@ func (r MemRepository) CreateAgreement(agreement *model.Agreement) (*model.Agree
 	return agreement, err
 }
 
+func (r MemRepository) UpdateAgreement(agreement *model.Agreement) (*model.Agreement, error) {
+	var err error
+
+	id := agreement.Id
+	_, ok := r.agreements[id]
+
+	if !ok {
+		err = model.ErrNotFound
+	} else {
+		r.agreements[id] = *agreement
+	}
+	return agreement, err
+}
+
 func (r MemRepository) DeleteAgreement(agreement *model.Agreement) error {
 	var err error
 

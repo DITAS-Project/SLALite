@@ -49,7 +49,7 @@ func newValError(errs []error) *valError {
 		buffer.WriteString(err.Error())
 		buffer.WriteString(". ")
 	}
-	return &valError{msg: buffer.String() }
+	return &valError{msg: buffer.String()}
 }
 
 func (e *valError) IsErrValidation() bool {
@@ -75,7 +75,7 @@ func (r repository) CreateProvider(provider *model.Provider) (*model.Provider, e
 	if errs := provider.Validate(); len(errs) > 0 {
 		err := newValError(errs)
 		return provider, err
-	}	
+	}
 	return r.backend.CreateProvider(provider)
 }
 
@@ -102,6 +102,14 @@ func (r repository) CreateAgreement(agreement *model.Agreement) (*model.Agreemen
 		return agreement, err
 	}
 	return r.backend.CreateAgreement(agreement)
+}
+
+func (r repository) UpdateAgreement(agreement *model.Agreement) (*model.Agreement, error) {
+	if errs := agreement.Validate(); len(errs) > 0 {
+		err := newValError(errs)
+		return agreement, err
+	}
+	return r.backend.UpdateAgreement(agreement)
 }
 
 func (r repository) DeleteAgreement(agreement *model.Agreement) error {

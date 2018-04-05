@@ -94,7 +94,7 @@ var States = [...]State{STOPPED, STARTED, TERMINATED}
 
 // Party is the entity that represents a service provider or a client
 type Party struct {
-	Id   string `json:"id"`
+	Id   string `json:"id" bson:"_id"`
 	Name string `json:"name"`
 }
 
@@ -134,7 +134,7 @@ func (c *Client) Validate() []error {
 // The Assessment cannot be modified externally.
 // The Signature is the Text digitally signed by the Client (not used yet)
 type Agreement struct {
-	Id         string     `json:"id"`
+	Id         string     `json:"id" bson:"_id"`
 	Name       string     `json:"name"`
 	State      State      `json:"state"`
 	Assessment Assessment `json:"assessment"`
@@ -178,10 +178,10 @@ type PenaltyDef struct {
 
 // Violation is generated when a guarantee term is not fulfilled
 type Violation struct {
-	Id string `json:"id"`
-	AgreementId string `json:"agreement_id"`
-	Guarantee string `json:"guarantee"`
-	Datetime time.Time `json:"datetime"`
+	Id          string    `json:"id"`
+	AgreementId string    `json:"agreement_id"`
+	Guarantee   string    `json:"guarantee"`
+	Datetime    time.Time `json:"datetime"`
 	/*
 	 * actual_value missing.
 	 * To research how to include a json map here. Sth like:
@@ -189,14 +189,14 @@ type Violation struct {
 	 */
 }
 
-// Penalty is generated when a guarantee term is violated is the term has 
+// Penalty is generated when a guarantee term is violated is the term has
 // PenaltyDefs associated.
 type Penalty struct {
-	Id string `json:"id"`
-	AgreementId string `json:"agreement_id"`
-	Guarantee string `json:"guarantee"`
-	Datetime time.Time `json:"datetime"`
-	Definition PenaltyDef `json:"definition"`
+	Id          string     `json:"id"`
+	AgreementId string     `json:"agreement_id"`
+	Guarantee   string     `json:"guarantee"`
+	Datetime    time.Time  `json:"datetime"`
+	Definition  PenaltyDef `json:"definition"`
 }
 
 func (a *Agreement) GetId() string {

@@ -79,6 +79,11 @@ type IRepository interface {
 	CreateAgreement(agreement *Agreement) (*Agreement, error)
 
 	/*
+	 *UpdateAgreement updates the information of an already saved instance of an agreement
+	 */
+	UpdateAgreement(agreement *Agreement) (*Agreement, error)
+
+	/*
 	 * DeleteAgreement deletes from the repository the Agreement whose id is provider.Id.
 	 * error != nil on error
 	 * error is sql.ErrNoRows if the Agreement does not exist.

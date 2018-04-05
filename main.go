@@ -16,6 +16,7 @@
 package main
 
 import (
+	"SLALite/assessment"
 	"SLALite/model"
 	"SLALite/repositories/memrepository"
 	"SLALite/repositories/mongodb"
@@ -143,5 +144,18 @@ func validateProviders(repo model.IRepository) {
 		log.Println("There are " + strconv.Itoa(len(providers)) + " providers")
 	} else {
 		log.Println("Error: " + err.Error())
+	}
+}
+
+func validateAgreements(repo model.IRepository, ma assessment.MonitoringAdapter, not assessment.ViolationNotifier) {
+	agrements, err := repo.GetActiveAgreements()
+	if err != nil {
+		log.Println("Error getting active agreements: " + err.Error())
+	} else {
+		for _, agreement := range agrements {
+			result := assessment.AssessAgreement(&agreement, ma, time.Now())
+
+			not.NotifyViolations(agreement, result)
+		}
 	}
 }

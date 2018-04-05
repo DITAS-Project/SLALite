@@ -275,7 +275,7 @@ func testGetAgreements(t *testing.T) {
 
 func testGetActiveAgreements(t *testing.T) {
 
-	repo.StartAgreement("01")
+	repo.StartAgreement("a01")
 
 	inactive := createAgreement("in1", p1, c2, "inactive")
 	inactive.State = model.STOPPED
@@ -303,12 +303,12 @@ func testGetActiveAgreements(t *testing.T) {
 
 	var agreements model.Agreements
 	_ = json.NewDecoder(res.Body).Decode(&agreements)
-	if len(agreements) != 1 {
-		t.Errorf("Expected 1 agreement. Received: %v", agreements)
+	if len(agreements) != 2 {
+		t.Errorf("Expected 2 agreement. Received: %v", agreements)
 	}
 
 	for _, agreement := range agreements {
-		if !(agreement.Id == p1.Id || agreement.Id == active.Id) {
+		if !(agreement.Id == a1.Id || agreement.Id == active.Id) {
 			t.Errorf("Got unexpected active agreement %s", agreement.Id)
 		}
 	}
@@ -355,7 +355,7 @@ func testGetAgreementDetailsNotExists(t *testing.T) {
 }
 
 func prepareCreateAgreement() {
-	_, err := repo.GetProvider("01")
+	_, err := repo.GetProvider("p01")
 	if err != nil {
 		repo.CreateProvider(&p1)
 	}
