@@ -21,7 +21,7 @@ import (
 	"time"
 
 	"github.com/Knetic/govaluate"
-	"github.com/labstack/gommon/log"
+	log "github.com/labstack/gommon/log"
 )
 
 // MetricValue is the SLALite representation of a metric value.
@@ -50,6 +50,20 @@ type EvaluationGtResult struct {
 
 // Result is the result of the agreement assessment
 type Result map[string]EvaluationGtResult
+
+//AssessActiveAgreements will get the active agreements from the provided repository and assess them, notifying about violations with the provided notifier.
+func AssessActiveAgreements(repo model.IRepository, ma MonitoringAdapter, not ViolationNotifier) {
+	agrements, err := repo.GetActiveAgreements()
+	if err != nil {
+		log.Errorf("Error getting active agreements: " + err.Error())
+	} else {
+		for _, agreement := range agrements {
+			result := AssessAgreement(&agreement, ma, time.Now())
+			repo.UpdateAgreement(&agreement)
+			not.NotifyViolations(&agreement, result)
+		}
+	}
+}
 
 // AssessAgreement is the process that assess an agreement. The process is:
 // 1. Check expiration date

@@ -127,12 +127,14 @@ func logMainConfig(config *viper.Viper) {
 		config.ConfigFileUsed(), repoType, checkPeriod)
 }
 
-func createValidationThread(repo model.IRepository, checkPeriod time.Duration) {
+func createValidationThread(repo model.IRepository, ma assessment.MonitoringAdapter,
+	not assessment.ViolationNotifier, checkPeriod time.Duration) {
+
 	ticker := time.NewTicker(checkPeriod * time.Second)
 
 	for {
 		<-ticker.C
-		validateProviders(repo)
+		assessment.AssessActiveAgreements(repo, ma, not)
 	}
 
 }
@@ -144,18 +146,5 @@ func validateProviders(repo model.IRepository) {
 		log.Println("There are " + strconv.Itoa(len(providers)) + " providers")
 	} else {
 		log.Println("Error: " + err.Error())
-	}
-}
-
-func validateAgreements(repo model.IRepository, ma assessment.MonitoringAdapter, not assessment.ViolationNotifier) {
-	agrements, err := repo.GetActiveAgreements()
-	if err != nil {
-		log.Println("Error getting active agreements: " + err.Error())
-	} else {
-		for _, agreement := range agrements {
-			result := assessment.AssessAgreement(&agreement, ma, time.Now())
-
-			not.NotifyViolations(agreement, result)
-		}
 	}
 }

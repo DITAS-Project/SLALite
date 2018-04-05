@@ -20,5 +20,5 @@ import (
 )
 
 type ViolationNotifier interface {
-	NotifyViolations(agreement model.Agreement, result Result)
+	NotifyViolations(agreement *model.Agreement, result Result)
 }
