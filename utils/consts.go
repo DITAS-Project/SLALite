@@ -13,12 +13,19 @@
    See the License for the specific language governing permissions and
    limitations under the License.
 */
-package assessment
+package utils
 
-import (
-	"SLALite/model"
+import "time"
+
+const (
+	ConfigPrefix          string        = "sla"
+	DefaultCheckPeriod    time.Duration = 60
+	DefaultRepositoryType string        = "memory"
+
+	CheckPeriodPropertyName    = "checkPeriod"
+	RepositoryTypePropertyName = "repository"
+	SingleFilePropertyName     = "singlefile"
+
+	UnixConfigPath = "/etc/slalite:."
+	ConfigName     = "slalite"
 )
-
-type ViolationNotifier interface {
-	NotifyViolations(agreement *model.Agreement, result Result)
-}

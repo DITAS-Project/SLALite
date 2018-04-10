@@ -17,9 +17,7 @@ package main
 
 import (
 	"SLALite/model"
-	"SLALite/repositories/memrepository"
-	"SLALite/repositories/mongodb"
-	"SLALite/repositories/validation"
+	"SLALite/utils"
 	"bytes"
 	"encoding/json"
 	"io/ioutil"
@@ -51,12 +49,7 @@ var a1 = createAgreement("a01", p1, c2, "Agreement 01")
 
 // TestMain runs the tests
 func TestMain(m *testing.M) {
-	envvar := "SLA_" + strings.ToUpper(repositoryTypePropertyName)
-	repotype, ok := os.LookupEnv(envvar)
-	if !ok {
-		repotype = defaultRepositoryType
-	}
-	repo = createRepository(repotype)
+	repo = utils.CreateTestRepository()
 	if repo != nil {
 		_, err := repo.CreateProvider(&p1)
 		if err == nil {
@@ -79,27 +72,6 @@ func TestMain(m *testing.M) {
 	os.Remove(dbName)
 
 	os.Exit(result)
-}
-
-func createRepository(repoType string) model.IRepository {
-	var repo model.IRepository
-
-	switch repoType {
-	case defaultRepositoryType:
-		memrepo, _ := memrepository.New(nil)
-		repo = memrepo
-	case "mongodb":
-		config, _ := mongodb.NewDefaultConfig()
-		config.Set("database", "slaliteTest")
-		config.Set("clear_on_boot", true)
-		mongoRepo, errMongo := mongodb.New(config)
-		if errMongo != nil {
-			log.Fatal("Error creating mongo repository: ", errMongo.Error())
-		}
-		repo = mongoRepo
-	}
-	repo, _ = validation.New(repo)
-	return repo
 }
 
 func TestProviders(t *testing.T) {
