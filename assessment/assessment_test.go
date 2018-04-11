@@ -16,9 +16,9 @@
 package assessment
 
 import (
+	assessment_model "SLALite/assessment/model"
 	"SLALite/assessment/monitor"
 	"SLALite/assessment/monitor/simpleadapter"
-	"SLALite/assessment/notifier"
 	"SLALite/model"
 	"SLALite/utils"
 	"fmt"
@@ -41,7 +41,7 @@ var t0 = time.Now()
 
 var repo = utils.CreateTestRepository()
 
-func (n ValidationNotifier) NotifyViolations(agreement *model.Agreement, result *notifier.Result) {
+func (n ValidationNotifier) NotifyViolations(agreement *model.Agreement, result *assessment_model.Result) {
 	numViolations, ok := n.Expected[agreement.Id]
 	if ok {
 		checkAssessmentResult(n.T, agreement, *result, model.STARTED, numViolations)
@@ -123,7 +123,7 @@ func TestAssessAgreement(t *testing.T) {
 
 }
 
-func checkAssessmentResult(t *testing.T, a *model.Agreement, result notifier.Result, expectedState model.State, expectedViolatedGts int) {
+func checkAssessmentResult(t *testing.T, a *model.Agreement, result assessment_model.Result, expectedState model.State, expectedViolatedGts int) {
 	if a.State != expectedState {
 		t.Errorf("Agreement in unexpected state. Expected: %v. Actual: %v", expectedState, a.State)
 	}

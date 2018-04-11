@@ -16,7 +16,7 @@
 package lognotifier
 
 import (
-	"SLALite/assessment/notifier"
+	assessment_model "SLALite/assessment/model"
 	"SLALite/model"
 
 	"github.com/labstack/gommon/log"
@@ -25,7 +25,7 @@ import (
 type LogNotifier struct {
 }
 
-func (n LogNotifier) NotifyViolations(agreement *model.Agreement, result *notifier.Result) {
+func (n LogNotifier) NotifyViolations(agreement *model.Agreement, result *assessment_model.Result) {
 	log.Info("Violation of agreement: " + agreement.Id)
 	for k, v := range *result {
 		if len(v.Violations) > 0 {

@@ -16,6 +16,7 @@
 package assessment
 
 import (
+	assessment_model "SLALite/assessment/model"
 	"SLALite/assessment/monitor"
 	"SLALite/assessment/notifier"
 	"SLALite/model"
@@ -53,8 +54,8 @@ func AssessActiveAgreements(repo model.IRepository, ma monitor.MonitoringAdapter
 // The function results are not persisted. The output must be persisted/handled accordingly.
 // E.g.: agreement and violations must be persisted to DB. Violations must be notified to
 // observers
-func AssessAgreement(a *model.Agreement, ma monitor.MonitoringAdapter, now time.Time) notifier.Result {
-	var result notifier.Result
+func AssessAgreement(a *model.Agreement, ma monitor.MonitoringAdapter, now time.Time) assessment_model.Result {
+	var result assessment_model.Result
 	var err error
 
 	if a.Details.Expiration.Before(now) {
@@ -80,10 +81,10 @@ func AssessAgreement(a *model.Agreement, ma monitor.MonitoringAdapter, now time.
 // The MonitoringAdapter must feed the process correctly
 // (e.g. if the constraint of a guarantee term is of the type "A>B && C>D", the
 // MonitoringAdapter must supply pairs of values).
-func EvaluateAgreement(a *model.Agreement, ma monitor.MonitoringAdapter) (notifier.Result, error) {
+func EvaluateAgreement(a *model.Agreement, ma monitor.MonitoringAdapter) (assessment_model.Result, error) {
 	ma.Initialize(a)
 
-	result := make(notifier.Result)
+	result := make(assessment_model.Result)
 	gts := a.Details.Guarantees
 
 	for _, gt := range gts {
@@ -94,7 +95,7 @@ func EvaluateAgreement(a *model.Agreement, ma monitor.MonitoringAdapter) (notifi
 		}
 		if len(failed) > 0 {
 			violations := EvaluateGtViolations(a, gt, failed)
-			gtResult := notifier.EvaluationGtResult{
+			gtResult := assessment_model.EvaluationGtResult{
 				Metrics:    failed,
 				Violations: violations,
 			}
@@ -109,8 +110,8 @@ func EvaluateAgreement(a *model.Agreement, ma monitor.MonitoringAdapter) (notifi
 // (see EvaluateAgreement)
 //
 // Returns the metrics that failed the GT constraint.
-func EvaluateGuarantee(a *model.Agreement, gt model.Guarantee, ma monitor.MonitoringAdapter) (notifier.GuaranteeData, error) {
-	failed := make(notifier.GuaranteeData, 0, 1)
+func EvaluateGuarantee(a *model.Agreement, gt model.Guarantee, ma monitor.MonitoringAdapter) (assessment_model.GuaranteeData, error) {
+	failed := make(assessment_model.GuaranteeData, 0, 1)
 
 	expression, err := govaluate.NewEvaluableExpression(gt.Constraint)
 	if err != nil {
@@ -131,7 +132,7 @@ func EvaluateGuarantee(a *model.Agreement, gt model.Guarantee, ma monitor.Monito
 }
 
 // EvaluateGtViolations creates violations for the detected violated metrics in EvaluateGuarantee
-func EvaluateGtViolations(a *model.Agreement, gt model.Guarantee, violated notifier.GuaranteeData) []model.Violation {
+func EvaluateGtViolations(a *model.Agreement, gt model.Guarantee, violated assessment_model.GuaranteeData) []model.Violation {
 	gtv := make([]model.Violation, 0, len(violated))
 	for _, tuple := range violated {
 		// find newer metric
@@ -156,7 +157,7 @@ func EvaluateGtViolations(a *model.Agreement, gt model.Guarantee, violated notif
 //
 // The result is: the values if the expression is false (i.e., the failing values) ,
 // or nil if expression was true
-func evaluateExpression(expression *govaluate.EvaluableExpression, values notifier.ExpressionData) (notifier.ExpressionData, error) {
+func evaluateExpression(expression *govaluate.EvaluableExpression, values assessment_model.ExpressionData) (assessment_model.ExpressionData, error) {
 
 	log2.Printf("Evaluating %v", values)
 	evalues := make(map[string]interface{})

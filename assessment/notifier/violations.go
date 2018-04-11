@@ -16,26 +16,10 @@
 package notifier
 
 import (
-	"SLALite/assessment/monitor"
+	assessment_model "SLALite/assessment/model"
 	"SLALite/model"
 )
 
-// ExpressionData represents the set of values needed to evaluate an expression at a single time
-type ExpressionData map[string]monitor.MetricValue
-
-// GuaranteeData represents the list of values needed to evaluate an expression at several points
-// in time
-type GuaranteeData []ExpressionData
-
-// EvaluationGtResult is the result of the evaluation of a guarantee term
-type EvaluationGtResult struct {
-	Metrics    GuaranteeData     // violated metrics
-	Violations []model.Violation // violations occurred as of violated metrics
-}
-
-// Result is the result of the agreement assessment
-type Result map[string]EvaluationGtResult
-
 type ViolationNotifier interface {
-	NotifyViolations(agreement *model.Agreement, result *Result)
+	NotifyViolations(agreement *model.Agreement, result *assessment_model.Result)
 }
