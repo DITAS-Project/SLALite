@@ -1,8 +1,8 @@
 {
     "id": "a02",
-    "name": "Agreement 02"
-    "state": "stopped"
-    "text":{
+    "name": "Agreement 02",
+    "state": "stopped",
+    "details":{
         "id": "a02",
         "type": "agreement",
         "name": "Agreement 02",
@@ -13,7 +13,7 @@
         "guarantees": [
             {
                 "name": "TestGuarantee",
-                "constraints": "[test_value] < 10"
+                "constraint": "[test_value] < 10"
             }
         ]
     }

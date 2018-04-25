@@ -1,25 +1,23 @@
 /*
-   Copyright 2017 Atos
+Copyright 2017 Atos
 
-   Licensed under the Apache License, Version 2.0 (the "License");
-   you may not use this file except in compliance with the License.
-   You may obtain a copy of the License at
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
 
-     http://www.apache.org/licenses/LICENSE-2.0
+  http://www.apache.org/licenses/LICENSE-2.0
 
-   Unless required by applicable law or agreed to in writing, software
-   distributed under the License is distributed on an "AS IS" BASIS,
-   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-   See the License for the specific language governing permissions and
-   limitations under the License.
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
 */
 package main
 
 import (
 	"SLALite/model"
-	"SLALite/repositories/memrepository"
-	"SLALite/repositories/mongodb"
-	"SLALite/repositories/validation"
+	"SLALite/utils"
 	"bytes"
 	"encoding/json"
 	"io/ioutil"
@@ -33,6 +31,7 @@ import (
 	"strings"
 	"testing"
 	"time"
+
 	"github.com/spf13/viper"
 )
 
@@ -40,7 +39,7 @@ var a App
 var repo model.IRepository
 var p1 = model.Provider{Id: "p01", Name: "Provider01"}
 var p2 = model.Provider{Id: "p02", Name: "Provider02"}
-var c2 = model.Provider{Id: "c02", Name: "A client"}
+var c2 = model.Client{Id: "c02", Name: "A client"}
 var pdelete = model.Provider{Id: "pdelete", Name: "Removable provider"}
 var dbName = "test.db"
 var providerPrefix = "pf_" + strconv.Itoa(rand.Int())
@@ -50,12 +49,7 @@ var a1 = createAgreement("a01", p1, c2, "Agreement 01")
 
 // TestMain runs the tests
 func TestMain(m *testing.M) {
-	envvar := "SLA_" + strings.ToUpper(repositoryTypePropertyName)
-	repotype, ok := os.LookupEnv(envvar)
-	if !ok {
-		repotype = defaultRepositoryType
-	}
-	repo = createRepository(repotype)
+	repo = utils.CreateTestRepository()
 	if repo != nil {
 		_, err := repo.CreateProvider(&p1)
 		if err == nil {
@@ -80,27 +74,6 @@ func TestMain(m *testing.M) {
 	os.Exit(result)
 }
 
-func createRepository(repoType string) model.IRepository {
-	var repo model.IRepository
-
-	switch repoType {
-	case defaultRepositoryType:
-		memrepo, _ := memrepository.New(nil)
-		repo = memrepo
-	case "mongodb":
-		config, _ := mongodb.NewDefaultConfig()
-		config.Set("database", "slaliteTest")
-		config.Set("clear_on_boot", true)
-		mongoRepo, errMongo := mongodb.New(config)
-		if errMongo != nil {
-			log.Fatal("Error creating mongo repository: ", errMongo.Error())
-		}
-		repo = mongoRepo
-	}
-	repo, _ = validation.New(repo)
-	return repo
-}
-
 func TestProviders(t *testing.T) {
 	t.Run("GetProviders", testGetProviders)
 	t.Run("GetProviderExists", testGetProviderExists)
@@ -109,6 +82,8 @@ func TestProviders(t *testing.T) {
 	t.Run("CreateProvider", testCreateProvider)
 	t.Run("DeleteProviderThatNotExists", testDeleteProviderThatNotExists)
 	t.Run("DeleteProvider", testDeleteProvider)
+	t.Run("Issue7 - Create provider with wrong input", testCreateProviderWithWrongInput)
+	t.Run("Issue - Missing required field should return 400", testCreateProviderWithMissingField)
 }
 
 func testGetProviders(t *testing.T) {
@@ -173,6 +148,47 @@ func testCreateProvider(t *testing.T) {
 	}
 }
 
+func testCreateProviderWithWrongInput(t *testing.T) {
+	body := "{\"id\": \"id\" \"name\": \"name\"}" // note the missing ','
+	req, _ := http.NewRequest("POST", "/providers", strings.NewReader(body))
+	res := request(req)
+
+	checkStatus(t, http.StatusBadRequest, res.Code)
+
+	data := res.Body.Bytes()
+
+	var restError ApiError
+
+	/*
+	 * Decode works! Using Unmarshal
+	 */
+	err := json.Unmarshal(data, &restError)
+	//err := json.NewDecoder(res.Body).Decode(&restError)
+
+	if err != nil {
+		t.Errorf("Could not deserialize body request: %s", data)
+	}
+}
+
+func testCreateProviderWithMissingField(t *testing.T) {
+	posted := model.Provider{Id: "", Name: "name"}
+	body, err := json.Marshal(posted)
+	if err != nil {
+		t.Error("Unexpected marshalling error")
+	}
+	req, _ := http.NewRequest("POST", "/providers", bytes.NewBuffer(body))
+	res := request(req)
+
+	checkStatus(t, http.StatusBadRequest, res.Code)
+
+	var result ApiError
+	_ = json.NewDecoder(res.Body).Decode(&result)
+	if result.Code != strconv.Itoa(http.StatusBadRequest) {
+		t.Errorf("Expected: %v. Actual: %v", http.StatusBadRequest, result.Code)
+	}
+
+}
+
 func testDeleteProviderThatNotExists(t *testing.T) {
 	req, _ := http.NewRequest("DELETE", "/providers/doesnotexist", nil)
 	res := request(req)
@@ -202,15 +218,19 @@ func TestAgreements(t *testing.T) {
 	t.Run("GetActiveAgreements", testGetActiveAgreements)
 	t.Run("GetAgreementExists", testGetAgreementExists)
 	t.Run("GetAgreementNotExists", testGetAgreementNotExists)
+	t.Run("GetAgreementDetailsExists", testGetAgreementDetailsExists)
+	t.Run("GetAgreementDetailsNotExists", testGetAgreementDetailsNotExists)
 	t.Run("CreateAgreementThatExists", testCreateAgreementThatExists)
 	//t.Run("CreateAgreementWrongProvider", testCreateAgreementWrongProvider)
 	t.Run("CreateAgreement", testCreateAgreement)
+	t.Run("Fix issue - Comparisons operators escaped", testAgreementNotEscaped)
 	t.Run("StartAgreementNotExist", testStartAgreementNotExist)
 	t.Run("StartAgreementExist", testStartAgreementExist)
 	t.Run("StopAgreementNotExist", testStopAgreementNotExist)
 	t.Run("StopAgreementExist", testStopAgreementExist)
 	t.Run("DeleteAgreementThatNotExists", testDeleteAgreementThatNotExists)
 	t.Run("DeleteAgreement", testDeleteAgreement)
+	t.Run("Issue - Create agreement with missing required field", testCreateAgreementWithMissingField)
 }
 
 func testGetAgreements(t *testing.T) {
@@ -227,7 +247,7 @@ func testGetAgreements(t *testing.T) {
 
 func testGetActiveAgreements(t *testing.T) {
 
-	repo.StartAgreement("01")
+	repo.StartAgreement("a01")
 
 	inactive := createAgreement("in1", p1, c2, "inactive")
 	inactive.State = model.STOPPED
@@ -236,7 +256,7 @@ func testGetActiveAgreements(t *testing.T) {
 
 	expired := createAgreement("expired", p1, c2, "expired")
 	expired.State = model.STARTED
-	expired.Text.Expiration = time.Now().Add(-10 * time.Minute)
+	expired.Details.Expiration = time.Now().Add(-10 * time.Minute)
 
 	repo.CreateAgreement(&expired)
 
@@ -255,12 +275,12 @@ func testGetActiveAgreements(t *testing.T) {
 
 	var agreements model.Agreements
 	_ = json.NewDecoder(res.Body).Decode(&agreements)
-	if len(agreements) != 1 {
-		t.Errorf("Expected 1 agreement. Received: %v", agreements)
+	if len(agreements) != 2 {
+		t.Errorf("Expected 2 agreement. Received: %v", agreements)
 	}
 
 	for _, agreement := range agreements {
-		if !(agreement.Id == p1.Id || agreement.Id == active.Id) {
+		if !(agreement.Id == a1.Id || agreement.Id == active.Id) {
 			t.Errorf("Got unexpected active agreement %s", agreement.Id)
 		}
 	}
@@ -281,13 +301,33 @@ func testGetAgreementExists(t *testing.T) {
 }
 
 func testGetAgreementNotExists(t *testing.T) {
+	req, _ := http.NewRequest("GET", "/agreements/doesnotexist/details", nil)
+	res := request(req)
+	checkError(t, res, http.StatusNotFound, res.Code)
+}
+
+func testGetAgreementDetailsExists(t *testing.T) {
+	req, _ := http.NewRequest("GET", "/agreements/a01/details", nil)
+	res := request(req)
+	checkStatus(t, http.StatusOK, res.Code)
+	/*
+	 * Check body
+	 */
+	var agreement model.Agreement
+	_ = json.NewDecoder(res.Body).Decode(&agreement)
+	if reflect.DeepEqual(agreement, a1) {
+		t.Errorf("Expected: %v. Actual: %v", a1, agreement)
+	}
+}
+
+func testGetAgreementDetailsNotExists(t *testing.T) {
 	req, _ := http.NewRequest("GET", "/agreements/doesnotexist", nil)
 	res := request(req)
 	checkError(t, res, http.StatusNotFound, res.Code)
 }
 
 func prepareCreateAgreement() {
-	_, err := repo.GetProvider("01")
+	_, err := repo.GetProvider("p01")
 	if err != nil {
 		repo.CreateProvider(&p1)
 	}
@@ -333,6 +373,25 @@ func testCreateAgreement(t *testing.T) {
 	_ = json.NewDecoder(res.Body).Decode(&created)
 	if reflect.DeepEqual(created, posted) {
 		t.Errorf("Expected: %v. Actual: %v", posted, created)
+	}
+}
+
+func testCreateAgreementWithMissingField(t *testing.T) {
+
+	posted := createAgreement("", p1, c2, "Agreement without id")
+	body, err := json.Marshal(posted)
+	if err != nil {
+		t.Error("Unexpected marshalling error")
+	}
+	req, _ := http.NewRequest("POST", "/agreements", bytes.NewBuffer(body))
+	res := request(req)
+
+	checkStatus(t, http.StatusBadRequest, res.Code)
+
+	var result ApiError
+	_ = json.NewDecoder(res.Body).Decode(&result)
+	if result.Code != strconv.Itoa(http.StatusBadRequest) {
+		t.Errorf("Expected: %v. Actual: %v", http.StatusBadRequest, result.Code)
 	}
 }
 
@@ -394,39 +453,14 @@ func testDeleteAgreement(t *testing.T) {
 	}
 }
 
-func TestEvaluationSuccess(t *testing.T) {
+func testAgreementNotEscaped(t *testing.T) {
+	req, _ := http.NewRequest("GET", "/agreements/a01", nil)
+	res := request(req)
+	checkStatus(t, http.StatusOK, res.Code)
 
-	data := map[string]map[string]interface{}{
-		"TestGuarantee": map[string]interface{}{
-			"test_value": 11,
-		},
-	}
-
-	failed, err := evaluateAgreement(a1, data)
-	if err != nil {
-		t.Errorf("Error evaluating agreement: %s", err.Error())
-	}
-
-	if len(failed) > 0 {
-		t.Errorf("Found penalties but none were expected")
-	}
-}
-
-func TestEvaluationFailure(t *testing.T) {
-
-	data := map[string]map[string]interface{}{
-		"TestGuarantee": map[string]interface{}{
-			"test_value": 9,
-		},
-	}
-
-	failed, err := evaluateAgreement(a1, data)
-	if err != nil {
-		t.Errorf("Error evaluating agreement: %s", err.Error())
-	}
-
-	if len(failed) != 1 {
-		t.Errorf("Penalty expected but none found")
+	s := res.Body.String()
+	if strings.Contains(s, "\\u003e") {
+		t.Error("Agreement is HTML escaped")
 	}
 }
 
@@ -523,12 +557,12 @@ func getProviderId(i int) string {
 	return providerPrefix + "_" + strconv.Itoa(i)
 }
 
-func createAgreement(aid string, provider, client model.Provider, name string) model.Agreement {
+func createAgreement(aid string, provider model.Provider, client model.Client, name string) model.Agreement {
 	return model.Agreement{
 		Id:    aid,
 		Name:  name,
 		State: model.STOPPED,
-		Text: model.AgreementText{
+		Details: model.Details{
 			Id:       aid,
 			Name:     name,
 			Type:     model.AGREEMENT,
@@ -536,7 +570,7 @@ func createAgreement(aid string, provider, client model.Provider, name string) m
 			Creation:   time.Now(),
 			Expiration: time.Now().Add(24 * time.Hour),
 			Guarantees: []model.Guarantee{
-				model.Guarantee{Name: "TestGuarantee", Constraint: "[test_value] > 10"},
+				model.Guarantee{Name: "TestGuarantee", Constraint: "test_value > 10"},
 			},
 		},
 	}

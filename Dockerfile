@@ -1,15 +1,13 @@
 ###
-FROM golang:1.8.3 as builder
+FROM golang:alpine as builder
+
+RUN apk add --no-cache git
+
 WORKDIR /go/src/SLALite
 
-RUN go get -d -v github.com/gorilla/mux
-RUN go get -d -v github.com/coreos/bbolt
-RUN go get -d -v github.com/spf13/viper
-RUN go get -d -v gopkg.in/mgo.v2
-RUN go get -d -v github.com/labstack/gommon/log
-RUN go get -d -v github.com/oleksandr/conditions
-
 COPY . .
+RUN go get -d -v ./...
+
 RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o SLALite .
 
 ###
@@ -23,7 +21,7 @@ RUN addgroup -S slalite && adduser -D -G slalite slalite
 RUN chown -R slalite:slalite /etc/slalite && chmod 700 /etc/slalite
 
 EXPOSE 8090
-ENTRYPOINT ["./run_slalite.sh"]
-#USER slalite
-#ENTRYPOINT ["/opt/slalite/SLALite"]
+#ENTRYPOINT ["./run_slalite.sh"]
+USER slalite
+ENTRYPOINT ["/opt/slalite/SLALite"]
 

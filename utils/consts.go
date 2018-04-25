@@ -1,5 +1,5 @@
 /*
-Copyright 2017 Atos
+Copyright 2018 Atos
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -13,4 +13,19 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-package main
+package utils
+
+import "time"
+
+const (
+	ConfigPrefix          string        = "sla"
+	DefaultCheckPeriod    time.Duration = 60
+	DefaultRepositoryType string        = "memory"
+
+	CheckPeriodPropertyName    = "checkPeriod"
+	RepositoryTypePropertyName = "repository"
+	SingleFilePropertyName     = "singlefile"
+
+	UnixConfigPath = "/etc/slalite:."
+	ConfigName     = "slalite"
+)
