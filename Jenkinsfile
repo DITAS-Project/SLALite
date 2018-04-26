@@ -12,8 +12,7 @@ pipeline {
                 sh "CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo"
 				
 		// Test y build en go?
-		sh "go test"
-				
+		sh "go test"	
             }
         }
         stage('Image creation') {
@@ -53,8 +52,8 @@ pipeline {
             }
             steps {
                 // TODO: Uncomment this when the previous stages run correctly
-		        // TODO: Remember to edit 'deploy-staging.sh' and configure the ports
-		        // Deploy to Staging environment calling the deployment script
+                // TODO: Remember to edit 'deploy-staging.sh' and configure the ports
+                // Deploy to Staging environment calling the deployment script
                 // sh './jenkins/deploy-staging.sh'
             }
         }
