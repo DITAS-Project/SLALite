@@ -13,6 +13,12 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
+/*
+Package model contain the entities used in the SLALite: agreements, violations, penalties...
+It also defines the interface IRepository, which defines the operations to be implemented
+by any repository.
+*/
 package model
 
 import (
@@ -67,7 +73,10 @@ type Validable interface {
 	Validate() []error
 }
 
+// State is the type of possible states of an agreement
 type State string
+
+// TextType is the type of possible types a Details type
 type TextType string
 
 const (
@@ -101,10 +110,12 @@ type Party struct {
 // Provider is the entity that represents a Provider
 type Provider Party
 
+// GetId returns the Id of a provider
 func (p *Provider) GetId() string {
 	return p.Id
 }
 
+// Validate validates the consistency of a Provider entity
 func (p *Provider) Validate() []error {
 	result := make([]error, 0, 2)
 
@@ -114,12 +125,15 @@ func (p *Provider) Validate() []error {
 	return result
 }
 
+// Client is the entity that represents a client.
 type Client Party
 
+// GetId returns the Id of a client
 func (c *Client) GetId() string {
 	return c.Id
 }
 
+// Validate validates the consistency of a Client entity
 func (c *Client) Validate() []error {
 	result := make([]error, 0, 2)
 
@@ -199,22 +213,27 @@ type Penalty struct {
 	Definition  PenaltyDef `json:"definition"`
 }
 
+// GetId returns the id of an agreement
 func (a *Agreement) GetId() string {
 	return a.Id
 }
 
+// IsStarted is true if the agreement state is STARTED
 func (a *Agreement) IsStarted() bool {
 	return a.State == STARTED
 }
 
+// IsTerminated is true if the agreement state is TERMINATED
 func (a *Agreement) IsTerminated() bool {
 	return a.State == TERMINATED
 }
 
+// IsStopped is true if the agreement state is STOPPED
 func (a *Agreement) IsStopped() bool {
 	return a.State == STOPPED
 }
 
+// Validate validates the consistency of an Agreement.
 func (a *Agreement) Validate() []error {
 	result := make([]error, 0)
 
@@ -234,10 +253,12 @@ func (a *Agreement) Validate() []error {
 	return result
 }
 
+// Validate validates the consistency of an Assessment entity
 func (as *Assessment) Validate() []error {
 	return []error{}
 }
 
+// Validate validates the consistency of a Details entity
 func (t *Details) Validate() []error {
 	result := make([]error, 0)
 	result = checkEmpty(t.Id, "Text.Id", result)
@@ -256,11 +277,24 @@ func (t *Details) Validate() []error {
 	return result
 }
 
+// Validate validates the consistency of a Guarantee entity
 func (g *Guarantee) Validate() []error {
 	result := make([]error, 0)
 	result = checkEmpty(g.Name, "Guarantee.Name", result)
 	result = checkEmpty(g.Constraint, fmt.Sprintf("Guarantee['%s'].Constraint", g.Name), result)
 
+	return result
+}
+
+// Validate validates the consistency of a Violation entity
+func (v *Violation) Validate() []error {
+	result := make([]error, 0)
+	result = checkEmpty(v.Id, "Violation.Id", result)
+	result = checkEmpty(v.AgreementId, "Violation.AgreementId", result)
+	result = checkEmpty(v.Guarantee, "Violation.Guarantee", result)
+	if v.Datetime.IsZero() {
+		result = append(result, fmt.Errorf("%v is not a valid date", v.Datetime))
+	}
 	return result
 }
 
@@ -287,5 +321,8 @@ func normalizeState(s State) State {
 	return STOPPED
 }
 
+// Providers is the type of an slice of Provider
 type Providers []Provider
+
+// Agreements is the type of an slice of Agreement
 type Agreements []Agreement
