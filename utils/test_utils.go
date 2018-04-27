@@ -13,6 +13,10 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
+/*
+Package utils contain util functions.
+*/
 package utils
 
 import (
@@ -20,11 +24,14 @@ import (
 	"SLALite/repositories/memrepository"
 	"SLALite/repositories/mongodb"
 	"SLALite/repositories/validation"
+	"encoding/json"
 	"log"
 	"os"
 	"strings"
+	"time"
 )
 
+// CreateTestRepository creates a repository according to the SLA_REPOSITORY env var.
 func CreateTestRepository() model.IRepository {
 	envvar := "SLA_" + strings.ToUpper(RepositoryTypePropertyName)
 	repotype, ok := os.LookupEnv(envvar)
@@ -53,4 +60,40 @@ func createRepository(repoType string) model.IRepository {
 	}
 	repo, _ = validation.New(repo)
 	return repo
+}
+
+// Timeline calculates delta times from a time origin
+// Inialize the struct with t0 as your desired time origin
+// Ex.:
+//    t = Timeline { T0: time.Now() }
+type Timeline struct {
+	T0 time.Time
+}
+
+// T calculates the delta in seconds with respect to the origin
+// Ex:
+//     t.T(2)
+//     t.T(-1)
+func (t *Timeline) T(second time.Duration) time.Time {
+	return t.T0.Add(time.Second * second)
+}
+
+// ReadAgreement returns the agreement read from the file pointed by path.
+// The CWD is the location of the test.
+//
+// Ex:
+//    a, err := readAgreement("testdata/a.json")
+//    if err != nil {
+//      t.Errorf("Error reading agreement: %v", err)
+//    }
+func ReadAgreement(path string) (model.Agreement, error) {
+	var a model.Agreement
+
+	f, err := os.Open(path)
+	if err != nil {
+		return a, err
+	}
+	json.NewDecoder(f).Decode(&a)
+	f.Close()
+	return a, nil
 }
