@@ -29,10 +29,16 @@ package validation
 import (
 	"SLALite/model"
 	"bytes"
+	"fmt"
+)
+
+const (
+	fakeID = "_"
 )
 
 type repository struct {
-	backend model.IRepository
+	backend     model.IRepository
+	externalIDs bool
 }
 
 type valError struct {
@@ -57,9 +63,13 @@ func (e *valError) IsErrValidation() bool {
 }
 
 // New returns an IRepository that performs validation before calling the actual repository.
-func New(backend model.IRepository) (model.IRepository, error) {
+// The externalIDs parameter is true when the Id of the entity is set by the repository,
+// and therefore, out of the control of the SLALite; in this case, we cannot enforce that
+// the Id is set when creating an entity.
+func New(backend model.IRepository, externalIDs bool) (model.IRepository, error) {
 	return repository{
-		backend: backend,
+		backend:     backend,
+		externalIDs: externalIDs,
 	}, nil
 }
 
@@ -75,10 +85,19 @@ func (r repository) GetProvider(id string) (*model.Provider, error) {
 
 // CreateProvider validates and persists a provider.
 func (r repository) CreateProvider(provider *model.Provider) (*model.Provider, error) {
+
+	finalID, idErr := r.checkIDErrOnCreate(provider)
+	if idErr != nil {
+		return provider, idErr
+	}
+	if r.externalIDs {
+		provider.Id = fakeID
+	}
 	if errs := provider.Validate(); len(errs) > 0 {
 		err := newValError(errs)
 		return provider, err
 	}
+	provider.Id = finalID
 	return r.backend.CreateProvider(provider)
 }
 
@@ -105,19 +124,38 @@ func (r repository) GetActiveAgreements() (model.Agreements, error) {
 
 // CreateAgreement validates and persists an agreement.
 func (r repository) CreateAgreement(agreement *model.Agreement) (*model.Agreement, error) {
+	finalID, idErr := r.checkIDErrOnCreate(agreement)
+	if idErr != nil {
+		return agreement, idErr
+	}
+	if r.externalIDs {
+		agreement.Id = agreement.Details.Id
+	}
 	if errs := agreement.Validate(); len(errs) > 0 {
 		err := newValError(errs)
 		return agreement, err
 	}
+	agreement.Id = finalID
 	return r.backend.CreateAgreement(agreement)
 }
 
 // UpdateAgreement validates and updates an agreement.
 func (r repository) UpdateAgreement(agreement *model.Agreement) (*model.Agreement, error) {
+	finalID := agreement.Id
+
+	idErr := r.checkIDErrOnUpdate(agreement)
+	if idErr != nil {
+		return agreement, idErr
+	}
+	if r.externalIDs {
+		agreement.Id = agreement.Details.Id
+	}
+
 	if errs := agreement.Validate(); len(errs) > 0 {
 		err := newValError(errs)
 		return agreement, err
 	}
+	agreement.Id = finalID
 	return r.backend.UpdateAgreement(agreement)
 }
 
@@ -138,14 +176,44 @@ func (r repository) StopAgreement(id string) error {
 
 // CreateViolation validates and persists a new Violation.
 func (r repository) CreateViolation(v *model.Violation) (*model.Violation, error) {
+
+	finalID, idErr := r.checkIDErrOnCreate(v)
+	if idErr != nil {
+		return v, idErr
+	}
+	if r.externalIDs {
+		v.Id = fakeID
+	}
+
 	if errs := v.Validate(); len(errs) > 0 {
 		err := newValError(errs)
 		return v, err
 	}
+	v.Id = finalID
 	return r.backend.CreateViolation(v)
 }
 
 // GetViolation returns the Violation identified by id.
 func (r repository) GetViolation(id string) (*model.Violation, error) {
 	return r.backend.GetViolation(id)
+}
+
+func (r repository) checkIDErrOnCreate(e model.Identity) (string, error) {
+	var finalID string
+	if r.externalIDs {
+		finalID = ""
+		if e.GetId() != "" {
+			return finalID, fmt.Errorf("Entity %T[id='%s'] must have empty Id on create", e, e.GetId())
+		}
+	} else {
+		finalID = e.GetId()
+	}
+	return finalID, nil
+}
+
+func (r repository) checkIDErrOnUpdate(e model.Identity) error {
+	if r.externalIDs && e.GetId() == "" {
+		return fmt.Errorf("Entity %T[id='%s'] must have non empty Id on update", e, e.GetId())
+	}
+	return nil
 }

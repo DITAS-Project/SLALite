@@ -286,6 +286,11 @@ func (g *Guarantee) Validate() []error {
 	return result
 }
 
+// GetId returns the Id of a violation
+func (v *Violation) GetId() string {
+	return v.Id
+}
+
 // Validate validates the consistency of a Violation entity
 func (v *Violation) Validate() []error {
 	result := make([]error, 0)

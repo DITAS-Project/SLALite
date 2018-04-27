@@ -58,7 +58,7 @@ func createRepository(repoType string) model.IRepository {
 		}
 		repo = mongoRepo
 	}
-	repo, _ = validation.New(repo)
+	repo, _ = validation.New(repo, false)
 	return repo
 }
 
