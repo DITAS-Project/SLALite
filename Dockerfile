@@ -1,6 +1,9 @@
 ###
 FROM golang:alpine as builder
 
+ARG VERSION
+ARG DATE 
+
 RUN apk add --no-cache git
 
 WORKDIR /go/src/SLALite
@@ -8,7 +11,7 @@ WORKDIR /go/src/SLALite
 COPY . .
 RUN go get -d -v ./...
 
-RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o SLALite .
+RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o SLALite -ldflags="-X main.version=${VERSION} -X main.date=${DATE}" .
 
 ###
 FROM mvertes/alpine-mongo:latest
