@@ -13,6 +13,8 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
+// Package assessment contains the core code that evaluates the agreements.
 package assessment
 
 import (
@@ -20,23 +22,30 @@ import (
 	"SLALite/assessment/monitor"
 	"SLALite/assessment/notifier"
 	"SLALite/model"
-	log2 "log"
 	"time"
 
 	"github.com/Knetic/govaluate"
-	log "github.com/labstack/gommon/log"
+	log "github.com/sirupsen/logrus"
 )
+
+func init() {
+	log.SetLevel(log.DebugLevel)
+}
 
 //AssessActiveAgreements will get the active agreements from the provided repository and assess them, notifying about violations with the provided notifier.
 func AssessActiveAgreements(repo model.IRepository, ma monitor.MonitoringAdapter, not notifier.ViolationNotifier) {
-	agrements, err := repo.GetActiveAgreements()
+	agreements, err := repo.GetActiveAgreements()
 	if err != nil {
-		log.Errorf("Error getting active agreements: " + err.Error())
+		log.Errorf("Error getting active agreements: %s", err.Error())
 	} else {
-		for _, agreement := range agrements {
+		log.Printf("AssessActiveAgreements(). %d agreements to evaluate", len(agreements))
+		for _, agreement := range agreements {
+			ma.Initialize(&agreement)
 			result := AssessAgreement(&agreement, ma, time.Now())
 			repo.UpdateAgreement(&agreement)
-			not.NotifyViolations(&agreement, &result)
+			if not != nil {
+				not.NotifyViolations(&agreement, &result)
+			}
 		}
 	}
 }
@@ -58,6 +67,7 @@ func AssessAgreement(a *model.Agreement, ma monitor.MonitoringAdapter, now time.
 	var result assessment_model.Result
 	var err error
 
+	log.Debugf("AssessAgreement(%s)", a.Id)
 	if a.Details.Expiration.Before(now) {
 		// agreement has expired
 		a.State = model.TERMINATED
@@ -66,7 +76,8 @@ func AssessAgreement(a *model.Agreement, ma monitor.MonitoringAdapter, now time.
 	if a.State == model.STARTED {
 		result, err = EvaluateAgreement(a, ma)
 		if err != nil {
-			// TODO
+			log.Warn("Error evaluating agreement " + a.Id + ": " + err.Error())
+			return nil
 		}
 		if a.Assessment.FirstExecution.IsZero() {
 			a.Assessment.FirstExecution = now
@@ -84,6 +95,7 @@ func AssessAgreement(a *model.Agreement, ma monitor.MonitoringAdapter, now time.
 func EvaluateAgreement(a *model.Agreement, ma monitor.MonitoringAdapter) (assessment_model.Result, error) {
 	ma.Initialize(a)
 
+	log.Debugf("EvaluateAgreement(%s)", a.Id)
 	result := make(assessment_model.Result)
 	gts := a.Details.Guarantees
 
@@ -111,10 +123,12 @@ func EvaluateAgreement(a *model.Agreement, ma monitor.MonitoringAdapter) (assess
 //
 // Returns the metrics that failed the GT constraint.
 func EvaluateGuarantee(a *model.Agreement, gt model.Guarantee, ma monitor.MonitoringAdapter) (assessment_model.GuaranteeData, error) {
+	log.Debugf("EvaluateGuarantee(%s, %s)", a.Id, gt.Name)
 	failed := make(assessment_model.GuaranteeData, 0, 1)
 
 	expression, err := govaluate.NewEvaluableExpression(gt.Constraint)
 	if err != nil {
+		log.Warn("Error parsing expression '%s'", gt.Constraint)
 		return nil, err
 	}
 
@@ -163,7 +177,7 @@ func EvaluateGtViolations(a *model.Agreement, gt model.Guarantee, violated asses
 // or nil if expression was true
 func evaluateExpression(expression *govaluate.EvaluableExpression, values assessment_model.ExpressionData) (assessment_model.ExpressionData, error) {
 
-	log2.Printf("Evaluating %v", values)
+	log.Debugf("Evaluating expression '%v' with values %v", expression, values)
 	evalues := make(map[string]interface{})
 	for key, value := range values {
 		evalues[key] = value.Value
