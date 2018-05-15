@@ -192,15 +192,12 @@ type PenaltyDef struct {
 
 // Violation is generated when a guarantee term is not fulfilled
 type Violation struct {
-	Id          string    `json:"id"`
-	AgreementId string    `json:"agreement_id"`
-	Guarantee   string    `json:"guarantee"`
-	Datetime    time.Time `json:"datetime"`
-	/*
-	 * actual_value missing.
-	 * To research how to include a json map here. Sth like:
-	 * actual_value: { "availability" : 0.9, "responsetime": 200 }
-	 */
+	Id          string                 `json:"id"`
+	AgreementId string                 `json:"agreement_id"`
+	Guarantee   string                 `json:"guarantee"`
+	Datetime    time.Time              `json:"datetime"`
+	Constraint  string                 `json:"constraint"`
+	Values      map[string]interface{} `json:"values"`
 }
 
 // Penalty is generated when a guarantee term is violated is the term has
@@ -300,6 +297,11 @@ func (v *Violation) Validate() []error {
 	if v.Datetime.IsZero() {
 		result = append(result, fmt.Errorf("%v is not a valid date", v.Datetime))
 	}
+	if v.Values == nil || len(v.Values) == 0 {
+		result = append(result, fmt.Errorf("Violation.Values cannot be empty"))
+	}
+	result = checkEmpty(v.Constraint, "Violation.Constraint", result)
+
 	return result
 }
 

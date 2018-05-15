@@ -205,6 +205,39 @@ func TestAgreementSerialization(t *testing.T) {
 
 }
 
+func TestViolation(t *testing.T) {
+	var v = Violation{}
+	checkNumber(t, &v, 6)
+
+	v = Violation{
+		Id:          "v-id",
+		AgreementId: "ag-id",
+		Datetime:    time.Now(),
+		Guarantee:   "gt-name",
+		Constraint:  "var < threshold",
+		Values: map[string]interface{}{
+			"var": 10,
+		},
+	}
+}
+
+func TestViolationSerialization(t *testing.T) {
+	var v Violation
+	s := `{
+		"id": "v-id",
+		"agreement_id": "a-id",
+		"datetime": "2018-05-15T14:15:00Z",
+		"guarantee": "gt-name",
+		"constraint": "var1 < 100 and var2 > 100",
+		"values": { "var1": 101, "var2": 100}
+	}`
+	err := json.NewDecoder(strings.NewReader(s)).Decode(&v)
+	if err != nil {
+		t.Fatalf("Error decoding %v", err)
+	}
+	checkNumber(t, &v, 0)
+}
+
 func checkNumber(t *testing.T, v Validable, expected int) {
 
 	if errs := v.Validate(); len(errs) != expected {
