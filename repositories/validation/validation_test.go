@@ -96,7 +96,14 @@ func TestRepositoryWithExternalIds(t *testing.T) {
 		return
 	}
 
-	vi := &model.Violation{Id: "", AgreementId: "id", Guarantee: "gt", Datetime: time.Now()}
+	vi := &model.Violation{
+		Id: "",
+		AgreementId: "id",
+		Guarantee: "gt",
+		Datetime: time.Now(),
+		Constraint: "var < 100",
+		Values: map[string]interface{} { "var": 101 },
+	}
 	vi, err = v.CreateViolation(vi)
 	if err != nil {
 		t.Errorf("No errors expected. Found %v", err)
@@ -148,7 +155,14 @@ func TestRepositoryWithoutExternalIds(t *testing.T) {
 		return
 	}
 
-	vi := &model.Violation{Id: "", AgreementId: "id", Guarantee: "gt", Datetime: time.Now()}
+	vi := &model.Violation{
+		Id: "",
+		AgreementId: "id",
+		Guarantee: "gt",
+		Datetime: time.Now(),
+		Constraint: "var < 100",
+		Values: map[string]interface{} { "var": 101 },
+	}
 	vi, err = v.CreateViolation(vi)
 	if err == nil {
 		t.Errorf("No errors expected. Found %v", err)
