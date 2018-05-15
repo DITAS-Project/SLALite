@@ -135,9 +135,11 @@ func EvaluateGuarantee(a *model.Agreement, gt model.Guarantee, ma monitor.Monito
 func EvaluateGtViolations(a *model.Agreement, gt model.Guarantee, violated assessment_model.GuaranteeData) []model.Violation {
 	gtv := make([]model.Violation, 0, len(violated))
 	for _, tuple := range violated {
-		// find newer metric
+		// build values map and find newer metric
 		var d *time.Time
+		var values = make(map[string]interface{})
 		for _, m := range tuple {
+			values[m.Key] = m.Value
 			if d == nil || m.DateTime.After(*d) {
 				d = &m.DateTime
 			}
@@ -146,6 +148,8 @@ func EvaluateGtViolations(a *model.Agreement, gt model.Guarantee, violated asses
 			AgreementId: a.Id,
 			Guarantee:   gt.Name,
 			Datetime:    *d,
+			Constraint:  gt.Constraint,
+			Values:      values,
 		}
 		gtv = append(gtv, v)
 	}
