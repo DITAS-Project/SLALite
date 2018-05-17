@@ -1,17 +1,17 @@
 /*
-   Copyright 2017 Atos
+Copyright 2017 Atos
 
-   Licensed under the Apache License, Version 2.0 (the "License");
-   you may not use this file except in compliance with the License.
-   You may obtain a copy of the License at
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
 
-     http://www.apache.org/licenses/LICENSE-2.0
+  http://www.apache.org/licenses/LICENSE-2.0
 
-   Unless required by applicable law or agreed to in writing, software
-   distributed under the License is distributed on an "AS IS" BASIS,
-   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-   See the License for the specific language governing permissions and
-   limitations under the License.
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
 */
 package mongodb
 
@@ -20,9 +20,9 @@ import (
 	"log"
 	"time"
 
+	"github.com/globalsign/mgo"
+	"github.com/globalsign/mgo/bson"
 	"github.com/spf13/viper"
-	"gopkg.in/mgo.v2"
-	"gopkg.in/mgo.v2/bson"
 )
 
 const (
@@ -119,7 +119,7 @@ func (r MongoDBRepository) getAll(collection string, result interface{}) (interf
 }
 
 func (r MongoDBRepository) get(collection string, id string, result model.Identity) (model.Identity, error) {
-	err := r.database.C(collection).Find(bson.M{"id": id}).One(result)
+	err := r.database.C(collection).FindId(id).One(result)
 	if err == mgo.ErrNotFound {
 		return result, model.ErrNotFound
 	}
@@ -136,8 +136,8 @@ func (r MongoDBRepository) create(collection string, object model.Identity) (mod
 	return object, errCreate
 }
 
-func (r MongoDBRepository) update(collection, id string, upd bson.M) error {
-	err := r.database.C(collection).Update(bson.M{"id": id}, upd)
+func (r MongoDBRepository) update(collection, id string, upd interface{}) error {
+	err := r.database.C(collection).UpdateId(id, upd)
 	if err == mgo.ErrNotFound {
 		return model.ErrNotFound
 	}
@@ -145,7 +145,7 @@ func (r MongoDBRepository) update(collection, id string, upd bson.M) error {
 }
 
 func (r MongoDBRepository) delete(collection, id string) error {
-	error := r.database.C(collection).Remove(bson.M{"id": id})
+	error := r.database.C(collection).RemoveId(id)
 	if error == mgo.ErrNotFound {
 		return model.ErrNotFound
 	}
@@ -184,7 +184,7 @@ func (r MongoDBRepository) GetAgreement(id string) (*model.Agreement, error) {
 
 func (r MongoDBRepository) GetActiveAgreements() (model.Agreements, error) {
 	output := new(model.Agreements)
-	query := bson.M{"state": model.STARTED, "text.expiration": bson.M{"$gte": time.Now()}}
+	query := bson.M{"state": model.STARTED, "details.expiration": bson.M{"$gte": time.Now()}}
 	result, err := r.getList(agreementCollectionName, query, output)
 	return *((result).(*model.Agreements)), err
 }
@@ -192,6 +192,11 @@ func (r MongoDBRepository) GetActiveAgreements() (model.Agreements, error) {
 func (r MongoDBRepository) CreateAgreement(agreement *model.Agreement) (*model.Agreement, error) {
 	res, err := r.create(agreementCollectionName, agreement)
 	return res.(*model.Agreement), err
+}
+
+func (r MongoDBRepository) UpdateAgreement(agreement *model.Agreement) (*model.Agreement, error) {
+	err := r.update(agreementCollectionName, agreement.Id, agreement)
+	return agreement, err
 }
 
 func (r MongoDBRepository) DeleteAgreement(agreement *model.Agreement) error {

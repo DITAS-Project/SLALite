@@ -1,25 +1,23 @@
 /*
-   Copyright 2017 Atos
+Copyright 2017 Atos
 
-   Licensed under the Apache License, Version 2.0 (the "License");
-   you may not use this file except in compliance with the License.
-   You may obtain a copy of the License at
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
 
-     http://www.apache.org/licenses/LICENSE-2.0
+  http://www.apache.org/licenses/LICENSE-2.0
 
-   Unless required by applicable law or agreed to in writing, software
-   distributed under the License is distributed on an "AS IS" BASIS,
-   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-   See the License for the specific language governing permissions and
-   limitations under the License.
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
 */
 package main
 
 import (
 	"SLALite/model"
-	"SLALite/repositories/memrepository"
-	"SLALite/repositories/mongodb"
-	"SLALite/repositories/validation"
+	"SLALite/utils"
 	"bytes"
 	"encoding/json"
 	"io/ioutil"
@@ -51,12 +49,7 @@ var a1 = createAgreement("a01", p1, c2, "Agreement 01")
 
 // TestMain runs the tests
 func TestMain(m *testing.M) {
-	envvar := "SLA_" + strings.ToUpper(repositoryTypePropertyName)
-	repotype, ok := os.LookupEnv(envvar)
-	if !ok {
-		repotype = defaultRepositoryType
-	}
-	repo = createRepository(repotype)
+	repo = utils.CreateTestRepository()
 	if repo != nil {
 		_, err := repo.CreateProvider(&p1)
 		if err == nil {
@@ -79,27 +72,6 @@ func TestMain(m *testing.M) {
 	os.Remove(dbName)
 
 	os.Exit(result)
-}
-
-func createRepository(repoType string) model.IRepository {
-	var repo model.IRepository
-
-	switch repoType {
-	case defaultRepositoryType:
-		memrepo, _ := memrepository.New(nil)
-		repo = memrepo
-	case "mongodb":
-		config, _ := mongodb.NewDefaultConfig()
-		config.Set("database", "slaliteTest")
-		config.Set("clear_on_boot", true)
-		mongoRepo, errMongo := mongodb.New(config)
-		if errMongo != nil {
-			log.Fatal("Error creating mongo repository: ", errMongo.Error())
-		}
-		repo = mongoRepo
-	}
-	repo, _ = validation.New(repo)
-	return repo
 }
 
 func TestProviders(t *testing.T) {
@@ -275,7 +247,7 @@ func testGetAgreements(t *testing.T) {
 
 func testGetActiveAgreements(t *testing.T) {
 
-	repo.StartAgreement("01")
+	repo.StartAgreement("a01")
 
 	inactive := createAgreement("in1", p1, c2, "inactive")
 	inactive.State = model.STOPPED
@@ -303,12 +275,12 @@ func testGetActiveAgreements(t *testing.T) {
 
 	var agreements model.Agreements
 	_ = json.NewDecoder(res.Body).Decode(&agreements)
-	if len(agreements) != 1 {
-		t.Errorf("Expected 1 agreement. Received: %v", agreements)
+	if len(agreements) != 2 {
+		t.Errorf("Expected 2 agreement. Received: %v", agreements)
 	}
 
 	for _, agreement := range agreements {
-		if !(agreement.Id == p1.Id || agreement.Id == active.Id) {
+		if !(agreement.Id == a1.Id || agreement.Id == active.Id) {
 			t.Errorf("Got unexpected active agreement %s", agreement.Id)
 		}
 	}
@@ -355,7 +327,7 @@ func testGetAgreementDetailsNotExists(t *testing.T) {
 }
 
 func prepareCreateAgreement() {
-	_, err := repo.GetProvider("01")
+	_, err := repo.GetProvider("p01")
 	if err != nil {
 		repo.CreateProvider(&p1)
 	}
@@ -492,42 +464,6 @@ func testAgreementNotEscaped(t *testing.T) {
 	}
 }
 
-func TestEvaluationSuccess(t *testing.T) {
-
-	data := map[string]map[string]interface{}{
-		"TestGuarantee": map[string]interface{}{
-			"test_value": 11,
-		},
-	}
-
-	failed, err := evaluateAgreement(a1, data)
-	if err != nil {
-		t.Errorf("Error evaluating agreement: %s", err.Error())
-	}
-
-	if len(failed) > 0 {
-		t.Errorf("Found penalties but none were expected")
-	}
-}
-
-func TestEvaluationFailure(t *testing.T) {
-
-	data := map[string]map[string]interface{}{
-		"TestGuarantee": map[string]interface{}{
-			"test_value": 9,
-		},
-	}
-
-	failed, err := evaluateAgreement(a1, data)
-	if err != nil {
-		t.Errorf("Error evaluating agreement: %s", err.Error())
-	}
-
-	if len(failed) != 1 {
-		t.Errorf("Penalty expected but none found")
-	}
-}
-
 func request(req *http.Request) *httptest.ResponseRecorder {
 	rr := httptest.NewRecorder()
 	a.Router.ServeHTTP(rr, req)
@@ -634,7 +570,7 @@ func createAgreement(aid string, provider model.Provider, client model.Client, n
 			Creation:   time.Now(),
 			Expiration: time.Now().Add(24 * time.Hour),
 			Guarantees: []model.Guarantee{
-				model.Guarantee{Name: "TestGuarantee", Constraint: "[test_value] > 10"},
+				model.Guarantee{Name: "TestGuarantee", Constraint: "test_value > 10"},
 			},
 		},
 	}
