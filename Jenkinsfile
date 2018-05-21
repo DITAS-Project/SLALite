@@ -8,6 +8,7 @@ pipeline {
                 }
             }
             steps {
+                sh "ln -sf $WORKSPACE $GOPATH/src/SLALite"
                 sh "go get -d -v ./..."
                 sh "CGO_ENABLED=0 GOOS=linux go build -a -o SLALite"
 		        // Test y build en go?
