@@ -18,6 +18,7 @@ package main
 import (
 	"SLALite/assessment"
 	"SLALite/assessment/monitor"
+	"SLALite/assessment/monitor/dummyadapter"
 	"SLALite/assessment/notifier"
 	"SLALite/model"
 	"SLALite/repositories/memrepository"
@@ -25,13 +26,18 @@ import (
 	"SLALite/repositories/validation"
 	"SLALite/utils"
 	"flag"
-	"log"
 	"strconv"
 	"strings"
 	"time"
 
+	log "github.com/sirupsen/logrus"
+
 	"github.com/spf13/viper"
 )
+
+// version and date are defined on compilation (see makefile)
+var version string
+var date string
 
 func main() {
 
@@ -41,12 +47,12 @@ func main() {
 	configFile := flag.String("f", "", "Path of configuration file. Overrides -b and -d")
 	flag.Parse()
 
-	log.Println("Initializing", *configPath, *configBasename)
+	log.Infof("Running SLALite %s compiled on %s", version, date)
 	config := createMainConfig(configFile, configPath, configBasename)
 	logMainConfig(config)
 
 	singlefile := config.GetBool(utils.SingleFilePropertyName)
-	//checkPeriod := config.GetDuration(checkPeriodPropertyName)
+	checkPeriod := config.GetDuration(utils.CheckPeriodPropertyName)
 	repoType := config.GetString(utils.RepositoryTypePropertyName)
 
 	var repoconfig *viper.Viper
@@ -66,10 +72,10 @@ func main() {
 		log.Fatal("Error creating repository: ", errRepo.Error())
 	}
 
-	repo, _ = validation.New(repo)
+	repo, _ = validation.New(repo, false)
 	if repo != nil {
 		a, _ := NewApp(config, repo)
-		//go createValidationThread(repo, checkPeriod)
+		go createValidationThread(repo, dummyadapter.New(), nil, checkPeriod)
 		a.Run()
 	}
 }
@@ -110,7 +116,7 @@ func logMainConfig(config *viper.Viper) {
 	checkPeriod := config.GetDuration(utils.CheckPeriodPropertyName)
 	repoType := config.GetString(utils.RepositoryTypePropertyName)
 
-	log.Printf("SLALite initialization\n"+
+	log.Infof("SLALite initialization\n"+
 		"\tConfigfile: %s\n"+
 		"\tRepository type: %s\n"+
 		"\tCheck period:%d\n",

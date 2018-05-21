@@ -13,10 +13,15 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
+/*
+Package mongodb is an implementation of a model.IRepository backed up by a mongodb.
+*/
 package mongodb
 
 import (
 	"SLALite/model"
+	"fmt"
 	"log"
 	"time"
 
@@ -44,6 +49,7 @@ type MongoDBRepository struct {
 	database *mgo.Database
 }
 
+// NewDefaultConfig gets a default configuration for a MongoDBRepository
 func NewDefaultConfig() (*viper.Viper, error) {
 	config := viper.New()
 
@@ -68,7 +74,7 @@ func setDefaults(config *viper.Viper) {
 	config.SetDefault(clearOnBoot, false)
 }
 
-//CreateMongoDBRepository creates a new instance of the MongoDBRepository with the database configurarion read from a configuration file
+// New creates a new instance of the MongoDBRepository with the database configurarion read from a configuration file
 func New(config *viper.Viper) (MongoDBRepository, error) {
 	if config == nil {
 		config, _ = NewDefaultConfig()
@@ -153,35 +159,76 @@ func (r MongoDBRepository) delete(collection, id string) error {
 
 }
 
+/*
+GetAllProviders returns the list of providers.
+
+The list is empty when there are no providers;
+error != nil on error
+*/
 func (r MongoDBRepository) GetAllProviders() (model.Providers, error) {
 	res, err := r.getAll(providersCollectionName, new(model.Providers))
 	return *((res).(*model.Providers)), err
 }
 
+/*
+GetProvider returns the Provider identified by id.
+
+error != nil on error;
+error is sql.ErrNoRows if the provider is not found
+*/
 func (r MongoDBRepository) GetProvider(id string) (*model.Provider, error) {
 	res, err := r.get(providersCollectionName, id, new(model.Provider))
 	return res.(*model.Provider), err
 }
 
+/*
+CreateProvider stores a new provider.
+
+error != nil on error;
+error is sql.ErrNoRows if the provider already exists
+*/
 func (r MongoDBRepository) CreateProvider(provider *model.Provider) (*model.Provider, error) {
 	res, err := r.create(providersCollectionName, provider)
 	return res.(*model.Provider), err
 }
 
+/*
+DeleteProvider deletes from the repository the provider whose id is provider.Id.
+
+error != nil on error;
+error is sql.ErrNoRows if the provider does not exist.
+*/
 func (r MongoDBRepository) DeleteProvider(provider *model.Provider) error {
 	return r.delete(providersCollectionName, provider.Id)
 }
 
+/*
+GetAllAgreements returns the list of agreements.
+
+The list is empty when there are no agreements;
+error != nil on error
+*/
 func (r MongoDBRepository) GetAllAgreements() (model.Agreements, error) {
 	res, err := r.getAll(agreementCollectionName, new(model.Agreements))
 	return *((res).(*model.Agreements)), err
 }
 
+/*
+GetAgreement returns the Agreement identified by id.
+
+error != nil on error;
+error is sql.ErrNoRows if the Agreement is not found
+*/
 func (r MongoDBRepository) GetAgreement(id string) (*model.Agreement, error) {
 	res, err := r.get(agreementCollectionName, id, new(model.Agreement))
 	return res.(*model.Agreement), err
 }
 
+/*
+GetActiveAgreements returns the list of active agreements.
+
+error != nil on error
+*/
 func (r MongoDBRepository) GetActiveAgreements() (model.Agreements, error) {
 	output := new(model.Agreements)
 	query := bson.M{"state": model.STARTED, "details.expiration": bson.M{"$gte": time.Now()}}
@@ -189,24 +236,69 @@ func (r MongoDBRepository) GetActiveAgreements() (model.Agreements, error) {
 	return *((result).(*model.Agreements)), err
 }
 
+/*
+CreateAgreement stores a new Agreement.
+
+error != nil on error;
+error is sql.ErrNoRows if the Agreement already exists
+*/
 func (r MongoDBRepository) CreateAgreement(agreement *model.Agreement) (*model.Agreement, error) {
 	res, err := r.create(agreementCollectionName, agreement)
 	return res.(*model.Agreement), err
 }
 
+/*
+UpdateAgreement updates the information of an already saved instance of an agreement
+*/
 func (r MongoDBRepository) UpdateAgreement(agreement *model.Agreement) (*model.Agreement, error) {
 	err := r.update(agreementCollectionName, agreement.Id, agreement)
 	return agreement, err
 }
 
+/*
+DeleteAgreement deletes from the repository the Agreement whose id is provider.Id.
+
+error != nil on error;
+error is sql.ErrNoRows if the Agreement does not exist.
+*/
 func (r MongoDBRepository) DeleteAgreement(agreement *model.Agreement) error {
 	return r.delete(agreementCollectionName, agreement.Id)
 }
 
+/*
+StartAgreement starts monitoring the agreement provided by id.
+
+error != nil on error
+*/
 func (r MongoDBRepository) StartAgreement(id string) error {
 	return r.update(agreementCollectionName, id, bson.M{"$set": bson.M{"state": model.STARTED}})
 }
 
+/*
+StopAgreement stops monitoring the agreement provided by id.
+
+error != nil on error
+*/
 func (r MongoDBRepository) StopAgreement(id string) error {
 	return r.update(agreementCollectionName, id, bson.M{"$set": bson.M{"state": model.STOPPED}})
+}
+
+/*
+CreateViolation stores a new Violation.
+
+error != nil on error;
+error is sql.ErrNoRows if the Violation already exists
+*/
+func (r MongoDBRepository) CreateViolation(v *model.Violation) (*model.Violation, error) {
+	return nil, fmt.Errorf("Not implemented")
+}
+
+/*
+GetViolation returns the Violation identified by id.
+
+error != nil on error;
+error is sql.ErrNoRows if the Violation is not found
+*/
+func (r MongoDBRepository) GetViolation(id string) (*model.Violation, error) {
+	return nil, fmt.Errorf("Not implemented")
 }

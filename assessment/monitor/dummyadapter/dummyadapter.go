@@ -13,6 +13,20 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
+/*
+Package dummyadapter provides an example of MonitoringAdapter. It just
+returns a random value each time it is called.
+
+Usage:
+	ma := dummyadapter.New()
+	ma.Initialize(&agreement)
+	for _, gt := range gts {
+		for values := ma.NextValues(gt); values != nil; values = ma.NextValues(gt) {
+			...
+		}
+	}
+*/
 package dummyadapter
 
 import (
@@ -30,6 +44,7 @@ type monitoringAdapter struct {
 	i         int
 }
 
+// New returns a new Dummy Monitoring Adapter.
 func New() monitor.MonitoringAdapter {
 	return &monitoringAdapter{
 		agreement: nil,
@@ -39,6 +54,7 @@ func New() monitor.MonitoringAdapter {
 
 func (ma *monitoringAdapter) Initialize(a *model.Agreement) {
 	ma.agreement = a
+	ma.i = 0
 }
 
 func (ma *monitoringAdapter) NextValues(gt model.Guarantee) map[string]monitor.MetricValue {
