@@ -13,19 +13,36 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
 package utils
 
 import "time"
 
 const (
-	ConfigPrefix          string        = "sla"
-	DefaultCheckPeriod    time.Duration = 60
-	DefaultRepositoryType string        = "memory"
+	// ConfigPrefix is the prefix of env vars that configure the SLALite
+	ConfigPrefix string = "sla"
 
-	CheckPeriodPropertyName    = "checkPeriod"
+	// DefaultCheckPeriod is the default number of seconds of the periodic assessment execution
+	DefaultCheckPeriod time.Duration = 60
+
+	// DefaultRepositoryType is the name of the default repository
+	DefaultRepositoryType string = "memory"
+
+	// CheckPeriodPropertyName is the name of the property CheckPeriod
+	CheckPeriodPropertyName = "checkPeriod"
+
+	// RepositoryTypePropertyName is the name of the property repository type
 	RepositoryTypePropertyName = "repository"
-	SingleFilePropertyName     = "singlefile"
 
+	// SingleFilePropertyName is the name of the property single file
+	// If singlefile is set, all configuration is retrieved from a single file.
+	// If not, configuration may be obtained from several files: e.g. mongodb configuration
+	// is obtained from mongodb.yml file.
+	SingleFilePropertyName = "singlefile"
+
+	// UnixConfigPath is the ":" separated list of directories where to search for config files
 	UnixConfigPath = "/etc/slalite:."
-	ConfigName     = "slalite"
+
+	// ConfigName is the default filename of the configuration file
+	ConfigName = "slalite"
 )

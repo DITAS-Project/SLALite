@@ -176,6 +176,14 @@ func TestEvaluateAgreement(t *testing.T) {
 	if len(gtev.Violations) != 1 {
 		t.Errorf("Error in number of violations. Expected: 1. Actual: %v. %v", gtev.Violations, invalid)
 	}
+	for _, v := range(gtev.Violations) {
+		if errs := v.Validate(); len(errs) != 1 {
+			t.Errorf("Validation error in violation: %v", errs)
+		}
+		if v.Values["m"] != -1 {
+			t.Errorf("Unexpected Values map: %v", v.Values)
+		}
+	}
 }
 
 func TestEvaluateAgreementWithWrongValues(t *testing.T) {
