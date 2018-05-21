@@ -10,7 +10,6 @@ pipeline {
             steps {
                 sh "go get -d -v ./..."
                 sh "CGO_ENABLED=0 GOOS=linux go build -a -o SLALite"
-				
 		        // Test y build en go?
 		        sh "go test ./..."	
             }
