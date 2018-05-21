@@ -9,10 +9,10 @@ pipeline {
             }
             steps {
                 sh "go get -d -v ./..."
-                sh "CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo"
+                sh "CGO_ENABLED=0 GOOS=linux go build -a -o SLALite"
 				
-		// Test y build en go?
-		sh "go test"	
+		        // Test y build en go?
+		        sh "go test ./..."	
             }
         }
         stage('Image creation') {

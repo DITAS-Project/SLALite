@@ -13,5 +13,5 @@ sudo docker rm --force slalite || true
 sudo docker pull ditas/slalite:latest
 
 # SET THE PORT MAPPING
-sudo docker run -p HOST_PORT:CONTAINER_PORT -d --name slalite ditas/slalite:latest
+sudo docker run -p 8090:8090 -d --name slalite ditas/slalite:latest
 ENDSSH

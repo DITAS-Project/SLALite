@@ -1,0 +1,13 @@
+FROM golang:alpine
+WORKDIR /opt/slalite
+COPY SLALite .
+
+RUN mkdir /etc/slalite
+RUN addgroup -S slalite && adduser -D -G slalite slalite
+RUN chown -R slalite:slalite /etc/slalite && chmod 700 /etc/slalite
+
+EXPOSE 8090
+
+USER slalite
+ENTRYPOINT ["/opt/slalite/SLALite"]
+
