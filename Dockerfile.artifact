@@ -3,6 +3,7 @@ WORKDIR /opt/slalite
 COPY SLALite .
 
 RUN mkdir /etc/slalite
+COPY docker/slalite.yml /etc/slalite
 RUN addgroup -S slalite && adduser -D -G slalite slalite
 RUN chown -R slalite:slalite /etc/slalite && chmod 700 /etc/slalite
 
