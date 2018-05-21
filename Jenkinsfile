@@ -8,9 +8,9 @@ pipeline {
                 }
             }
             steps {
+                sh "ln -sf ${WORKSPACE} /go/src/SLALite"
                 sh "go get -d -v ./..."
                 sh "CGO_ENABLED=0 GOOS=linux go build -a -o SLALite"
-				
 		        // Test y build en go?
 		        sh "go test ./..."	
             }
@@ -54,7 +54,7 @@ pipeline {
                 // TODO: Uncomment this when the previous stages run correctly
                 // TODO: Remember to edit 'deploy-staging.sh' and configure the ports
                 // Deploy to Staging environment calling the deployment script
-                // sh './jenkins/deploy-staging.sh'
+                sh './jenkins/deploy/deploy-staging.sh'
             }
         }
     }
