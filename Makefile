@@ -23,13 +23,13 @@ docker:
 	docker build --build-arg VERSION=${VERSION} --build-arg DATE=${DATE} -t ${IMAGE}:${VERSION} .
 
 release_patch:
-	resources/bin/release patch
+	resources/bin/release.sh patch
 
 release_minor:
-	resources/bin/release minor
+	resources/bin/release.sh minor
 
 release_major:
-	resources/bin/release major
+	resources/bin/release.sh major
 
 clean:
 	go clean
