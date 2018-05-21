@@ -121,20 +121,19 @@ func (a *App) initialize(repository model.IRepository) {
 
 	a.Router.HandleFunc("/", a.Index).Methods("GET")
 
-	a.Router.Methods("GET").Path("/providers").
-		Handler(LoggerDecorator(http.HandlerFunc(a.GetAllProviders), "All Providers"))
-	a.Router.HandleFunc("/providers/{id}", a.GetProvider).Methods("GET")
-	a.Router.HandleFunc("/providers", a.CreateProvider).Methods("POST")
-	a.Router.HandleFunc("/providers/{id}", a.DeleteProvider).Methods("DELETE")
+	a.Router.Methods("GET").Path("/providers").Handler(logger(a.GetAllProviders))
 
-	a.Router.Methods("GET").Path("/agreements").
-		Handler(LoggerDecorator(http.HandlerFunc(a.GetAgreements), "Agreements"))
-	a.Router.HandleFunc("/agreements/{id}", a.GetAgreement).Methods("GET")
-	a.Router.HandleFunc("/agreements", a.CreateAgreement).Methods("POST")
-	a.Router.HandleFunc("/agreements/{id}/start", a.StartAgreement).Methods("PUT")
-	a.Router.HandleFunc("/agreements/{id}/stop", a.StopAgreement).Methods("PUT")
-	a.Router.HandleFunc("/agreements/{id}", a.DeleteAgreement).Methods("DELETE")
-	a.Router.HandleFunc("/agreements/{id}/details", a.GetAgreementDetails).Methods("GET")
+	a.Router.Methods("GET").Path("/providers/{id}").Handler(logger(a.GetProvider))
+	a.Router.Methods("POST").Path("/providers").Handler(logger(a.CreateProvider))
+	a.Router.Methods("DELETE").Path("/providers/{id}").Handler(logger(a.DeleteProvider))
+
+	a.Router.Methods("GET").Path("/agreements").Handler(logger(a.GetAgreements))
+	a.Router.Methods("GET").Path("/agreements/{id}").Handler(logger(a.GetAgreement))
+	a.Router.Methods("POST").Path("/agreements").Handler(logger(a.CreateAgreement))
+	a.Router.Methods("PUT").Path("/agreements/{id}/start").Handler(logger(a.StartAgreement))
+	a.Router.Methods("PUT").Path("/agreements/{id}/stop").Handler(logger(a.StopAgreement))
+	a.Router.Methods("DELETE").Path("/agreements/{id}").Handler(logger(a.DeleteAgreement))
+	a.Router.Methods("GET").Path("/agreements/{id}/details").Handler(logger(a.GetAgreementDetails))
 }
 
 // Run starts the REST API
@@ -153,17 +152,20 @@ func (a *App) Index(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(api)
 }
 
-func LoggerDecorator(inner http.Handler, name string) http.Handler {
+func logger(f func(w http.ResponseWriter, r *http.Request)) http.Handler {
+	return loggerDecorator(http.HandlerFunc(f))
+}
+
+func loggerDecorator(inner http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
 
 		inner.ServeHTTP(w, r)
 
 		log.Printf(
-			"%s\t%s\t%s\t%s",
+			"%s\t%s\t\t%s",
 			r.Method,
 			r.RequestURI,
-			name,
 			time.Since(start),
 		)
 	})
