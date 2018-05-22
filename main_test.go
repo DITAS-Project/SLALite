@@ -21,7 +21,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"io/ioutil"
-	"log"
 	"math/rand"
 	"net/http"
 	"net/http/httptest"
@@ -31,6 +30,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	log "github.com/sirupsen/logrus"
 
 	"github.com/spf13/viper"
 )
