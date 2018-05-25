@@ -25,10 +25,11 @@ import (
 	"SLALite/repositories/mongodb"
 	"SLALite/repositories/validation"
 	"encoding/json"
-	"log"
 	"os"
 	"strings"
 	"time"
+
+	log "github.com/sirupsen/logrus"
 )
 
 // CreateTestRepository creates a repository according to the SLA_REPOSITORY env var.

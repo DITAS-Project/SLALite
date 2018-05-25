@@ -22,8 +22,9 @@ package mongodb
 import (
 	"SLALite/model"
 	"fmt"
-	"log"
 	"time"
+
+	log "github.com/sirupsen/logrus"
 
 	"github.com/globalsign/mgo"
 	"github.com/globalsign/mgo/bson"

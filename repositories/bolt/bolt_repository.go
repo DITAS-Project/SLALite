@@ -18,7 +18,8 @@ package bolt
 import (
 	"SLALite/model"
 	"errors"
-	"log"
+
+	log "github.com/sirupsen/logrus"
 
 	bolt "github.com/coreos/bbolt"
 	"github.com/spf13/viper"
