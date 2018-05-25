@@ -88,6 +88,7 @@ paths:
         description: "ID of provider to return"
         required: true
         type: "string"
+        x-example: 01
       responses:
         200:
           description: "Successful operation"
@@ -115,6 +116,7 @@ paths:
         description: "Provider id to delete"
         required: true
         type: "string"
+        x-example: 01
       responses:
         200:
           description: "Successful operation"
@@ -201,6 +203,7 @@ paths:
         description: "ID of agreement to return"
         required: true
         type: "string"
+        x-example: 01
       responses:
         200:
           description: "Successful operation"
@@ -228,6 +231,7 @@ paths:
         description: "Id of agreement to delete"
         required: true
         type: "string"
+        x-example: 01
       responses:
         200:
           description: "Successful operation"
@@ -255,6 +259,7 @@ paths:
         description: "Id of agreement to update"
         required: true
         type: "string"
+        x-example: 01
       - in: "body"
         name: "agreement"
         description: "Agreement status that needs to be added to the store"
@@ -289,6 +294,7 @@ paths:
         description: "ID of agreement to return"
         required: true
         type: "string"
+        x-example: 01
       responses:
         200:
           description: "successful operation"
