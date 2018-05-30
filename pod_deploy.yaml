@@ -1,0 +1,26 @@
+apiVersion: v1
+kind: Service
+metadata:
+name: slalite
+spec:
+type: NodePort
+selector:
+  component: slalite
+ports:
+- name: http
+  port: 8090
+  targetPort: 50016
+
+---
+apiVersion: v1
+kind: Pod
+metadata:
+name: slalite
+labels:
+  component: slalite
+spec:
+containers:
+  - name: slalite
+    image: docker pull ditas/slalite
+    ports:
+      - containerPort: 8090
