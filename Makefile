@@ -20,7 +20,7 @@ run: build
 	./${OUT}
 
 docker: 
-	docker build --build-arg VERSION=${VERSION} --build-arg DATE=${DATE} -t ${IMAGE}:${VERSION} .
+	resources/bin/make_docker.sh ${IMAGE}
 
 release_patch:
 	resources/bin/release.sh patch
