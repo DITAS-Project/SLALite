@@ -24,3 +24,11 @@ spec:
     image: ditas/slalite
     ports:
     - containerPort: 8090
+    volumeMounts:
+    - name: blueprint
+      mountPath: /opt/blueprint
+  volumes:
+  - name: blueprint
+    hostPath:
+      path: /home/cloudsigma/sla/blueprint
+      type: Directory
