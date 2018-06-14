@@ -30,5 +30,5 @@ spec:
   volumes:
   - name: blueprint
     hostPath:
-      path: /home/cloudsigma
+      path: /home/cloudsigma/blueprint
       type: Directory
