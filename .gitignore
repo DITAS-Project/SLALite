@@ -6,3 +6,5 @@ projectFilesBackup/
 \.idea/
 debug.test
 debug
+
+vendor
