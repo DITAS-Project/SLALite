@@ -8,3 +8,4 @@ debug.test
 debug
 
 vendor
+Gopkg.lock

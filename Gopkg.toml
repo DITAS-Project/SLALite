@@ -46,10 +46,6 @@
   version = "0.2.6"
 
 [[constraint]]
-  branch = "master"
-  name = "github.com/oleksandr/conditions"
-
-[[constraint]]
   name = "github.com/sirupsen/logrus"
   version = "1.0.5"
 
