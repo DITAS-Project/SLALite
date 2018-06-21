@@ -55,6 +55,8 @@ func main() {
 	checkPeriod := config.GetDuration(utils.CheckPeriodPropertyName)
 	repoType := config.GetString(utils.RepositoryTypePropertyName)
 
+	utils.AddTrustedCAs(config)
+	
 	var repoconfig *viper.Viper
 	if singlefile {
 		repoconfig = config
@@ -121,6 +123,11 @@ func logMainConfig(config *viper.Viper) {
 		"\tRepository type: %s\n"+
 		"\tCheck period:%d\n",
 		config.ConfigFileUsed(), repoType, checkPeriod)
+	
+	caPath := config.GetString(utils.CAPathPropertyName)
+	if caPath != "" {
+		log.Infof("SLALite intialization. Trusted CAs file: %s", caPath);
+	}
 }
 
 func createValidationThread(repo model.IRepository, ma monitor.MonitoringAdapter,

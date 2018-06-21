@@ -83,6 +83,9 @@ Usage of SLALite:
   value to `mongodb` to use a MongoDB database.
 * `checkPeriod` (default: `60`). Sets the period in seconds of assessments 
   executions.
+* `CAPath`. Sets the value of a file path containing certificates of trusted
+  CAs; to be used to connect as client to SSL servers whose certificate is
+  not trusted by default (e.g. self-signed certificates)
 
 *REST interface settings*
 
