@@ -53,6 +53,10 @@
   name = "github.com/spf13/viper"
   version = "1.0.2"
 
+[[constraint]]
+  name = "github.com/olivere/elastic"
+  version = "6.1.23"
+
 [prune]
   go-tests = true
   unused-packages = true
