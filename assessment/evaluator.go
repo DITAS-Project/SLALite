@@ -34,7 +34,7 @@ func init() {
 
 //AssessActiveAgreements will get the active agreements from the provided repository and assess them, notifying about violations with the provided notifier.
 func AssessActiveAgreements(repo model.IRepository, ma monitor.MonitoringAdapter, not notifier.ViolationNotifier) {
-	agreements, err := repo.GetActiveAgreements()
+	agreements, err := repo.GetAgreementsByState(model.STARTED, model.STOPPED)
 	if err != nil {
 		log.Errorf("Error getting active agreements: %s", err.Error())
 	} else {

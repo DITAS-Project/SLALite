@@ -255,6 +255,8 @@ func testGetActiveAgreements(t *testing.T) {
 
 	repo.CreateAgreement(&inactive)
 
+	// Even if expired, state is set to STARTED. Periodic evaluation is responsible
+	// to update the state
 	expired := createAgreement("expired", p1, c2, "expired")
 	expired.State = model.STARTED
 	expired.Details.Expiration = time.Now().Add(-10 * time.Minute)
@@ -276,12 +278,12 @@ func testGetActiveAgreements(t *testing.T) {
 
 	var agreements model.Agreements
 	_ = json.NewDecoder(res.Body).Decode(&agreements)
-	if len(agreements) != 2 {
-		t.Errorf("Expected 2 agreement. Received: %v", agreements)
+	if len(agreements) != 3 {
+		t.Errorf("Expected 3 agreement. Received: %v", agreements)
 	}
 
 	for _, agreement := range agreements {
-		if !(agreement.Id == a1.Id || agreement.Id == active.Id) {
+		if !(agreement.Id == a1.Id || agreement.Id == active.Id || agreement.Id == expired.Id) {
 			t.Errorf("Got unexpected active agreement %s", agreement.Id)
 		}
 	}

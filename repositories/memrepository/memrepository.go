@@ -22,7 +22,6 @@ package memrepository
 
 import (
 	"SLALite/model"
-	"time"
 
 	"github.com/spf13/viper"
 )
@@ -158,17 +157,18 @@ func (r MemRepository) GetAllAgreements() (model.Agreements, error) {
 }
 
 /*
-GetActiveAgreements returns the list of active agreements.
+GetAgreementsByState returns the agreements that match any of the items in states.
 
 error != nil on error
 */
-func (r MemRepository) GetActiveAgreements() (model.Agreements, error) {
-	result := make(model.Agreements, 0, len(r.agreements))
+func (r MemRepository) GetAgreementsByState(states ...model.State) (model.Agreements, error) {
+	result := make(model.Agreements, 0)
 
-	now := time.Now()
-	for _, value := range r.agreements {
-		if value.State == model.STARTED && now.Before(value.Details.Expiration) {
-			result = append(result, value)
+	for _, a := range r.agreements {
+		for _, state := range states {
+			if a.State == state {
+				result = append(result, a)
+			}
 		}
 	}
 	return result, nil
