@@ -22,7 +22,7 @@ import (
 	"time"
 )
 
-var a1 = createAgreement("a01", p1, c2, "Agreement 01", "m >= 0.5 && n >= 0.5")
+var a1 = createAgreement("a01", p1, c2, "Agreement 01", "m >= 0.5 && n >= 0.5", nil)
 var p1 = model.Provider{Id: "p01", Name: "Provider01"}
 var c2 = model.Client{Id: "c02", Name: "A client"}
 
@@ -57,7 +57,7 @@ func TestDummyAdapter(t *testing.T) {
 	}
 }
 
-func createAgreement(aid string, provider model.Provider, client model.Client, name string, constraint string) model.Agreement {
+func createAgreement(aid string, provider model.Provider, client model.Client, name string, constraint string, expiration *time.Time) model.Agreement {
 	return model.Agreement{
 		Id:    aid,
 		Name:  name,
@@ -68,7 +68,7 @@ func createAgreement(aid string, provider model.Provider, client model.Client, n
 			Type:     model.AGREEMENT,
 			Provider: provider, Client: client,
 			Creation:   time.Now(),
-			Expiration: time.Now().Add(24 * time.Hour),
+			Expiration: expiration,
 			Guarantees: []model.Guarantee{
 				model.Guarantee{Name: "TestGuarantee", Constraint: constraint},
 			},

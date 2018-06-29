@@ -68,7 +68,7 @@ func AssessAgreement(a *model.Agreement, ma monitor.MonitoringAdapter, now time.
 	var err error
 
 	log.Debugf("AssessAgreement(%s)", a.Id)
-	if a.Details.Expiration.Before(now) {
+	if a.Details.Expiration != nil && a.Details.Expiration.Before(now) {
 		// agreement has expired
 		a.State = model.TERMINATED
 	}
