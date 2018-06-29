@@ -667,7 +667,7 @@
                               "type":"Process completeness",
                               "properties":[  
                                  {  
-                                    "name":"Process completeness",
+                                    "name":"Process_completeness",
                                     "minimum":90,
                                     "unit":"percentage"
                                  }

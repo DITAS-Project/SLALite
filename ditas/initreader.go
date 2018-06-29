@@ -46,7 +46,7 @@ func readProperty(property MetricPropertyType) string {
 	}
 
 	if property.Maximum != nil && property.Minimum != nil {
-		return fmt.Sprintf("%s <= %f AND %s >= %f", property.Name, *property.Maximum, property.Name, *property.Minimum)
+		return fmt.Sprintf("%s <= %f && %s >= %f", property.Name, *property.Maximum, property.Name, *property.Minimum)
 	}
 
 	if property.Maximum != nil && property.Minimum == nil {
@@ -67,7 +67,7 @@ func readProperties(properties []MetricPropertyType) string {
 		for i, property := range properties {
 			result = result + readProperty(property)
 			if i < len(properties)-1 {
-				result = result + " AND "
+				result = result + " && "
 			}
 		}
 	}
@@ -80,7 +80,7 @@ func getExpression(goal GoalType) string {
 		for i, metric := range goal.Metrics {
 			result = result + readProperties(metric.Properties)
 			if i < len(goal.Metrics)-1 {
-				result = result + " AND "
+				result = result + " %% "
 			}
 		}
 	}
@@ -136,10 +136,10 @@ func parseTree(tree *TreeStructureType, expressions map[string]string) []model.G
 		case "OR":
 			if len(tree.Leaves) == 2 {
 				name := tree.Leaves[0] + " or " + tree.Leaves[1]
-				constraint := expressions[tree.Leaves[0]] + " OR " + expressions[tree.Leaves[1]]
+				constraint := expressions[tree.Leaves[0]] + " || " + expressions[tree.Leaves[1]]
 				return []model.Guarantee{createGuarantee(name, constraint)}
 			}
-			constraint := expressions[tree.Leaves[0]] + " OR (" + flatten(tree.Children, expressions, "AND") + ")"
+			constraint := expressions[tree.Leaves[0]] + " || (" + flatten(tree.Children, expressions, "AND") + ")"
 			return []model.Guarantee{createGuarantee(tree.Leaves[0]+"_complex", constraint)}
 		}
 	} else {
@@ -151,7 +151,7 @@ func parseTree(tree *TreeStructureType, expressions map[string]string) []model.G
 			}
 			return result
 		case "OR":
-			constraint := flatten(tree.Children, expressions, "OR")
+			constraint := flatten(tree.Children, expressions, "||")
 			return []model.Guarantee{createGuarantee("complex", constraint)}
 		}
 	}

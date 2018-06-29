@@ -16,9 +16,17 @@ limitations under the License.
 package ditas
 
 import (
+	"SLALite/assessment"
+	"SLALite/assessment/monitor"
+	"SLALite/assessment/monitor/simpleadapter"
+	"SLALite/model"
 	"os"
 	"testing"
+	"time"
 )
+
+var t0 = time.Now()
+var notifier DitasNotifier
 
 func TestMain(m *testing.M) {
 	os.Exit(m.Run())
@@ -61,4 +69,31 @@ func TestReader(t *testing.T) {
 		t.Fatalf("Unexpected number of guarantees. Expected 3 but found %d", len(guarantees))
 	}
 
+}
+
+func TestNotifier(t *testing.T) {
+	blueprint := ReadBlueprint("resources/vdc_blueprint_example_1.json")
+	slas := CreateAgreements(blueprint)
+	slas[0].State = model.STARTED
+
+	var m1 = []map[string]monitor.MetricValue{
+		{
+			"Availability":         monitor.MetricValue{Key: "Availability", Value: 90, DateTime: t_(0)},
+			"Timeliness":           monitor.MetricValue{Key: "Timeliness", Value: 1, DateTime: t_(0)},
+			"ResponseTime":         monitor.MetricValue{Key: "ResponseTime", Value: 1.5, DateTime: t_(0)},
+			"volume":               monitor.MetricValue{Key: "volume", Value: 10000, DateTime: t_(0)},
+			"Process_completeness": monitor.MetricValue{Key: "Process_completeness", Value: 95, DateTime: t_(0)},
+		},
+	}
+
+	result := assessment.AssessAgreement(&slas[0], simpleadapter.New(m1), time.Now())
+	notifier.NotifyViolations(&slas[0], &result)
+
+	if len(notifier.Result.GetViolations()) != 3 {
+		t.Fatalf("Violation number don't match. Expected %d, found %d", 3, len(notifier.Result.GetViolations()))
+	}
+}
+
+func t_(second time.Duration) time.Time {
+	return t0.Add(time.Second * second)
 }

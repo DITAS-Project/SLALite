@@ -72,8 +72,15 @@ func TestAssessActiveAgreements(t *testing.T) {
 	var aa2 = createAgreementFull("aa02", p1, c2, "Agreement aa02", guarantees)
 	aa2.State = model.STARTED
 
+	guarantees = map[string]string{
+		"g1": "m >= 20 || n < 50",
+	}
+	var aa3 = createAgreementFull("aa03", p1, c2, "Agreement aa03", guarantees)
+	aa3.State = model.STARTED
+
 	repo.CreateAgreement(&aa1)
 	repo.CreateAgreement(&aa2)
+	repo.CreateAgreement(&aa3)
 
 	var m1 = []map[string]monitor.MetricValue{
 		{
@@ -93,6 +100,7 @@ func TestAssessActiveAgreements(t *testing.T) {
 	AssessActiveAgreements(repo, simpleadapter.New(m1), ValidationNotifier{Expected: map[string]int{
 		"aa01": 1,
 		"aa02": 1,
+		"aa03": 1,
 	}, T: t})
 }
 
@@ -176,7 +184,7 @@ func TestEvaluateAgreement(t *testing.T) {
 	if len(gtev.Violations) != 1 {
 		t.Errorf("Error in number of violations. Expected: 1. Actual: %v. %v", gtev.Violations, invalid)
 	}
-	for _, v := range(gtev.Violations) {
+	for _, v := range gtev.Violations {
 		if errs := v.Validate(); len(errs) != 1 {
 			t.Errorf("Validation error in violation: %v", errs)
 		}

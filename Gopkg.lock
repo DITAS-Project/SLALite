@@ -66,8 +66,8 @@
     "color",
     "log"
   ]
-  revision = "588f4e8bddc6cb45c27b448e925c7fd6a5545434"
-  version = "0.2.5"
+  revision = "d6898124de917583f5ff5592ef931d1dfe0ddc05"
+  version = "0.2.6"
 
 [[projects]]
   name = "github.com/magiconair/properties"
@@ -103,12 +103,6 @@
   name = "github.com/mitchellh/mapstructure"
   packages = ["."]
   revision = "bb74f1db0675b241733089d5a1faa5dd8b0ef57b"
-
-[[projects]]
-  branch = "master"
-  name = "github.com/oleksandr/conditions"
-  packages = ["."]
-  revision = "8ed8af13bdec0d8ff0c0789842555e2c02181400"
 
 [[projects]]
   name = "github.com/olivere/elastic"
@@ -220,6 +214,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "2b5fa3f4e10c9b10b2f15df2a82e7e93d546bd57ad8fb7ec427e579c111c1f90"
+  inputs-digest = "cae850ee4690c42dca724231c1817e4452a51efc3e0e467ece40a48aac5b8484"
   solver-name = "gps-cdcl"
   solver-version = 1
