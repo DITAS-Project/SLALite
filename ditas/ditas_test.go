@@ -18,12 +18,23 @@ package ditas
 import (
 	"SLALite/assessment"
 	"SLALite/assessment/monitor"
-	"SLALite/assessment/monitor/simpleadapter"
 	"SLALite/model"
 	"os"
 	"testing"
 	"time"
 )
+
+type TestMonitoring struct {
+	Metrics map[string]map[string]monitor.MetricValue
+}
+
+func (t TestMonitoring) Initialize(a *model.Agreement) {
+
+}
+
+func (t TestMonitoring) NextValues(gt model.Guarantee) map[string]monitor.MetricValue {
+	return t.Metrics[gt.Name]
+}
 
 var t0 = time.Now()
 var notifier DitasNotifier
@@ -75,22 +86,31 @@ func TestNotifier(t *testing.T) {
 	blueprint := ReadBlueprint("resources/vdc_blueprint_example_1.json")
 	slas := CreateAgreements(blueprint)
 	slas[0].State = model.STARTED
+	slas[0].Details.Expiration = time.Now().Add(24 * time.Hour)
 
-	var m1 = []map[string]monitor.MetricValue{
-		{
-			"Availability":         monitor.MetricValue{Key: "Availability", Value: 90, DateTime: t_(0)},
-			"Timeliness":           monitor.MetricValue{Key: "Timeliness", Value: 1, DateTime: t_(0)},
-			"ResponseTime":         monitor.MetricValue{Key: "ResponseTime", Value: 1.5, DateTime: t_(0)},
+	var m1 = map[string]map[string]monitor.MetricValue{
+		"1 or 4": {
+			"Availability": monitor.MetricValue{Key: "Availability", Value: 90, DateTime: t_(0)},
+			"Timeliness":   monitor.MetricValue{Key: "Timeliness", Value: 1, DateTime: t_(0)},
+		},
+		"2": {
+			"ResponseTime": monitor.MetricValue{Key: "ResponseTime", Value: 1.5, DateTime: t_(0)},
+		},
+		"3 or 5": {
 			"volume":               monitor.MetricValue{Key: "volume", Value: 10000, DateTime: t_(0)},
 			"Process_completeness": monitor.MetricValue{Key: "Process_completeness", Value: 95, DateTime: t_(0)},
 		},
 	}
 
-	result := assessment.AssessAgreement(&slas[0], simpleadapter.New(m1), time.Now())
+	adapter := TestMonitoring{
+		Metrics: m1,
+	}
+
+	result := assessment.AssessAgreement(&slas[0], adapter, time.Now())
 	notifier.NotifyViolations(&slas[0], &result)
 
-	if len(notifier.Result.GetViolations()) != 3 {
-		t.Fatalf("Violation number don't match. Expected %d, found %d", 3, len(notifier.Result.GetViolations()))
+	if len(notifier.Result.GetViolations()) != 2 {
+		t.Fatalf("Violation number don't match. Expected %d, found %d", 2, len(notifier.Result.GetViolations()))
 	}
 }
 

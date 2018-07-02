@@ -20,6 +20,8 @@ import (
 	assessment_model "SLALite/assessment/model"
 	"SLALite/model"
 	"errors"
+	"fmt"
+	"strconv"
 
 	"github.com/Knetic/govaluate"
 	log "github.com/sirupsen/logrus"
@@ -29,7 +31,19 @@ type DitasNotifier struct {
 	Result *assessment_model.Result
 }
 
-func evaluate(comparator string, threshold float64, value float64) (bool, error) {
+func toFloat(value interface{}) (float64, error) {
+	return strconv.ParseFloat(fmt.Sprint(value), 64)
+}
+
+func evaluate(comparator string, thresholdIf interface{}, valueIf interface{}) (bool, error) {
+	threshold, err := toFloat(thresholdIf)
+	if err != nil {
+		return false, errors.New("Can't parse threshold value: " + err.Error())
+	}
+	value, err := toFloat(valueIf)
+	if err != nil {
+		return false, errors.New("Can't parse value: " + err.Error())
+	}
 	switch comparator {
 	case "<":
 		return value < threshold, nil
@@ -47,6 +61,7 @@ func evaluate(comparator string, threshold float64, value float64) (bool, error)
 
 func filterValues(result *assessment_model.Result) {
 	for _, violation := range result.GetViolations() {
+		toRemain := make([]string, 0)
 		expression, err := govaluate.NewEvaluableExpression(violation.Constraint)
 		if err == nil {
 			tokens := expression.Tokens()
@@ -54,27 +69,34 @@ func filterValues(result *assessment_model.Result) {
 				if token.Kind == govaluate.VARIABLE && (i < len(tokens)-2) && (tokens[i+1].Kind == govaluate.COMPARATOR && tokens[i+2].Kind == govaluate.NUMERIC) {
 					variable := token.Value.(string)
 					comparator := tokens[i+1].Value.(string)
-					threshold := tokens[i+2].Value.(float64)
+					threshold := tokens[i+2].Value
 					value, found := violation.Values[variable]
 					if found {
-						assessed, err := evaluate(comparator, threshold, value.(float64))
-						if err == nil && assessed {
-							delete(violation.Values, variable)
+						assessed, err := evaluate(comparator, threshold, value)
+						if err == nil && !assessed {
+							toRemain = append(toRemain, variable)
 						} else {
-							log.Errorf("Error assessing expression %s: %s", violation.Constraint, err.Error())
+							if err != nil {
+								log.Errorf("Error assessing expression %s: %s", violation.Constraint, err.Error())
+							}
 						}
 					} else {
 						log.Errorf("Can't find value for variable %s", variable)
 					}
 				}
 			}
+			newValues := make(map[string]interface{}, len(toRemain))
+			for _, variable := range toRemain {
+				newValues[variable] = violation.Values[variable]
+			}
+			violation.Values = newValues
 		} else {
 			log.Errorf("Error tokenizing expression %s: %s", violation.Constraint, err.Error())
 		}
 	}
 }
 
-func (n DitasNotifier) NotifyViolations(agreement *model.Agreement, result *assessment_model.Result) {
+func (n *DitasNotifier) NotifyViolations(agreement *model.Agreement, result *assessment_model.Result) {
 	filterValues(result)
 	n.Result = result
 }

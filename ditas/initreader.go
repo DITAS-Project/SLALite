@@ -42,7 +42,7 @@ func ReadBlueprint(path string) BlueprintType {
 
 func readProperty(property MetricPropertyType) string {
 	if property.Value != nil {
-		return fmt.Sprintf("%s = %f", property.Name, *property.Value)
+		return fmt.Sprintf("%s == %f", property.Name, *property.Value)
 	}
 
 	if property.Maximum != nil && property.Minimum != nil {
