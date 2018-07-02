@@ -46,7 +46,7 @@ var dbName = "test.db"
 var providerPrefix = "pf_" + strconv.Itoa(rand.Int())
 var agreementPrefix = "apf_" + strconv.Itoa(rand.Int())
 
-var a1 = createAgreement("a01", p1, c2, "Agreement 01")
+var a1 = createAgreement("a01", p1, c2, "Agreement 01", nil)
 
 // TestMain runs the tests
 func TestMain(m *testing.M) {
@@ -250,20 +250,19 @@ func testGetActiveAgreements(t *testing.T) {
 
 	repo.StartAgreement("a01")
 
-	inactive := createAgreement("in1", p1, c2, "inactive")
+	inactive := createAgreement("in1", p1, c2, "inactive", nil)
 	inactive.State = model.STOPPED
 
 	repo.CreateAgreement(&inactive)
 
-	// Even if expired, state is set to STARTED. Periodic evaluation is responsible
-	// to update the state
-	expired := createAgreement("expired", p1, c2, "expired")
+	expired := createAgreement("expired", p1, c2, "expired", nil)
 	expired.State = model.STARTED
-	expired.Details.Expiration = time.Now().Add(-10 * time.Minute)
+	expiration := time.Now().Add(-10 * time.Minute)
+	expired.Details.Expiration = &expiration
 
 	repo.CreateAgreement(&expired)
 
-	active := createAgreement("a_active", p1, c2, "active")
+	active := createAgreement("a_active", p1, c2, "active", nil)
 	active.State = model.STARTED
 	repo.CreateAgreement(&active)
 
@@ -350,7 +349,7 @@ func testCreateAgreementThatExists(t *testing.T) {
 
 func testCreateAgreementWrongProvider(t *testing.T) {
 	prepareCreateAgreement()
-	posted := createAgreement("a02", p2, c2, "Agreement 02")
+	posted := createAgreement("a02", p2, c2, "Agreement 02", nil)
 	body, err := json.Marshal(posted)
 	if err != nil {
 		t.Error("Unexpected marshalling error")
@@ -362,7 +361,7 @@ func testCreateAgreementWrongProvider(t *testing.T) {
 }
 
 func testCreateAgreement(t *testing.T) {
-	posted := createAgreement("a02", p1, c2, "Agreement 02")
+	posted := createAgreement("a02", p1, c2, "Agreement 02", nil)
 	body, err := json.Marshal(posted)
 	if err != nil {
 		t.Error("Unexpected marshalling error")
@@ -381,7 +380,7 @@ func testCreateAgreement(t *testing.T) {
 
 func testCreateAgreementWithMissingField(t *testing.T) {
 
-	posted := createAgreement("", p1, c2, "Agreement without id")
+	posted := createAgreement("", p1, c2, "Agreement without id", nil)
 	body, err := json.Marshal(posted)
 	if err != nil {
 		t.Error("Unexpected marshalling error")
@@ -560,7 +559,7 @@ func getProviderId(i int) string {
 	return providerPrefix + "_" + strconv.Itoa(i)
 }
 
-func createAgreement(aid string, provider model.Provider, client model.Client, name string) model.Agreement {
+func createAgreement(aid string, provider model.Provider, client model.Client, name string, expiration *time.Time) model.Agreement {
 	return model.Agreement{
 		Id:    aid,
 		Name:  name,
@@ -571,7 +570,7 @@ func createAgreement(aid string, provider model.Provider, client model.Client, n
 			Type:     model.AGREEMENT,
 			Provider: provider, Client: client,
 			Creation:   time.Now(),
-			Expiration: time.Now().Add(24 * time.Hour),
+			Expiration: expiration,
 			Guarantees: []model.Guarantee{
 				model.Guarantee{Name: "TestGuarantee", Constraint: "test_value > 10"},
 			},

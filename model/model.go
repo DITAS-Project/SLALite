@@ -171,7 +171,7 @@ type Details struct {
 	Provider   Provider    `json:"provider"`
 	Client     Client      `json:"client"`
 	Creation   time.Time   `json:"creation"`
-	Expiration time.Time   `json:"expiration"`
+	Expiration *time.Time  `json:"expiration"`
 	Guarantees []Guarantee `json:"guarantees"`
 }
 

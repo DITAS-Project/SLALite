@@ -69,7 +69,7 @@ func TestAssessActiveAgreements(t *testing.T) {
 		"g1": "m >= 20",
 		"g2": "n < 50",
 	}
-	var aa2 = createAgreementFull("aa02", p1, c2, "Agreement aa02", guarantees)
+	var aa2 = createAgreementFull("aa02", p1, c2, "Agreement aa02", guarantees, nil)
 	aa2.State = model.STARTED
 
 	repo.CreateAgreement(&aa1)
@@ -147,7 +147,8 @@ func TestAssessExpiredAgreement(t *testing.T) {
 	ma := simpleadapter.New(nil)
 
 	a2.State = model.STARTED
-	a2.Details.Expiration = t_(-1)
+	expiration := t_(-1)
+	a2.Details.Expiration = &expiration
 	result := AssessAgreement(&a2, ma, t0)
 	if a2.State != model.TERMINATED {
 		t.Errorf("Agreement in unexpected state. Expected: terminated. Actual: %v", a2.State)
@@ -176,7 +177,7 @@ func TestEvaluateAgreement(t *testing.T) {
 	if len(gtev.Violations) != 1 {
 		t.Errorf("Error in number of violations. Expected: 1. Actual: %v. %v", gtev.Violations, invalid)
 	}
-	for _, v := range(gtev.Violations) {
+	for _, v := range gtev.Violations {
 		if errs := v.Validate(); len(errs) != 1 {
 			t.Errorf("Validation error in violation: %v", errs)
 		}
@@ -331,7 +332,7 @@ func TestEvaluateExpression(t *testing.T) {
 // 	return m.Result
 // }
 
-func createAgreementFull(aid string, provider model.Provider, client model.Client, name string, constraints map[string]string) model.Agreement {
+func createAgreementFull(aid string, provider model.Provider, client model.Client, name string, constraints map[string]string, expiration *time.Time) model.Agreement {
 	agreement := model.Agreement{
 		Id:    aid,
 		Name:  name,
@@ -342,7 +343,7 @@ func createAgreementFull(aid string, provider model.Provider, client model.Clien
 			Type:     model.AGREEMENT,
 			Provider: provider, Client: client,
 			Creation:   time.Now(),
-			Expiration: time.Now().Add(24 * time.Hour),
+			Expiration: expiration,
 			Guarantees: make([]model.Guarantee, len(constraints)),
 		},
 	}
@@ -357,7 +358,7 @@ func createAgreementFull(aid string, provider model.Provider, client model.Clien
 }
 
 func createAgreement(aid string, provider model.Provider, client model.Client, name string, constraint string) model.Agreement {
-	return createAgreementFull(aid, provider, client, name, map[string]string{"TestGuarantee": constraint})
+	return createAgreementFull(aid, provider, client, name, map[string]string{"TestGuarantee": constraint}, nil)
 }
 
 func createSimpleEvaluationData(key string, value interface{}) map[string]monitor.MetricValue {
