@@ -20,6 +20,8 @@ import (
 	"os"
 	"testing"
 	"time"
+
+	"github.com/Knetic/govaluate"
 )
 
 var a1 = createAgreement("a01", p1, c2, "Agreement 01", "m >= 0.5 && n >= 0.5", nil)
@@ -31,29 +33,27 @@ func TestMain(m *testing.M) {
 }
 
 func TestDummyAdapter(t *testing.T) {
-	ma := New()
+	ma := New(1)
 	ma.Initialize(&a1)
 
 	gt := a1.Details.Guarantees[0]
-	values := ma.NextValues(gt)
+	exp, err := govaluate.NewEvaluableExpression(gt.Constraint)
+	if err != nil {
+		t.Fatalf("Invalid expression %s", gt.Constraint)
+	}
+	values := ma.GetValues(gt, exp.Vars())
 	if values == nil {
-		t.Errorf("NextValues(). Expected: map[string]monitor.MetricValue. Actual: nil")
-		return
+		t.Fatalf("GetValues(). Expected: []map[string]monitor.MetricValue. Actual: nil")
 	}
-	if len(values) != 2 {
-		t.Errorf("len(NextValues()). Expected: 2. Actual: %v", len(values))
-		return
+	if len(values) != 1 {
+		t.Fatalf("len(GetValues()). Expected: 1. Actual: %v", len(values))
 	}
-	if _, ok := values["m"]; !ok {
-		t.Errorf("NextValues()['m'] does not exist")
-		return
+	value := values[0]
+	if _, ok := value["m"]; !ok {
+		t.Fatalf("GetValues()[0]['m'] does not exist")
 	}
-	if _, ok := values["n"]; !ok {
-		t.Errorf("NextValues()['n'] does not exist")
-	}
-	values = ma.NextValues(gt)
-	if values != nil {
-		t.Errorf("NextValues(). Expected: nil. Actual: %v", values)
+	if _, ok := value["n"]; !ok {
+		t.Errorf("GetValues()[0]['n'] does not exist")
 	}
 }
 

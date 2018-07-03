@@ -131,9 +131,9 @@ func EvaluateGuarantee(a *model.Agreement, gt model.Guarantee, ma monitor.Monito
 		log.Warn("Error parsing expression '%s'", gt.Constraint)
 		return nil, err
 	}
-
-	for values := ma.NextValues(gt); values != nil; values = ma.NextValues(gt) {
-		aux, err := evaluateExpression(expression, values)
+	values := ma.GetValues(gt, expression.Vars())
+	for _, value := range values {
+		aux, err := evaluateExpression(expression, value)
 		if err != nil {
 			log.Warn("Error evaluating expression " + gt.Constraint + ": " + err.Error())
 			return nil, err

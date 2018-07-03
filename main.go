@@ -56,7 +56,7 @@ func main() {
 	repoType := config.GetString(utils.RepositoryTypePropertyName)
 
 	utils.AddTrustedCAs(config)
-	
+
 	var repoconfig *viper.Viper
 	if singlefile {
 		repoconfig = config
@@ -77,7 +77,7 @@ func main() {
 	repo, _ = validation.New(repo, false)
 	if repo != nil {
 		a, _ := NewApp(config, repo)
-		go createValidationThread(repo, dummyadapter.New(), nil, checkPeriod)
+		go createValidationThread(repo, dummyadapter.New(1), nil, checkPeriod)
 		a.Run()
 	}
 }
@@ -123,10 +123,10 @@ func logMainConfig(config *viper.Viper) {
 		"\tRepository type: %s\n"+
 		"\tCheck period:%d\n",
 		config.ConfigFileUsed(), repoType, checkPeriod)
-	
+
 	caPath := config.GetString(utils.CAPathPropertyName)
 	if caPath != "" {
-		log.Infof("SLALite intialization. Trusted CAs file: %s", caPath);
+		log.Infof("SLALite intialization. Trusted CAs file: %s", caPath)
 	}
 }
 

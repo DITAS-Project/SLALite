@@ -21,27 +21,19 @@ import "SLALite/assessment/monitor"
 type ArrayMonitoringAdapter struct {
 	agreement *model.Agreement
 	values    []map[string]monitor.MetricValue
-	i         int
 }
 
 func New(values []map[string]monitor.MetricValue) *ArrayMonitoringAdapter {
 	return &ArrayMonitoringAdapter{
 		agreement: nil,
 		values:    values,
-		i:         0,
 	}
 }
 
 func (ma *ArrayMonitoringAdapter) Initialize(a *model.Agreement) {
 	ma.agreement = a
-	ma.i = 0
 }
 
-func (ma *ArrayMonitoringAdapter) NextValues(gt model.Guarantee) map[string]monitor.MetricValue {
-	if ma.i == len(ma.values) {
-		return nil
-	}
-	result := ma.values[ma.i]
-	ma.i++
-	return result
+func (ma *ArrayMonitoringAdapter) GetValues(gt model.Guarantee, vars []string) []map[string]monitor.MetricValue {
+	return ma.values
 }
