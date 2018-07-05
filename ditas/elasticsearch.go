@@ -19,61 +19,76 @@ import (
 	"SLALite/assessment/monitor"
 	"SLALite/model"
 	"context"
+	"reflect"
 	"time"
 
-	"github.com/Knetic/govaluate"
 	"github.com/olivere/elastic"
 )
 
-const (
-	defaultURL              string = "http://elasticsearch:9200"
-	repositoryDbName        string = "slalite"
-	providersCollectionName string = "Providers"
-	agreementCollectionName string = "Agreements"
-
-	mongoConfigName string = "mongodb.yml"
-
-	connectionURL string = "connection"
-	mongoDatabase string = "database"
-	clearOnBoot   string = "clear_on_boot"
-)
+type DataValue struct {
+	Timestamp   time.Time `json:"@timestamp"`
+	MeterValue  string    `json:"meter.value"`
+	MeterUnit   string    `json:"meter.unit"`
+	MeterName   string    `json:"meter.name"`
+	RequestId   string    `json:"request.id"`
+	RequestTime string    `json:"request.requestTime"`
+}
 
 type elasticSearchAdapter struct {
-	agreement *model.Agreement
-	client    *elastic.Client
+	agreement   *model.Agreement
+	client      *elastic.Client
+	currentData map[string][]monitor.MetricValue
+	maxLength   int
 }
 
 func (ma *elasticSearchAdapter) Initialize(a *model.Agreement) {
 	ma.agreement = a
-}
-
-func (ma *elasticSearchAdapter) NextValues(gt model.Guarantee) map[string]monitor.MetricValue {
-	result := make(map[string]monitor.MetricValue)
-
-	/*
-	 * The following means that the adapter have knowledge about the evaluation internals,
-	 * but there is a problem with cyclic dependencies if importing "/assessment"
-	 */
-	expression, err := govaluate.NewEvaluableExpression(gt.Constraint)
-	if err != nil {
-		/* TODO */
-	}
-
-	for _, key := range expression.Vars() {
-		query := elastic.NewTermQuery("data", nil)
-		address := "http://localhost:9200"
-		client, _ := elastic.NewSimpleClient(
-			elastic.SetURL(address),
-		)
-		data, err := client.Search().Index("tubvdc-*").Query(query).Do(context.Background())
-		if err == nil {
-
-			result[key] = monitor.MetricValue{
-				DateTime: time.Now(),
-				Key:      key,
-				Value:    data,
+	ma.currentData = make(map[string][]monitor.MetricValue)
+	ma.maxLength = 0
+	query := elastic.NewTermQuery("request.path", "/"+ma.agreement.Id)
+	address := "http://elasticsearch:9200"
+	client, _ := elastic.NewSimpleClient(
+		elastic.SetURL(address),
+	)
+	data, err := client.Search().Index("tubvdc-*").Query(query).Do(context.Background())
+	if err == nil {
+		var dataValue DataValue
+		for _, item := range data.Each(reflect.TypeOf(dataValue)) {
+			if dataValue, ok := item.(DataValue); ok {
+				if dataValue.MeterName != "" {
+					values, ok := ma.currentData[dataValue.MeterName]
+					if !ok {
+						values = make([]monitor.MetricValue, 0)
+					}
+					currentValue := monitor.MetricValue{
+						DateTime: dataValue.Timestamp,
+						Key:      dataValue.MeterName,
+						Value:    dataValue.MeterValue,
+					}
+					values = append(values, currentValue)
+					ma.currentData[dataValue.MeterName] = values
+					if len(values) > ma.maxLength {
+						ma.maxLength = len(values)
+					}
+				}
 			}
 		}
 	}
+}
+
+func (ma *elasticSearchAdapter) GetValues(gt model.Guarantee, vars []string) []map[string]monitor.MetricValue {
+	result := make([]map[string]monitor.MetricValue, 0)
+
+	for i := 0; i < ma.maxLength; i++ {
+		iteration := make(map[string]monitor.MetricValue)
+		for _, v := range vars {
+			vals, ok := ma.currentData[v]
+			if ok && i < len(vals) {
+				iteration[v] = vals[i]
+			}
+		}
+		result = append(result, iteration)
+	}
+
 	return result
 }
