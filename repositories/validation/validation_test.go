@@ -37,7 +37,7 @@ func TestCallThroughMethods(t *testing.T) {
 	v.GetAllProviders()
 	v.GetAgreement("id")
 	v.GetAllAgreements()
-	v.GetActiveAgreements()
+	v.GetAgreementsByState()
 	v.GetViolation("id")
 	v.StartAgreement("id")
 	v.StopAgreement("id")

@@ -117,9 +117,9 @@ func (r repository) GetAgreement(id string) (*model.Agreement, error) {
 	return r.backend.GetAgreement(id)
 }
 
-// GetActiveAgreements gets all active agreements.
-func (r repository) GetActiveAgreements() (model.Agreements, error) {
-	return r.backend.GetActiveAgreements()
+// GetAgreementsByState returns the agreements that have one of the items in states.
+func (r repository) GetAgreementsByState(states ...model.State) (model.Agreements, error) {
+	return r.backend.GetAgreementsByState(states...)
 }
 
 // CreateAgreement validates and persists an agreement.

@@ -35,6 +35,5 @@ func (v *MetricValue) String() string {
 //MonitoringAdapter is an interface which should be implemented per monitoring solution
 type MonitoringAdapter interface {
 	Initialize(a *model.Agreement)
-	// GetValues(vars []string) EvaluationData
-	NextValues(gt model.Guarantee) map[string]MetricValue
+	GetValues(gt model.Guarantee, vars []string) []map[string]MetricValue
 }

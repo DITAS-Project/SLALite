@@ -22,7 +22,6 @@ package mongodb
 import (
 	"SLALite/model"
 	"fmt"
-	"time"
 
 	log "github.com/sirupsen/logrus"
 
@@ -226,15 +225,16 @@ func (r MongoDBRepository) GetAgreement(id string) (*model.Agreement, error) {
 }
 
 /*
-GetActiveAgreements returns the list of active agreements.
+GetAgreementsByState returns the agreements that have one of the items in states.
 
-error != nil on error
+error != nil on error;
 */
-func (r MongoDBRepository) GetActiveAgreements() (model.Agreements, error) {
+func (r MongoDBRepository) GetAgreementsByState(states ...model.State) (model.Agreements, error) {
 	output := new(model.Agreements)
-	query := bson.M{"state": model.STARTED, "details.expiration": bson.M{"$gte": time.Now()}}
+
+	query := bson.M{"state": bson.M{ "$in": states } }
 	result, err := r.getList(agreementCollectionName, query, output)
-	return *((result).(*model.Agreements)), err
+	return *((result).(*model.Agreements)), err	
 }
 
 /*

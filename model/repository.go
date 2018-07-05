@@ -71,11 +71,11 @@ type IRepository interface {
 	GetAgreement(id string) (*Agreement, error)
 
 	/*
-	 * GetActiveAgreements returns the list of active agreements.
-	 *
-	 * error != nil on error
+	 * GetAgreementsByState returns the agreements that have one of the items in states.
+	 * 
+	 * error != nil on error;
 	 */
-	GetActiveAgreements() (Agreements, error)
+	GetAgreementsByState(states ...State) (Agreements, error)
 
 	/*
 	 * CreateAgreement stores a new Agreement.

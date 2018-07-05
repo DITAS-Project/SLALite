@@ -35,51 +35,39 @@ import (
 
 	"math/rand"
 	"time"
-
-	"github.com/Knetic/govaluate"
 )
 
 type monitoringAdapter struct {
 	agreement *model.Agreement
-	i         int
+	size      int
 }
 
 // New returns a new Dummy Monitoring Adapter.
-func New() monitor.MonitoringAdapter {
+func New(size int) monitor.MonitoringAdapter {
 	return &monitoringAdapter{
 		agreement: nil,
-		i:         0,
+		size:      size,
 	}
 }
 
 func (ma *monitoringAdapter) Initialize(a *model.Agreement) {
 	ma.agreement = a
-	ma.i = 0
 }
 
-func (ma *monitoringAdapter) NextValues(gt model.Guarantee) map[string]monitor.MetricValue {
-	result := make(map[string]monitor.MetricValue)
+func (ma *monitoringAdapter) GetValues(gt model.Guarantee, vars []string) []map[string]monitor.MetricValue {
+	result := make([]map[string]monitor.MetricValue, ma.size)
+	for i := 0; i < ma.size; i++ {
+		val := make(map[string]monitor.MetricValue)
 
-	if ma.i == 1 {
-		return nil
-	}
-	ma.i = ma.i + 1
-
-	/*
-	 * The following means that the adapter have knowledge about the evaluation internals,
-	 * but there is a problem with cyclic dependencies if importing "/assessment"
-	 */
-	expression, err := govaluate.NewEvaluableExpression(gt.Constraint)
-	if err != nil {
-		/* TODO */
-	}
-
-	for _, key := range expression.Vars() {
-		result[key] = monitor.MetricValue{
-			DateTime: time.Now(),
-			Key:      key,
-			Value:    rand.Float64(),
+		for _, key := range vars {
+			val[key] = monitor.MetricValue{
+				DateTime: time.Now(),
+				Key:      key,
+				Value:    rand.Float64(),
+			}
 		}
+
+		result[i] = val
 	}
 	return result
 }

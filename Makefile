@@ -14,7 +14,7 @@ build:
 	go build -i -v -o ${OUT} -ldflags="-X main.version=${VERSION} -X main.date=${DATE}" ${PKG}
 
 test:
-	go test -v ./...
+	go test ./...
 
 run: build
 	./${OUT}
