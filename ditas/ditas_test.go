@@ -25,15 +25,22 @@ import (
 )
 
 type TestMonitoring struct {
-	Metrics map[string]map[string]monitor.MetricValue
+	Metrics  map[string]map[string]monitor.MetricValue
+	consumed map[string]bool
 }
 
-func (t TestMonitoring) Initialize(a *model.Agreement) {
-
+func (t *TestMonitoring) Initialize(a *model.Agreement) {
+	t.consumed = make(map[string]bool)
 }
 
-func (t TestMonitoring) NextValues(gt model.Guarantee) map[string]monitor.MetricValue {
-	return t.Metrics[gt.Name]
+func (t *TestMonitoring) NextValues(gt model.Guarantee) map[string]monitor.MetricValue {
+	_, ok := t.consumed[gt.Name]
+	if !ok {
+		t.consumed[gt.Name] = true
+		return t.Metrics[gt.Name]
+	}
+
+	return nil
 }
 
 var t0 = time.Now()
@@ -106,11 +113,36 @@ func TestNotifier(t *testing.T) {
 		Metrics: m1,
 	}
 
-	result := assessment.AssessAgreement(&slas[0], adapter, time.Now())
+	result := assessment.AssessAgreement(&slas[0], &adapter, time.Now())
 	notifier.NotifyViolations(&slas[0], &result)
 
 	if len(notifier.Result.GetViolations()) != 2 {
 		t.Fatalf("Violation number don't match. Expected %d, found %d", 2, len(notifier.Result.GetViolations()))
+	}
+
+	for _, violation := range notifier.Result.GetViolations() {
+		var expected []string
+		switch violation.Guarantee {
+		case "1 or 4":
+			expected = []string{"Availability", "Timeliness"}
+		case "2":
+			expected = []string{"ResponseTime"}
+		}
+		checkValues(t, violation.Guarantee, violation.Values, expected)
+	}
+}
+
+func checkValues(t *testing.T, gt string, values map[string]interface{}, expected []string) {
+
+	if len(values) != len(expected) {
+		t.Fatalf("Different number of values found for violation of guarantee %s. Expected %d, found %d", gt, len(values), len(expected))
+	}
+
+	for _, value := range expected {
+		_, ok := values[value]
+		if !ok {
+			t.Errorf("Expected %s metric not found in violation", value)
+		}
 	}
 }
 

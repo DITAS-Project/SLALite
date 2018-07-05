@@ -13,7 +13,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-package elasticsearch
+package ditas
 
 import (
 	"SLALite/assessment/monitor"
@@ -61,7 +61,7 @@ func (ma *elasticSearchAdapter) NextValues(gt model.Guarantee) map[string]monito
 
 	for _, key := range expression.Vars() {
 		query := elastic.NewTermQuery("data", nil)
-		address := "http://es-ditas-elasticsearch-client.ditas.svc.cluster.local:9200"
+		address := "http://localhost:9200"
 		client, _ := elastic.NewSimpleClient(
 			elastic.SetURL(address),
 		)
