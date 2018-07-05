@@ -9,7 +9,8 @@ pipeline {
             }
             steps {
                 sh "ln -sf ${WORKSPACE} /go/src/SLALite"
-                sh "go get -d -v ./..."
+                sh "rm -rf vendor"
+                sh "dep ensure"
                 sh "CGO_ENABLED=0 GOOS=linux go build -a -o SLALite"
 		        // Test y build en go?
 		        sh "go test ./..."	
