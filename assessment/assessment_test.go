@@ -75,7 +75,7 @@ func TestAssessActiveAgreements(t *testing.T) {
 	guarantees = map[string]string{
 		"g1": "m >= 20 || n < 50",
 	}
-	var aa3 = createAgreementFull("aa03", p1, c2, "Agreement aa03", guarantees)
+	var aa3 = createAgreementFull("aa03", p1, c2, "Agreement aa03", guarantees, nil)
 	aa3.State = model.STARTED
 
 	repo.CreateAgreement(&aa1)
@@ -104,6 +104,9 @@ func TestAssessActiveAgreements(t *testing.T) {
 		"aa02": map[string]int{
 			"g1": 3,
 			"g2": 1,
+		},
+		"aa03": map[string]int{
+			"g1": 1,
 		},
 	}, T: t})
 }

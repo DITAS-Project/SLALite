@@ -22,13 +22,26 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"time"
 
 	"github.com/Knetic/govaluate"
 	log "github.com/sirupsen/logrus"
 )
 
+type GuaranteeViolation struct {
+	Constraint    string
+	GuaranteeId   string
+	ViolationTime time.Time
+	Values        map[string]interface{}
+}
+
+type DitasViolation struct {
+	Method             string
+	GuaranteeViolation []GuaranteeViolation
+}
+
 type DitasNotifier struct {
-	Result *assessment_model.Result
+	Violations DitasViolation
 }
 
 func toFloat(value interface{}) (float64, error) {
@@ -59,44 +72,51 @@ func evaluate(comparator string, thresholdIf interface{}, valueIf interface{}) (
 	return false, errors.New("Comparator not supported: " + comparator)
 }
 
-func filterValues(result *assessment_model.Result) {
-	for _, violation := range result.GetViolations() {
-		toRemain := make([]string, 0)
-		expression, err := govaluate.NewEvaluableExpression(violation.Constraint)
-		if err == nil {
-			tokens := expression.Tokens()
-			for i, token := range tokens {
-				if token.Kind == govaluate.VARIABLE && (i < len(tokens)-2) && (tokens[i+1].Kind == govaluate.COMPARATOR && tokens[i+2].Kind == govaluate.NUMERIC) {
-					variable := token.Value.(string)
-					comparator := tokens[i+1].Value.(string)
-					threshold := tokens[i+2].Value
-					value, found := violation.Values[variable]
-					if found {
-						assessed, err := evaluate(comparator, threshold, value)
-						if err == nil && !assessed {
-							toRemain = append(toRemain, variable)
-						} else {
-							if err != nil {
-								log.Errorf("Error assessing expression %s: %s", violation.Constraint, err.Error())
+func (n *DitasNotifier) filterValues(methodId string, result *assessment_model.Result) {
+	violations := DitasViolation{
+		Method:             methodId,
+		GuaranteeViolation: make([]GuaranteeViolation, 0),
+	}
+	for _, grResults := range *result {
+		for _, violation := range grResults.Violations {
+			gtViolation := GuaranteeViolation{
+				GuaranteeId:   violation.Guarantee,
+				Constraint:    violation.Constraint,
+				ViolationTime: violation.Datetime,
+				Values:        make(map[string]interface{}),
+			}
+			expression, err := govaluate.NewEvaluableExpression(violation.Constraint)
+			if err == nil {
+				tokens := expression.Tokens()
+				for i, token := range tokens {
+					if token.Kind == govaluate.VARIABLE && (i < len(tokens)-2) && (tokens[i+1].Kind == govaluate.COMPARATOR && tokens[i+2].Kind == govaluate.NUMERIC) {
+						variable := token.Value.(string)
+						comparator := tokens[i+1].Value.(string)
+						threshold := tokens[i+2].Value
+						value, found := violation.Values[variable]
+						if found {
+							assessed, err := evaluate(comparator, threshold, value)
+							if err == nil && !assessed {
+								gtViolation.Values[variable] = value
+							} else {
+								if err != nil {
+									log.Errorf("Error assessing expression %s: %s", violation.Constraint, err.Error())
+								}
 							}
+						} else {
+							log.Errorf("Can't find value for variable %s", variable)
 						}
-					} else {
-						log.Errorf("Can't find value for variable %s", variable)
 					}
 				}
+				violations.GuaranteeViolation = append(violations.GuaranteeViolation, gtViolation)
+			} else {
+				log.Errorf("Error tokenizing expression %s: %s", violation.Constraint, err.Error())
 			}
-			newValues := make(map[string]interface{}, len(toRemain))
-			for _, variable := range toRemain {
-				newValues[variable] = violation.Values[variable]
-			}
-			violation.Values = newValues
-		} else {
-			log.Errorf("Error tokenizing expression %s: %s", violation.Constraint, err.Error())
 		}
 	}
+	n.Violations = violations
 }
 
 func (n *DitasNotifier) NotifyViolations(agreement *model.Agreement, result *assessment_model.Result) {
-	filterValues(result)
-	n.Result = result
+	n.filterValues(agreement.Id, result)
 }

@@ -25,22 +25,14 @@ import (
 )
 
 type TestMonitoring struct {
-	Metrics  map[string]map[string]monitor.MetricValue
-	consumed map[string]bool
+	Metrics map[string]monitor.MetricValue
 }
 
 func (t *TestMonitoring) Initialize(a *model.Agreement) {
-	t.consumed = make(map[string]bool)
 }
 
-func (t *TestMonitoring) NextValues(gt model.Guarantee) map[string]monitor.MetricValue {
-	_, ok := t.consumed[gt.Name]
-	if !ok {
-		t.consumed[gt.Name] = true
-		return t.Metrics[gt.Name]
-	}
-
-	return nil
+func (t *TestMonitoring) GetValues(gt model.Guarantee, vars []string) []map[string]monitor.MetricValue {
+	return []map[string]monitor.MetricValue{t.Metrics}
 }
 
 var t0 = time.Now()
@@ -93,20 +85,13 @@ func TestNotifier(t *testing.T) {
 	blueprint := ReadBlueprint("resources/vdc_blueprint_example_1.json")
 	slas := CreateAgreements(blueprint)
 	slas[0].State = model.STARTED
-	slas[0].Details.Expiration = time.Now().Add(24 * time.Hour)
 
-	var m1 = map[string]map[string]monitor.MetricValue{
-		"1 or 4": {
-			"Availability": monitor.MetricValue{Key: "Availability", Value: 90, DateTime: t_(0)},
-			"Timeliness":   monitor.MetricValue{Key: "Timeliness", Value: 1, DateTime: t_(0)},
-		},
-		"2": {
-			"ResponseTime": monitor.MetricValue{Key: "ResponseTime", Value: 1.5, DateTime: t_(0)},
-		},
-		"3 or 5": {
-			"volume":               monitor.MetricValue{Key: "volume", Value: 10000, DateTime: t_(0)},
-			"Process_completeness": monitor.MetricValue{Key: "Process_completeness", Value: 95, DateTime: t_(0)},
-		},
+	var m1 = map[string]monitor.MetricValue{
+		"Availability":         monitor.MetricValue{Key: "Availability", Value: 90, DateTime: t_(0)},
+		"Timeliness":           monitor.MetricValue{Key: "Timeliness", Value: 1, DateTime: t_(0)},
+		"ResponseTime":         monitor.MetricValue{Key: "ResponseTime", Value: 1.5, DateTime: t_(0)},
+		"volume":               monitor.MetricValue{Key: "volume", Value: 10000, DateTime: t_(0)},
+		"Process_completeness": monitor.MetricValue{Key: "Process_completeness", Value: 95, DateTime: t_(0)},
 	}
 
 	adapter := TestMonitoring{
@@ -116,26 +101,30 @@ func TestNotifier(t *testing.T) {
 	result := assessment.AssessAgreement(&slas[0], &adapter, time.Now())
 	notifier.NotifyViolations(&slas[0], &result)
 
-	if len(notifier.Result.GetViolations()) != 2 {
-		t.Fatalf("Violation number don't match. Expected %d, found %d", 2, len(notifier.Result.GetViolations()))
+	notViolations := notifier.Violations
+	if notViolations.Method != "patient-details" {
+		t.Errorf("Unexpected method name %s. Expected %s", notViolations.Method, "patient-details")
 	}
 
-	for _, violation := range notifier.Result.GetViolations() {
-		var expected []string
-		switch violation.Guarantee {
+	for _, guarantee := range notViolations.GuaranteeViolation {
+		expected := make([]string, 0)
+		switch guarantee.GuaranteeId {
 		case "1 or 4":
 			expected = []string{"Availability", "Timeliness"}
 		case "2":
 			expected = []string{"ResponseTime"}
+		default:
+			t.Errorf("Unexpected broken guarantee %s", guarantee.GuaranteeId)
 		}
-		checkValues(t, violation.Guarantee, violation.Values, expected)
+		checkValues(t, guarantee.GuaranteeId, guarantee.Values, expected)
 	}
+
 }
 
 func checkValues(t *testing.T, gt string, values map[string]interface{}, expected []string) {
 
 	if len(values) != len(expected) {
-		t.Fatalf("Different number of values found for violation of guarantee %s. Expected %d, found %d", gt, len(values), len(expected))
+		t.Fatalf("Different number of values found for violation of guarantee %s. Expected %d, found %d", gt, len(expected), len(values))
 	}
 
 	for _, value := range expected {
