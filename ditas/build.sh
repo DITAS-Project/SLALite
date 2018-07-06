@@ -1,9 +1,8 @@
 #!/usr/bin/env sh
 WORKDIR=$GOPATH/src/SLALite
 mkdir $WORKDIR
-cp -r *.* $WORKDIR
+cp -a . $WORKDIR
 cd $WORKDIR
-ls -la
 rm -rf vendor
 dep ensure
 CGO_ENABLED=0 GOOS=linux go build -a -o SLALite
