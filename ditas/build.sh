@@ -1,11 +1,10 @@
 #!/usr/bin/env sh
-mkdir src
-mkdir src/SLALite
-cp -r *.* src/SLALite
-export GOPATH=$1
-cd src/SLALite
+WORKDIR=$GOPATH/src/SLALite
+mkdir $WORKDIR
+cp -r *.* $WORKDIR
+cd $WORKDIR
 rm -rf vendor
 dep ensure
 CGO_ENABLED=0 GOOS=linux go build -a -o SLALite
 go test ./...
-cp SLALite ../..
+cp SLALite $1
