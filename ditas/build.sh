@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/usr/bin/env sh
 mkdir src
 mkdir src/SLALite
 cp -r *.* src/SLALite
