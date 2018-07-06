@@ -8,8 +8,8 @@ pipeline {
                 }
             }
             steps {
-                sh "chmod +x ditas/build.sh"
-                sh "ditas/build.sh ${WORKSPACE}"
+                sh "chmod +x jenkins/build.sh"
+                sh "jenkins/build.sh ${WORKSPACE}"
             }
         }
         stage('Image creation') {
