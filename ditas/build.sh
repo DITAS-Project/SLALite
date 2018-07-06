@@ -2,7 +2,7 @@
 mkdir src
 mkdir src/SLALite
 cp -r *.* src/SLALite
-export GOPATH=.
+export GOPATH=$1
 cd src/SLALite
 rm -rf vendor
 dep ensure

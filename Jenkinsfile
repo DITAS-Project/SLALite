@@ -9,7 +9,7 @@ pipeline {
             }
             steps {
                 sh "chmod +x ditas/build.sh"
-                sh "ditas/build.sh"
+                sh "ditas/build.sh ${WORKSPACE}"
             }
         }
         stage('Image creation') {
