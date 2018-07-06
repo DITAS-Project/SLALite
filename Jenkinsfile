@@ -9,7 +9,9 @@ pipeline {
             }
             steps {
                 sh "export GOPATH=${WORKSPACE}"
-                sh "ln -sf ${WORKSPACE} ${WORKSPACE}/src"
+                sh "mkdir ${WORKSPACE}/src"
+                sh "ln -sf ${WORKSPACE} ${WORKSPACE}/src/SLALite"
+                sh "cd ${WORKSPACE}/src/SLALite"
                 sh "rm -rf vendor"
                 sh "dep ensure"
                 sh "CGO_ENABLED=0 GOOS=linux go build -a -o SLALite"
