@@ -8,7 +8,9 @@ pipeline {
                 }
             }
             steps {
-                sh "ln -sf ${WORKSPACE} /go/src/SLALite"
+                sh "export GOPATH=/home/jenkins/workspace"
+                sh "mkdir /home/jenkins/workspace/src"
+                sh "ln -sf ${WORKSPACE} /home/jenkins/workspace/src/SLALite"
                 sh "cd /go/src/SLALite"
                 sh "rm -rf vendor"
                 sh "dep ensure"
