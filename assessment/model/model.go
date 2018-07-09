@@ -16,12 +16,11 @@ limitations under the License.
 package model
 
 import (
-	"SLALite/assessment/monitor"
 	"SLALite/model"
 )
 
 // ExpressionData represents the set of values needed to evaluate an expression at a single time
-type ExpressionData map[string]monitor.MetricValue
+type ExpressionData map[string]model.MetricValue
 
 // GuaranteeData represents the list of values needed to evaluate an expression at several points
 // in time

@@ -30,6 +30,7 @@ Usage:
 package dummyadapter
 
 import (
+	assessment_model "SLALite/assessment/model"
 	"SLALite/assessment/monitor"
 	"SLALite/model"
 
@@ -54,13 +55,13 @@ func (ma *monitoringAdapter) Initialize(a *model.Agreement) {
 	ma.agreement = a
 }
 
-func (ma *monitoringAdapter) GetValues(gt model.Guarantee, vars []string) []map[string]monitor.MetricValue {
-	result := make([]map[string]monitor.MetricValue, ma.size)
+func (ma *monitoringAdapter) GetValues(gt model.Guarantee, vars []string) assessment_model.GuaranteeData {
+	result := make(assessment_model.GuaranteeData, ma.size)
 	for i := 0; i < ma.size; i++ {
-		val := make(map[string]monitor.MetricValue)
+		val := make(assessment_model.ExpressionData)
 
 		for _, key := range vars {
-			val[key] = monitor.MetricValue{
+			val[key] = model.MetricValue{
 				DateTime: time.Now(),
 				Key:      key,
 				Value:    rand.Float64(),

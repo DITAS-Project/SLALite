@@ -151,9 +151,9 @@ func EvaluateGtViolations(a *model.Agreement, gt model.Guarantee, violated asses
 	for _, tuple := range violated {
 		// build values map and find newer metric
 		var d *time.Time
-		var values = make(map[string]interface{})
+		var values = make([]model.MetricValue, 0, len(tuple))
 		for _, m := range tuple {
-			values[m.Key] = m.Value
+			values = append(values, m)
 			if d == nil || m.DateTime.After(*d) {
 				d = &m.DateTime
 			}

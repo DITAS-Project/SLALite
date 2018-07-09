@@ -17,7 +17,6 @@ limitations under the License.
 package model
 
 import (
-	"SLALite/assessment/monitor"
 	"SLALite/model"
 	"SLALite/utils"
 	"os"
@@ -35,7 +34,7 @@ func TestGetViolations(test *testing.T) {
 
 	values := GuaranteeData{
 		ExpressionData{
-			"m": monitor.MetricValue{Key: "m", Value: 1, DateTime: t.T(1)},
+			"m": model.MetricValue{Key: "m", Value: 1, DateTime: t.T(1)},
 		},
 	}
 
@@ -44,7 +43,7 @@ func TestGetViolations(test *testing.T) {
 			Metrics: values,
 			Violations: []model.Violation{
 				model.Violation{
-				/* We are not interested in actual violation contents */
+					/* We are not interested in actual violation contents */
 				},
 			},
 		},
