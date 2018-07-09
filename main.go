@@ -20,6 +20,7 @@ import (
 	"SLALite/assessment/monitor"
 	"SLALite/assessment/monitor/dummyadapter"
 	"SLALite/assessment/notifier"
+	"SLALite/ditas"
 	"SLALite/model"
 	"SLALite/repositories/memrepository"
 	"SLALite/repositories/mongodb"
@@ -78,6 +79,7 @@ func main() {
 	if repo != nil {
 		a, _ := NewApp(config, repo)
 		go createValidationThread(repo, dummyadapter.New(1), nil, checkPeriod)
+		readBlueprint(repo)
 		a.Run()
 	}
 }
@@ -149,5 +151,19 @@ func validateProviders(repo model.IRepository) {
 		log.Println("There are " + strconv.Itoa(len(providers)) + " providers")
 	} else {
 		log.Println("Error: " + err.Error())
+	}
+}
+
+func readBlueprint(repo model.IRepository) {
+	blueprint := ditas.ReadBlueprint(utils.BlueprintPath)
+	agreements := ditas.CreateAgreements(blueprint)
+
+	if agreements != nil {
+		for _, agreement := range agreements {
+			_, err := repo.CreateAgreement(&agreement)
+			if err != nil {
+				log.Errorf("Error creating agreement %s: %s", agreement.Id, err.Error())
+			}
+		}
 	}
 }

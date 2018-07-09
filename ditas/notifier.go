@@ -18,30 +18,25 @@ package ditas
 
 import (
 	assessment_model "SLALite/assessment/model"
+	"SLALite/assessment/monitor"
 	"SLALite/model"
 	"errors"
 	"fmt"
 	"strconv"
-	"time"
 
 	"github.com/Knetic/govaluate"
 	log "github.com/sirupsen/logrus"
 )
 
-type GuaranteeViolation struct {
-	Constraint    string
-	GuaranteeId   string
-	ViolationTime time.Time
-	Values        map[string]interface{}
-}
-
 type DitasViolation struct {
-	Method             string
-	GuaranteeViolation []GuaranteeViolation
+	VDCId   string
+	Method  string
+	Metrics []monitor.MetricValue
 }
 
 type DitasNotifier struct {
-	Violations DitasViolation
+	VDCId      string
+	Violations []DitasViolation
 }
 
 func toFloat(value interface{}) (float64, error) {
@@ -73,20 +68,16 @@ func evaluate(comparator string, thresholdIf interface{}, valueIf interface{}) (
 }
 
 func (n *DitasNotifier) filterValues(methodId string, result *assessment_model.Result) {
-	violations := DitasViolation{
-		Method:             methodId,
-		GuaranteeViolation: make([]GuaranteeViolation, 0),
-	}
+	violations := make([]DitasViolation, 0)
+	violationMap := make(map[string][]monitor.MetricValue)
 	for _, grResults := range *result {
 		for _, violation := range grResults.Violations {
-			gtViolation := GuaranteeViolation{
-				GuaranteeId:   violation.Guarantee,
-				Constraint:    violation.Constraint,
-				ViolationTime: violation.Datetime,
-				Values:        make(map[string]interface{}),
-			}
 			expression, err := govaluate.NewEvaluableExpression(violation.Constraint)
 			if err == nil {
+				violationInformation, ok := violationMap[violation.AgreementId]
+				if !ok {
+					violationInformation = make([]monitor.MetricValue, 0)
+				}
 				tokens := expression.Tokens()
 				for i, token := range tokens {
 					if token.Kind == govaluate.VARIABLE && (i < len(tokens)-2) && (tokens[i+1].Kind == govaluate.COMPARATOR && tokens[i+2].Kind == govaluate.NUMERIC) {
@@ -97,7 +88,10 @@ func (n *DitasNotifier) filterValues(methodId string, result *assessment_model.R
 						if found {
 							assessed, err := evaluate(comparator, threshold, value)
 							if err == nil && !assessed {
-								gtViolation.Values[variable] = value
+								violationInformation = append(violationInformation, monitor.MetricValue{
+									Key:   variable,
+									Value: value,
+								})
 							} else {
 								if err != nil {
 									log.Errorf("Error assessing expression %s: %s", violation.Constraint, err.Error())
@@ -108,11 +102,18 @@ func (n *DitasNotifier) filterValues(methodId string, result *assessment_model.R
 						}
 					}
 				}
-				violations.GuaranteeViolation = append(violations.GuaranteeViolation, gtViolation)
+				violationMap[violation.AgreementId] = violationInformation
 			} else {
 				log.Errorf("Error tokenizing expression %s: %s", violation.Constraint, err.Error())
 			}
 		}
+	}
+	for k, v := range violationMap {
+		violations = append(violations, DitasViolation{
+			Method:  k,
+			VDCId:   n.VDCId,
+			Metrics: v,
+		})
 	}
 	n.Violations = violations
 }

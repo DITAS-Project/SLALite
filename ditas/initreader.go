@@ -26,17 +26,19 @@ import (
 )
 
 func ReadBlueprint(path string) BlueprintType {
+	var blueprint BlueprintType
+
 	raw, err := ioutil.ReadFile(path)
 	if err != nil {
 		fmt.Println(err.Error())
 		log.Errorf("Error reading blueprint from %s: %s", path, err.Error())
+	} else {
+		err = json.Unmarshal(raw, &blueprint)
+		if err != nil {
+			log.Errorf("Error reading blueprint: %s", err.Error())
+		}
 	}
 
-	var blueprint BlueprintType
-	err = json.Unmarshal(raw, &blueprint)
-	if err != nil {
-		log.Errorf("Error reading blueprint: %s", err.Error())
-	}
 	return blueprint
 }
 
@@ -106,7 +108,7 @@ func createGuarantee(name string, expression string) model.Guarantee {
 func flatten(children []TreeStructureType, expressions map[string]string, operator string) string {
 	constraint := ""
 	for _, child := range children {
-		guarantees := parseTree(&child, expressions)
+		guarantees := parseTree(child, expressions)
 		for j, guarantee := range guarantees {
 			constraint = constraint + "(" + guarantee.Constraint + ")"
 			if j < len(guarantees)-1 {
@@ -117,7 +119,7 @@ func flatten(children []TreeStructureType, expressions map[string]string, operat
 	return constraint
 }
 
-func parseTree(tree *TreeStructureType, expressions map[string]string) []model.Guarantee {
+func parseTree(tree TreeStructureType, expressions map[string]string) []model.Guarantee {
 	if tree.Leaves != nil && len(tree.Leaves) > 0 {
 		switch *tree.Type {
 		case "AND":
@@ -130,7 +132,7 @@ func parseTree(tree *TreeStructureType, expressions map[string]string) []model.G
 			init := make([]model.Guarantee, 1)
 			init[0] = createGuarantee(tree.Leaves[0], expressions[tree.Leaves[0]])
 			for _, child := range tree.Children {
-				init = append(init, parseTree(&child, expressions)...)
+				init = append(init, parseTree(child, expressions)...)
 			}
 			return init
 		case "OR":
@@ -147,7 +149,7 @@ func parseTree(tree *TreeStructureType, expressions map[string]string) []model.G
 		case "AND":
 			result := make([]model.Guarantee, 0)
 			for _, child := range tree.Children {
-				result = append(result, parseTree(&child, expressions)...)
+				result = append(result, parseTree(child, expressions)...)
 			}
 			return result
 		case "OR":
@@ -159,12 +161,7 @@ func parseTree(tree *TreeStructureType, expressions map[string]string) []model.G
 }
 
 func getGuarantees(method MethodType, expressions map[string]string) []model.Guarantee {
-	if method.Constraints != nil && method.Constraints.DataUtility != nil && method.Constraints.DataUtility.TreeStructure != nil {
-		return parseTree(method.Constraints.DataUtility.TreeStructure, expressions)
-	}
-	log.Errorf("Can't find tree structure for method %s", method.Name)
-
-	return make([]model.Guarantee, 0)
+	return parseTree(method.Constraints.DataUtility.TreeStructure, expressions)
 }
 
 func CreateAgreements(blueprint BlueprintType) []model.Agreement {
@@ -173,44 +170,44 @@ func CreateAgreements(blueprint BlueprintType) []model.Agreement {
 	agreements := make(map[string]*model.Agreement)
 	expressions := make(map[string]map[string]string)
 
-	dataManagement := blueprint.DataManagement
-	if dataManagement != nil {
-		methods := dataManagement.Methods
-		if methods != nil && len(methods) > 0 {
-			for _, method := range methods {
+	methods := blueprint.DataManagement.Methods
+	if methods != nil && len(methods) > 0 {
+		for _, method := range methods {
+			if method.Name != nil {
 				var agreement model.Agreement
 				agreement.Id = *method.Name
-				if method.Constraints != nil && method.Constraints.DataUtility != nil && method.Constraints.DataUtility.Goals != nil {
+				if method.Constraints.DataUtility.Goals != nil {
 					expressions[*method.Name] = getExpressions(method.Constraints.DataUtility.Goals)
 				}
 				agreements[agreement.Id] = &agreement
+			} else {
+				log.Error("INVALID BLUEPRINT %s: Found method without name", blueprintName)
+			}
+		}
+
+		methods = blueprint.AbstractProperties.Methods
+		if methods != nil {
+			for _, method := range methods {
+				exp, foundExp := expressions[*method.Name]
+				agreement, foundAg := agreements[*method.Name]
+				if foundExp && foundAg {
+					agreement.Details.Guarantees = getGuarantees(method, exp)
+				} else {
+					log.Error("INVALID BLUEPRINT %s: Method %s goals or tree not found", blueprintName)
+				}
 			}
 		} else {
-			log.Errorf("INVALID BLUEPRINT %s: Can't find any method in data management section", blueprintName)
+			log.Errorf("INVALID BLUEPRINT %s: Abstract properties section not found", blueprintName)
 		}
 	} else {
-		log.Errorf("INVALID BLUEPRINT %s: Data Management section not found")
+		log.Errorf("INVALID BLUEPRINT %s: Can't find any method in data management section", blueprintName)
 	}
 
-	if blueprint.AbstractProperties != nil && blueprint.AbstractProperties.Methods != nil {
-		for _, method := range blueprint.AbstractProperties.Methods {
-			exp, foundExp := expressions[*method.Name]
-			agreement, foundAg := agreements[*method.Name]
-			if foundExp && foundAg {
-				agreement.Details.Guarantees = getGuarantees(method, exp)
-			} else {
-				log.Error("INVALID BLUEPRINT %s: Method %s goals or tree not found", blueprintName)
-			}
-		}
-	} else {
-		log.Errorf("INVALID BLUEPRINT %s: Abstract properties section not found", blueprintName)
-	}
-
-	var results = make([]model.Agreement, len(agreements))
-	i := 0
+	var results = make([]model.Agreement, 0)
 	for _, value := range agreements {
-		results[i] = *value
-		i++
+		if value.Details.Guarantees != nil && len(value.Details.Guarantees) > 0 {
+			results = append(results, *value)
+		}
 	}
 	return results
 }

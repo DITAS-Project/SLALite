@@ -42,17 +42,17 @@ type GoalType struct {
 }
 
 type ConstraintType struct {
-	Goals         []GoalType         `json:"goals"`
-	TreeStructure *TreeStructureType `json:"treeStructure"`
+	Goals         []GoalType        `json:"goals"`
+	TreeStructure TreeStructureType `json:"treeStructure"`
 }
 
 type ConstraintsType struct {
-	DataUtility *ConstraintType `json:"dataUtility"`
+	DataUtility ConstraintType `json:"dataUtility"`
 }
 
 type MethodType struct {
-	Name        *string          `json:"name"`
-	Constraints *ConstraintsType `json:"constraints"`
+	Name        *string         `json:"name"`
+	Constraints ConstraintsType `json:"constraints"`
 }
 
 type MethodListType struct {
@@ -60,15 +60,15 @@ type MethodListType struct {
 }
 
 type OverviewType struct {
-	Name string `json:"Name"`
+	Name *string `json:"Name"`
 }
 
 type InternalStructureType struct {
-	Overview *OverviewType `json:"Overview"`
+	Overview OverviewType `json:"Overview"`
 }
 
 type BlueprintType struct {
-	InternalStructure  *InternalStructureType `json:"INTERNAL_STRUCTURE"`
-	DataManagement     *MethodListType        `json:"DATA_MANAGEMENT"`
-	AbstractProperties *MethodListType        `json:"ABSTRACT_PROPERTIES"`
+	InternalStructure  InternalStructureType `json:"INTERNAL_STRUCTURE"`
+	DataManagement     MethodListType        `json:"DATA_MANAGEMENT"`
+	AbstractProperties MethodListType        `json:"ABSTRACT_PROPERTIES"`
 }

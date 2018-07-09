@@ -36,16 +36,15 @@ func (t *TestMonitoring) GetValues(gt model.Guarantee, vars []string) []map[stri
 }
 
 var t0 = time.Now()
-var notifier DitasNotifier
+var notifier = DitasNotifier{
+	VDCId: "testVdc",
+}
 
 func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-func checkMethodList(t *testing.T, methodList *MethodListType, name string) {
-	if methodList == nil {
-		t.Fatalf("Can't find method list %s", name)
-	}
+func checkMethodList(t *testing.T, methodList MethodListType, name string) {
 
 	if len(methodList.Methods) == 0 {
 		t.Fatalf("No methods found in %s section", name)
@@ -102,37 +101,48 @@ func TestNotifier(t *testing.T) {
 	notifier.NotifyViolations(&slas[0], &result)
 
 	notViolations := notifier.Violations
-	if notViolations.Method != "patient-details" {
-		t.Errorf("Unexpected method name %s. Expected %s", notViolations.Method, "patient-details")
-	}
-
-	for _, guarantee := range notViolations.GuaranteeViolation {
-		expected := make([]string, 0)
-		switch guarantee.GuaranteeId {
-		case "1 or 4":
-			expected = []string{"Availability", "Timeliness"}
-		case "2":
-			expected = []string{"ResponseTime"}
-		default:
-			t.Errorf("Unexpected broken guarantee %s", guarantee.GuaranteeId)
+	if len(notViolations) == 1 {
+		violation := notViolations[0]
+		if violation.VDCId != notifier.VDCId {
+			t.Errorf("Unexpected VDCId: %s. Expected %s", violation.VDCId, notifier.VDCId)
 		}
-		checkValues(t, guarantee.GuaranteeId, guarantee.Values, expected)
-	}
 
-}
-
-func checkValues(t *testing.T, gt string, values map[string]interface{}, expected []string) {
-
-	if len(values) != len(expected) {
-		t.Fatalf("Different number of values found for violation of guarantee %s. Expected %d, found %d", gt, len(expected), len(values))
-	}
-
-	for _, value := range expected {
-		_, ok := values[value]
-		if !ok {
-			t.Errorf("Expected %s metric not found in violation", value)
+		if violation.Method != slas[0].Id {
+			t.Errorf("Unexpected method name: %s. Expected %s", violation.Method, slas[0].Id)
 		}
+
+		if len(violation.Metrics) != 3 {
+			t.Errorf("Unexpected number of metrics: %d. Expected %d", len(violation.Metrics), 3)
+		}
+
+		expectedMetrics := make(map[string]bool)
+		expectedMetrics["Availability"] = false
+		expectedMetrics["Timeliness"] = false
+		expectedMetrics["ResponseTime"] = false
+
+		for _, metric := range violation.Metrics {
+			found, ok := expectedMetrics[metric.Key]
+			if !ok {
+				t.Errorf("Unexpected metric found: %s.", metric)
+			}
+
+			if found {
+				t.Errorf("Unexpected duplicate metric found: %s.", metric)
+			}
+
+			expectedMetrics[metric.Key] = true
+		}
+
+		for metric, found := range expectedMetrics {
+			if !found {
+				t.Errorf("Expected metric %s not found in results", metric)
+			}
+		}
+
+	} else {
+		t.Errorf("Unexpected number of violations: %d. Expected %d", len(notViolations), 1)
 	}
+
 }
 
 func t_(second time.Duration) time.Time {
