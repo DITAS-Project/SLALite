@@ -17,7 +17,6 @@ package assessment
 
 import (
 	assessment_model "SLALite/assessment/model"
-	"SLALite/assessment/monitor"
 	"SLALite/assessment/monitor/simpleadapter"
 	"SLALite/model"
 	"SLALite/utils"
@@ -82,18 +81,18 @@ func TestAssessActiveAgreements(t *testing.T) {
 	repo.CreateAgreement(&aa2)
 	repo.CreateAgreement(&aa3)
 
-	var m1 = []map[string]monitor.MetricValue{
+	var m1 = assessment_model.GuaranteeData{
 		{
-			"m": monitor.MetricValue{Key: "m", Value: 5, DateTime: t_(0)},
-			"n": monitor.MetricValue{Key: "n", Value: 25, DateTime: t_(0)},
+			"m": model.MetricValue{Key: "m", Value: 5, DateTime: t_(0)},
+			"n": model.MetricValue{Key: "n", Value: 25, DateTime: t_(0)},
 		},
 		{
-			"m": monitor.MetricValue{Key: "m", Value: 15, DateTime: t_(1)},
-			"n": monitor.MetricValue{Key: "n", Value: 40, DateTime: t_(1)},
+			"m": model.MetricValue{Key: "m", Value: 15, DateTime: t_(1)},
+			"n": model.MetricValue{Key: "n", Value: 40, DateTime: t_(1)},
 		},
 		{
-			"m": monitor.MetricValue{Key: "m", Value: 7, DateTime: t_(2)},
-			"n": monitor.MetricValue{Key: "n", Value: 75, DateTime: t_(2)},
+			"m": model.MetricValue{Key: "m", Value: 7, DateTime: t_(2)},
+			"n": model.MetricValue{Key: "n", Value: 75, DateTime: t_(2)},
 		},
 	}
 
@@ -113,9 +112,9 @@ func TestAssessActiveAgreements(t *testing.T) {
 
 func TestAssessAgreement(t *testing.T) {
 	a2 := createAgreement("a02", p1, c2, "Agreement 02", "m >= 0")
-	values := []map[string]monitor.MetricValue{
-		{"m": monitor.MetricValue{Key: "m", Value: 1, DateTime: t_(0)}},
-		{"m": monitor.MetricValue{Key: "m", Value: -1, DateTime: t_(1)}},
+	values := assessment_model.GuaranteeData{
+		{"m": model.MetricValue{Key: "m", Value: 1, DateTime: t_(0)}},
+		{"m": model.MetricValue{Key: "m", Value: -1, DateTime: t_(1)}},
 	}
 	ma := simpleadapter.New(values)
 
@@ -187,9 +186,9 @@ func TestAssessExpiredAgreement(t *testing.T) {
 }
 
 func TestEvaluateAgreement(t *testing.T) {
-	values := []map[string]monitor.MetricValue{
-		{"m": monitor.MetricValue{Key: "m", Value: 1, DateTime: t_(0)}},
-		{"m": monitor.MetricValue{Key: "m", Value: -1, DateTime: t_(1)}},
+	values := assessment_model.GuaranteeData{
+		{"m": model.MetricValue{Key: "m", Value: 1, DateTime: t_(0)}},
+		{"m": model.MetricValue{Key: "m", Value: -1, DateTime: t_(1)}},
 	}
 	ma := simpleadapter.New(values)
 	invalid, err := EvaluateAgreement(&a1, ma)
@@ -209,15 +208,21 @@ func TestEvaluateAgreement(t *testing.T) {
 		if errs := v.Validate(); len(errs) != 1 {
 			t.Errorf("Validation error in violation: %v", errs)
 		}
-		if v.Values["m"] != -1 {
-			t.Errorf("Unexpected Values map: %v", v.Values)
+		if len(v.Values) != 1 {
+			t.Errorf("Unexpected Values number: %v", len(v.Values))
+		} else {
+			metric := v.Values[0]
+			if metric.Key != "m" && metric.Value != -1 {
+				t.Errorf("Unexpected Values information: [%s,%v]", metric.Key, metric.Value)
+			}
 		}
+
 	}
 }
 
 func TestEvaluateAgreementWithWrongValues(t *testing.T) {
-	values := []map[string]monitor.MetricValue{
-		{"n": monitor.MetricValue{Key: "n", Value: 1, DateTime: t_(0)}},
+	values := assessment_model.GuaranteeData{
+		{"n": model.MetricValue{Key: "n", Value: 1, DateTime: t_(0)}},
 	}
 	ma := simpleadapter.New(values)
 	_, err := EvaluateAgreement(&a1, ma)
@@ -227,9 +232,9 @@ func TestEvaluateAgreementWithWrongValues(t *testing.T) {
 }
 
 func TestEvaluateGuarantee(t *testing.T) {
-	values := []map[string]monitor.MetricValue{
-		{"m": monitor.MetricValue{Key: "m", Value: 1, DateTime: t_(0)}},
-		{"m": monitor.MetricValue{Key: "m", Value: -1, DateTime: t_(1)}},
+	values := assessment_model.GuaranteeData{
+		{"m": model.MetricValue{Key: "m", Value: 1, DateTime: t_(0)}},
+		{"m": model.MetricValue{Key: "m", Value: -1, DateTime: t_(1)}},
 	}
 	ma := simpleadapter.New(values)
 	invalid, err := EvaluateGuarantee(&a1, a1.Details.Guarantees[0], ma)
@@ -256,8 +261,8 @@ func TestEvaluateGuaranteeWithWrongExpression(t *testing.T) {
 }
 
 func TestEvaluateGuaranteeWithWrongValues(t *testing.T) {
-	values := []map[string]monitor.MetricValue{
-		{"n": monitor.MetricValue{Key: "n", Value: 1, DateTime: t_(0)}},
+	values := assessment_model.GuaranteeData{
+		{"n": model.MetricValue{Key: "n", Value: 1, DateTime: t_(0)}},
 	}
 	ma := simpleadapter.New(values)
 	_, err := EvaluateGuarantee(&a1, a1.Details.Guarantees[0], ma)
@@ -389,14 +394,14 @@ func createAgreement(aid string, provider model.Provider, client model.Client, n
 	return createAgreementFull(aid, provider, client, name, map[string]string{"TestGuarantee": constraint}, nil)
 }
 
-func createSimpleEvaluationData(key string, value interface{}) map[string]monitor.MetricValue {
-	result := make(map[string]monitor.MetricValue)
+func createSimpleEvaluationData(key string, value interface{}) assessment_model.ExpressionData {
+	result := make(assessment_model.ExpressionData)
 	result[key] = createMonitoringMetric(key, value)
 	return result
 }
 
-func createMonitoringMetric(key string, value interface{}) monitor.MetricValue {
-	return monitor.MetricValue{
+func createMonitoringMetric(key string, value interface{}) model.MetricValue {
+	return model.MetricValue{
 		Key:      key,
 		Value:    value,
 		DateTime: time.Now(),

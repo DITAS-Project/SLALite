@@ -190,14 +190,25 @@ type PenaltyDef struct {
 	Unit  string `json:"unit"`
 }
 
+// MetricValue is the SLALite representation of a metric value.
+type MetricValue struct {
+	Key      string      `json:"key"`
+	Value    interface{} `json:"value"`
+	DateTime time.Time   `json:"datetime"`
+}
+
+func (v *MetricValue) String() string {
+	return fmt.Sprintf("{Key: %s, Value: %v, DateTime: %v}", v.Key, v.Value, v.DateTime)
+}
+
 // Violation is generated when a guarantee term is not fulfilled
 type Violation struct {
-	Id          string                 `json:"id"`
-	AgreementId string                 `json:"agreement_id"`
-	Guarantee   string                 `json:"guarantee"`
-	Datetime    time.Time              `json:"datetime"`
-	Constraint  string                 `json:"constraint"`
-	Values      map[string]interface{} `json:"values"`
+	Id          string        `json:"id"`
+	AgreementId string        `json:"agreement_id"`
+	Guarantee   string        `json:"guarantee"`
+	Datetime    time.Time     `json:"datetime"`
+	Constraint  string        `json:"constraint"`
+	Values      []MetricValue `json:"values"`
 }
 
 // Penalty is generated when a guarantee term is violated is the term has

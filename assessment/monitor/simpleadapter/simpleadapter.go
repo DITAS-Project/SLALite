@@ -15,15 +15,17 @@ limitations under the License.
 */
 package simpleadapter
 
-import "SLALite/model"
-import "SLALite/assessment/monitor"
+import (
+	assessment_model "SLALite/assessment/model"
+	"SLALite/model"
+)
 
 type ArrayMonitoringAdapter struct {
 	agreement *model.Agreement
-	values    []map[string]monitor.MetricValue
+	values    assessment_model.GuaranteeData
 }
 
-func New(values []map[string]monitor.MetricValue) *ArrayMonitoringAdapter {
+func New(values assessment_model.GuaranteeData) *ArrayMonitoringAdapter {
 	return &ArrayMonitoringAdapter{
 		agreement: nil,
 		values:    values,
@@ -34,6 +36,6 @@ func (ma *ArrayMonitoringAdapter) Initialize(a *model.Agreement) {
 	ma.agreement = a
 }
 
-func (ma *ArrayMonitoringAdapter) GetValues(gt model.Guarantee, vars []string) []map[string]monitor.MetricValue {
+func (ma *ArrayMonitoringAdapter) GetValues(gt model.Guarantee, vars []string) assessment_model.GuaranteeData {
 	return ma.values
 }
