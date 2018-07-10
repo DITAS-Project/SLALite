@@ -17,7 +17,7 @@ package ditas
 
 import (
 	"SLALite/assessment"
-	"SLALite/assessment/monitor"
+	assessment_model "SLALite/assessment/model"
 	"SLALite/model"
 	"os"
 	"testing"
@@ -25,14 +25,14 @@ import (
 )
 
 type TestMonitoring struct {
-	Metrics map[string]monitor.MetricValue
+	Metrics assessment_model.ExpressionData
 }
 
 func (t *TestMonitoring) Initialize(a *model.Agreement) {
 }
 
-func (t *TestMonitoring) GetValues(gt model.Guarantee, vars []string) []map[string]monitor.MetricValue {
-	return []map[string]monitor.MetricValue{t.Metrics}
+func (t *TestMonitoring) GetValues(gt model.Guarantee, vars []string) assessment_model.GuaranteeData {
+	return assessment_model.GuaranteeData{t.Metrics}
 }
 
 var t0 = time.Now()
@@ -85,12 +85,12 @@ func TestNotifier(t *testing.T) {
 	slas := CreateAgreements(blueprint)
 	slas[0].State = model.STARTED
 
-	var m1 = map[string]monitor.MetricValue{
-		"Availability":         monitor.MetricValue{Key: "Availability", Value: 90, DateTime: t_(0)},
-		"Timeliness":           monitor.MetricValue{Key: "Timeliness", Value: 1, DateTime: t_(0)},
-		"ResponseTime":         monitor.MetricValue{Key: "ResponseTime", Value: 1.5, DateTime: t_(0)},
-		"volume":               monitor.MetricValue{Key: "volume", Value: 10000, DateTime: t_(0)},
-		"Process_completeness": monitor.MetricValue{Key: "Process_completeness", Value: 95, DateTime: t_(0)},
+	var m1 = assessment_model.ExpressionData{
+		"Availability":         model.MetricValue{Key: "Availability", Value: 90, DateTime: t_(0)},
+		"Timeliness":           model.MetricValue{Key: "Timeliness", Value: 1, DateTime: t_(0)},
+		"ResponseTime":         model.MetricValue{Key: "ResponseTime", Value: 1.5, DateTime: t_(0)},
+		"volume":               model.MetricValue{Key: "volume", Value: 10000, DateTime: t_(0)},
+		"Process_completeness": model.MetricValue{Key: "Process_completeness", Value: 95, DateTime: t_(0)},
 	}
 
 	adapter := TestMonitoring{

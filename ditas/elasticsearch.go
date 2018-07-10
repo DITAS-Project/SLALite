@@ -16,7 +16,7 @@ limitations under the License.
 package ditas
 
 import (
-	"SLALite/assessment/monitor"
+	assessment_model "SLALite/assessment/model"
 	"SLALite/model"
 	"context"
 	"reflect"
@@ -34,16 +34,16 @@ type DataValue struct {
 	RequestTime string    `json:"request.requestTime"`
 }
 
-type elasticSearchAdapter struct {
+type ElasticSearchAdapter struct {
 	agreement   *model.Agreement
 	client      *elastic.Client
-	currentData map[string][]monitor.MetricValue
+	currentData map[string][]model.MetricValue
 	maxLength   int
 }
 
-func (ma *elasticSearchAdapter) Initialize(a *model.Agreement) {
+func (ma *ElasticSearchAdapter) Initialize(a *model.Agreement) {
 	ma.agreement = a
-	ma.currentData = make(map[string][]monitor.MetricValue)
+	ma.currentData = make(map[string][]model.MetricValue)
 	ma.maxLength = 0
 	query := elastic.NewTermQuery("request.path", "/"+ma.agreement.Id)
 	address := "http://elasticsearch:9200"
@@ -58,9 +58,9 @@ func (ma *elasticSearchAdapter) Initialize(a *model.Agreement) {
 				if dataValue.MeterName != "" {
 					values, ok := ma.currentData[dataValue.MeterName]
 					if !ok {
-						values = make([]monitor.MetricValue, 0)
+						values = make([]model.MetricValue, 0)
 					}
-					currentValue := monitor.MetricValue{
+					currentValue := model.MetricValue{
 						DateTime: dataValue.Timestamp,
 						Key:      dataValue.MeterName,
 						Value:    dataValue.MeterValue,
@@ -76,11 +76,11 @@ func (ma *elasticSearchAdapter) Initialize(a *model.Agreement) {
 	}
 }
 
-func (ma *elasticSearchAdapter) GetValues(gt model.Guarantee, vars []string) []map[string]monitor.MetricValue {
-	result := make([]map[string]monitor.MetricValue, 0)
+func (ma *ElasticSearchAdapter) GetValues(gt model.Guarantee, vars []string) assessment_model.GuaranteeData {
+	result := make(assessment_model.GuaranteeData, 0)
 
 	for i := 0; i < ma.maxLength; i++ {
-		iteration := make(map[string]monitor.MetricValue)
+		iteration := make(assessment_model.ExpressionData)
 		for _, v := range vars {
 			vals, ok := ma.currentData[v]
 			if ok && i < len(vals) {

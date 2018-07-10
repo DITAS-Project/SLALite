@@ -18,7 +18,6 @@ package ditas
 
 import (
 	assessment_model "SLALite/assessment/model"
-	"SLALite/assessment/monitor"
 	"SLALite/model"
 	"errors"
 	"fmt"
@@ -31,7 +30,7 @@ import (
 type DitasViolation struct {
 	VDCId   string
 	Method  string
-	Metrics []monitor.MetricValue
+	Metrics []model.MetricValue
 }
 
 type DitasNotifier struct {
@@ -69,14 +68,20 @@ func evaluate(comparator string, thresholdIf interface{}, valueIf interface{}) (
 
 func (n *DitasNotifier) filterValues(methodId string, result *assessment_model.Result) {
 	violations := make([]DitasViolation, 0)
-	violationMap := make(map[string][]monitor.MetricValue)
+	violationMap := make(map[string][]model.MetricValue)
 	for _, grResults := range *result {
 		for _, violation := range grResults.Violations {
+			valueMap := make(map[string]model.MetricValue)
+
+			for _, metricValue := range violation.Values {
+				valueMap[metricValue.Key] = metricValue
+			}
+
 			expression, err := govaluate.NewEvaluableExpression(violation.Constraint)
 			if err == nil {
 				violationInformation, ok := violationMap[violation.AgreementId]
 				if !ok {
-					violationInformation = make([]monitor.MetricValue, 0)
+					violationInformation = make([]model.MetricValue, 0)
 				}
 				tokens := expression.Tokens()
 				for i, token := range tokens {
@@ -84,14 +89,11 @@ func (n *DitasNotifier) filterValues(methodId string, result *assessment_model.R
 						variable := token.Value.(string)
 						comparator := tokens[i+1].Value.(string)
 						threshold := tokens[i+2].Value
-						value, found := violation.Values[variable]
+						value, found := valueMap[variable]
 						if found {
-							assessed, err := evaluate(comparator, threshold, value)
+							assessed, err := evaluate(comparator, threshold, value.Value)
 							if err == nil && !assessed {
-								violationInformation = append(violationInformation, monitor.MetricValue{
-									Key:   variable,
-									Value: value,
-								})
+								violationInformation = append(violationInformation, value)
 							} else {
 								if err != nil {
 									log.Errorf("Error assessing expression %s: %s", violation.Constraint, err.Error())
