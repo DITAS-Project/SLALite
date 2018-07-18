@@ -22,7 +22,13 @@ import (
 	"reflect"
 	"time"
 
+	"github.com/DITAS-Project/blueprint-go"
+
 	"github.com/olivere/elastic"
+)
+
+const (
+	ResponseTimeKey = "ResponseTime"
 )
 
 type DataValue struct {
@@ -31,14 +37,38 @@ type DataValue struct {
 	MeterUnit   string    `json:"meter.unit"`
 	MeterName   string    `json:"meter.name"`
 	RequestId   string    `json:"request.id"`
-	RequestTime string    `json:"request.requestTime"`
+	RequestTime *int      `json:"request.requestTime"`
 }
 
 type ElasticSearchAdapter struct {
 	agreement   *model.Agreement
+	methodInfo  map[string]blueprint.ExtendedOps
 	client      *elastic.Client
 	currentData map[string][]model.MetricValue
 	maxLength   int
+}
+
+func NewAdapter(methodInfo map[string]blueprint.ExtendedOps) *ElasticSearchAdapter {
+	address := "http://elasticsearch:9200"
+	client, _ := elastic.NewSimpleClient(
+		elastic.SetURL(address),
+	)
+	return &ElasticSearchAdapter{
+		client:     client,
+		methodInfo: methodInfo,
+	}
+}
+
+func (ma *ElasticSearchAdapter) addValue(value model.MetricValue) {
+	values, ok := ma.currentData[value.Key]
+	if !ok {
+		values = make([]model.MetricValue, 0)
+	}
+	values = append(values, value)
+	ma.currentData[value.Key] = values
+	if len(values) > ma.maxLength {
+		ma.maxLength = len(values)
+	}
 }
 
 func (ma *ElasticSearchAdapter) Initialize(a *model.Agreement) {
@@ -46,30 +76,26 @@ func (ma *ElasticSearchAdapter) Initialize(a *model.Agreement) {
 	ma.currentData = make(map[string][]model.MetricValue)
 	ma.maxLength = 0
 	query := elastic.NewTermQuery("request.path", "/"+ma.agreement.Id)
-	address := "http://elasticsearch:9200"
-	client, _ := elastic.NewSimpleClient(
-		elastic.SetURL(address),
-	)
-	data, err := client.Search().Index("tubvdc-*").Query(query).Do(context.Background())
+	data, err := ma.client.Search().Index("tubvdc-*").Query(query).Do(context.Background())
 	if err == nil {
 		var dataValue DataValue
 		for _, item := range data.Each(reflect.TypeOf(dataValue)) {
 			if dataValue, ok := item.(DataValue); ok {
-				if dataValue.MeterName != "" {
-					values, ok := ma.currentData[dataValue.MeterName]
-					if !ok {
-						values = make([]model.MetricValue, 0)
+				if dataValue.RequestTime != nil {
+					responseTime := model.MetricValue{
+						DateTime: dataValue.Timestamp,
+						Key:      ResponseTimeKey,
+						Value:    *dataValue.RequestTime,
 					}
+					ma.addValue(responseTime)
+				}
+				if dataValue.MeterName != "" {
 					currentValue := model.MetricValue{
 						DateTime: dataValue.Timestamp,
 						Key:      dataValue.MeterName,
 						Value:    dataValue.MeterValue,
 					}
-					values = append(values, currentValue)
-					ma.currentData[dataValue.MeterName] = values
-					if len(values) > ma.maxLength {
-						ma.maxLength = len(values)
-					}
+					ma.addValue(currentValue)
 				}
 			}
 		}

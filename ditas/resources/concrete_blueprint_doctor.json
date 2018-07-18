@@ -1,0 +1,1012 @@
+{
+    "INTERNAL_STRUCTURE": {
+        "Overview": {
+            "name": "osr_hospital_vdc",
+            "description": "This VDC provides information about biographical data and blood tests of the patients of Ospedale San Raffaele in Milan",
+            "tags": [{
+                "method_id": "getPatientBiographicalData",
+                "tags": ["OSR", "patient", "hospital", "biographical", "profile"]
+            }, {
+                "method_id": "getLastValuesForBloodTest",
+                "tags": ["OSR", "patient", "hospital", "blood", "test"]
+            }, {
+                "method_id": "getAllValuesForBloodTestComponent",
+                "tags": ["OSR", "patient", "hospital", "blood", "test", "component"]
+            }, {
+                "method_id": "getBloodTestComponentAverage",
+                "tags": ["OSR", "patient", "hospital", "blood", "test", "component", "age-range", "research", "pseudonymization", "anonymization", "GDPR-compliance"]
+            }]
+        },
+        "Data_Sources": [{
+            "id": "bloodTestSource",
+            "description": "Minio source containing blood tests for the hospital patients",
+            "class": "object storage",
+            "type": "Minio",
+            "parameters": {
+                "spark_hadoop_fs_s3a_endpoint": "http://MINIO:9000",
+                "spark_hadoop_fs_s3a_access_key": "ACCESS_KEY",
+                "spark_hadoop_fs_s3a_secret_key": "SECRET_KEY",
+                "spark_hadoop_fs_s3a_path_style_access": "true",
+                "spark_hadoop_fs_s3a_impl": "org.apache.hadoop.fs.s3a.S3AFileSystem",
+                "s3_filename": "s3a://ditas.ehealth-sample/ditas-blood-tests.parquet"
+            },
+            "schema": {}
+        }, {
+            "id": "patientBiographicalData",
+            "description": "Relational database containing biographical data for the hospital patients",
+            "class": "relational database",
+            "type": "MySQL",
+            "parameters": {
+                "ip": "BIO_HOST",
+                "port": "3306",
+                "user": "BIO_USER",
+                "password": "BIO_PASSWORD"
+            },
+            "schema": {
+                "type": "object",
+                "properties": {
+                    "addressCity": {
+                        "type": "string"
+                    },
+                    "addressRoad": {
+                        "type": "string"
+                    },
+                    "addressRoadNumber": {
+                        "type": "integer"
+                    },
+                    "addressPostalCode": {
+                        "type": "integer"
+                    },
+                    "addressTelephoneNumber": {
+                        "type": "integer"
+                    },
+                    "birthCity": {
+                        "type": "string"
+                    },
+                    "nationality": {
+                        "type": "string"
+                    },
+                    "job": {
+                        "type": "string"
+                    },
+                    "schoolYears": {
+                        "type": "integer"
+                    },
+                    "birthDate": {
+                        "type": "date"
+                    },
+                    "gender": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "patientId": {
+                        "type": "string"
+                    },
+                    "socialId": {
+                        "type": "string"
+                    },
+                    "surname": {
+                        "type": "string"
+                    },
+                    "familyDoctorId": {
+                        "type": "string"
+                    }
+                }
+            }
+        }],
+        "Flow": {
+            "platform": "Spark",
+            "parameters": {
+                "spark_master": "spark://SPARK:7077",
+                "spark_app_name": "PatientBloodTestsVDC",
+                "spark_jars": "mysql-connector-java-5.1.45/mysql-connector-java-5.1.45-bin.jar,hadoop-aws-3.0.0.jar,aws-java-sdk-bundle-1.11.271.jar"
+            }
+        },
+        "Testing_Output_Data": [{
+            "method_id": "getPatientBiographicalData",
+            "zip_data": "http://localhost:8080"
+        }, {
+            "method_id": "getLastValuesForBloodTest",
+            "zip_data": "http://localhost:8080"
+        }, {
+            "method_id": "getAllValuesForBloodTestComponent",
+            "zip_data": "http://localhost:8080"
+        }, {
+            "method_id": "getBloodTestComponentAverage",
+            "zip_data": "http://localhost:8080"
+        }]
+    },
+    "DATA_MANAGEMENT": [{
+        "method_id": "getPatientBiographicalData",
+        "attributes": {
+            "dataUtility": [{
+                "id": "availability_999999",
+                "description": "Availability 99.9999",
+                "type": "Availability",
+                "properties": {
+                    "availability": {
+                        "unit": "percentage",
+                        "minimum": 99.9999
+                    }
+                }
+            }, {
+                "id": "responseTime_1",
+                "description": "ResponseTime 1",
+                "type": "ResponseTime",
+                "properties": {
+                    "responseTime": {
+                        "maximum": 1,
+                        "unit": "second"
+                    }
+                }
+            }, {
+                "id": "timeliness_06",
+                "description": "Timeliness 0.6",
+                "type": "Timeliness",
+                "properties": {
+                    "timeliness": {
+                        "maximum": 0.6,
+                        "unit": "NONE"
+                    }
+                }
+            }],
+            "security": [{
+                "id": "encryption_AES128",
+                "description": "Encryption AES 128",
+                "type": "TransportEncryption",
+                "properties": {
+                    "protocol": {
+                        "unit": "enum",
+                        "value": "TLS"
+                    },
+                    "algorithm": {
+                        "unit": "enum",
+                        "value": "AES"
+                    },
+                    "keylength": {
+                        "unit": "number",
+                        "value": "128"
+                    }
+                }
+            }, {
+                "id": "tracing_1",
+                "description": "Tracing 1",
+                "type": "Tracing",
+                "properties": {
+                    "level": {
+                        "unit": "enum",
+                        "value": "datasource"
+                    },
+                    "samplerate": {
+                        "unit": "percentage",
+                        "value": "1"
+                    },
+                    "instrumentation": {
+                        "unit": "enum",
+                        "value": "VDC"
+                    }
+                }
+            }, {
+                "id": "acl_userPW_doctor",
+                "description": "ACL username/password doctor_er_id",
+                "type": "ACL",
+                "properties": {
+                    "protocol": {
+                        "unit": "enum",
+                        "value": "username/password"
+                    },
+                    "credentials": {
+                        "unit": "list",
+                        "value": ["doctor_er_id"]
+                    }
+                }
+            }],
+            "privacy": []
+        }
+    }, {
+        "method_id": "getLastValuesForBloodTest",
+        "attributes": {
+            "dataUtility": [{
+                "id": "availability_999999",
+                "description": "Availability 99.9999",
+                "type": "Availability",
+                "properties": {
+                    "availability": {
+                        "unit": "percentage",
+                        "minimum": 99.9999
+                    }
+                }
+            }, {
+                "id": "responseTime_1",
+                "description": "ResponseTime 1",
+                "type": "ResponseTime",
+                "properties": {
+                    "responseTime": {
+                        "maximum": 1,
+                        "unit": "second"
+                    }
+                }
+            }, {
+                "id": "timeliness_06",
+                "description": "Timeliness 0.6",
+                "type": "Timeliness",
+                "properties": {
+                    "timeliness": {
+                        "maximum": 0.6,
+                        "unit": "NONE"
+                    }
+                }
+            }],
+            "security": [{
+                "id": "encryption_AES128",
+                "description": "Encryption AES 128",
+                "type": "TransportEncryption",
+                "properties": {
+                    "protocol": {
+                        "unit": "enum",
+                        "value": "TLS"
+                    },
+                    "algorithm": {
+                        "unit": "enum",
+                        "value": "AES"
+                    },
+                    "keylength": {
+                        "unit": "number",
+                        "value": "128"
+                    }
+                }
+            }, {
+                "id": "tracing_1",
+                "description": "Tracing 1",
+                "type": "Tracing",
+                "properties": {
+                    "level": {
+                        "unit": "enum",
+                        "value": "datasource"
+                    },
+                    "samplerate": {
+                        "unit": "percentage",
+                        "value": "1"
+                    },
+                    "instrumentation": {
+                        "unit": "enum",
+                        "value": "VDC"
+                    }
+                }
+            }, {
+                "id": "acl_userPW_doctor",
+                "description": "ACL username/password doctor_er_id",
+                "type": "ACL",
+                "properties": {
+                    "protocol": {
+                        "unit": "enum",
+                        "value": "username/password"
+                    },
+                    "credentials": {
+                        "unit": "list",
+                        "value": ["doctor_er_id"]
+                    }
+                }
+            }],
+            "privacy": []
+        }
+    }, {
+        "method_id": "getAllValuesForBloodTestComponent",
+        "attributes": {
+            "dataUtility": [{
+                "id": "availability_999999",
+                "description": "Availability 99.9999",
+                "type": "Availability",
+                "properties": {
+                    "availability": {
+                        "unit": "percentage",
+                        "minimum": 99.9999
+                    }
+                }
+            }, {
+                "id": "responseTime_1",
+                "description": "ResponseTime 1",
+                "type": "ResponseTime",
+                "properties": {
+                    "responseTime": {
+                        "maximum": 1,
+                        "unit": "second"
+                    }
+                }
+            }, {
+                "id": "timeliness_06",
+                "description": "Timeliness 0.6",
+                "type": "Timeliness",
+                "properties": {
+                    "timeliness": {
+                        "maximum": 0.6,
+                        "unit": "NONE"
+                    }
+                }
+            }],
+            "security": [{
+                "id": "encryption_AES128",
+                "description": "Encryption AES 128",
+                "type": "TransportEncryption",
+                "properties": {
+                    "protocol": {
+                        "unit": "enum",
+                        "value": "TLS"
+                    },
+                    "algorithm": {
+                        "unit": "enum",
+                        "value": "AES"
+                    },
+                    "keylength": {
+                        "unit": "number",
+                        "value": "128"
+                    }
+                }
+            }, {
+                "id": "tracing_1",
+                "description": "Tracing 1",
+                "type": "Tracing",
+                "properties": {
+                    "level": {
+                        "unit": "enum",
+                        "value": "datasource"
+                    },
+                    "samplerate": {
+                        "unit": "percentage",
+                        "value": "1"
+                    },
+                    "instrumentation": {
+                        "unit": "enum",
+                        "value": "VDC"
+                    }
+                }
+            }, {
+                "id": "acl_userPW_doctor",
+                "description": "ACL username/password doctor_er_id",
+                "type": "ACL",
+                "properties": {
+                    "protocol": {
+                        "unit": "enum",
+                        "value": "username/password"
+                    },
+                    "credentials": {
+                        "unit": "list",
+                        "value": ["doctor_er_id"]
+                    }
+                }
+            }],
+            "privacy": []
+        }
+    }, {
+        "method_id": "getBloodTestComponentAverage",
+        "attributes": {
+            "dataUtility": [{
+                "id": "volume_10000",
+                "description": "volume 10000",
+                "type": "Volume",
+                "properties": {
+                    "volume": {
+                        "value": "10000",
+                        "unit": "tuple"
+                    }
+                }
+            }, {
+                "id": "accuracy_09",
+                "description": "Accuracy",
+                "type": "Accuracy",
+                "properties": {
+                    "accuracy": {
+                        "minimum": 0.9,
+                        "unit": "none"
+                    }
+                }
+            }, {
+                "id": "processCompleteness_9",
+                "description": "Process completeness 9",
+                "type": "Process completeness",
+                "properties": {
+                    "completeness": {
+                        "minimum": 9,
+                        "unit": "percentage"
+                    }
+                }
+            }, {
+                "id": "scaleUpMemory",
+                "description": "scale-up memory",
+                "type": "Scale-up",
+                "properties": {
+                    "ramGain": {
+                        "unit": "percentage",
+                        "value": "150"
+                    },
+                    "ramLimit": {
+                        "unit": "percentage",
+                        "value": "99"
+                    }
+                }
+            }, {
+                "id": "scaleUpSpace",
+                "description": "scale-up space",
+                "type": "Scale-up",
+                "properties": {
+                    "spaceGain": {
+                        "unit": "percentage",
+                        "value": "150"
+                    },
+                    "spaceLimit": {
+                        "unit": "percentage",
+                        "value": "99"
+                    }
+                }
+            }],
+            "security": [{
+                "id": "encryption_AES128",
+                "description": "Encryption AES 128",
+                "type": "TransportEncryption",
+                "properties": {
+                    "protocol": {
+                        "unit": "enum",
+                        "value": "TLS"
+                    },
+                    "algorithm": {
+                        "unit": "enum",
+                        "value": "AES"
+                    },
+                    "keylength": {
+                        "unit": "number",
+                        "value": "128"
+                    }
+                }
+            }, {
+                "id": "tracing_1",
+                "description": "Tracing 1",
+                "type": "Tracing",
+                "properties": {
+                    "level": {
+                        "unit": "enum",
+                        "value": "datasource"
+                    },
+                    "samplerate": {
+                        "unit": "percentage",
+                        "value": "1"
+                    },
+                    "instrumentation": {
+                        "unit": "enum",
+                        "value": "VDC"
+                    }
+                }
+            }, {
+                "id": "acl_userPW_researcher",
+                "description": "ACL username/password researcher_id",
+                "type": "ACL",
+                "properties": {
+                    "protocol": {
+                        "unit": "enum",
+                        "value": "username/password"
+                    },
+                    "credentials": {
+                        "unit": "list",
+                        "value": ["researcher_id"]
+                    }
+                }
+            }],
+            "privacy": [{
+                "id": "purposeControl_research",
+                "description": "PurposeControl research",
+                "type": "PurposeControl",
+                "properties": {
+                    "availablePurpose": {
+                        "unit": "list",
+                        "value": ["research", "medical research", "nutritional research"]
+                    },
+                    "guarantor": {
+                        "unit": "list",
+                        "value": ["d63d0e21fdc05f618d55ef306c54af82"]
+                    }
+                }
+            }]
+        }
+    }],
+    "ABSTRACT_PROPERTIES": [{
+            "method_id": "getPatientBiographicalData",
+            "goalTrees": {
+                "dataUtility": {
+                    "type": "AND",
+                    "children": [{
+                        "type": "AND",
+                        "leaves": [{
+                            "id": "serviceAvailable",
+                            "description": "Service available",
+                            "weight": 1,
+                            "attributes": ["availability_999999"]
+                        }, {
+                            "id": "fastDataProcess",
+                            "description": "Fast data process",
+                            "weight": 1,
+                            "attributes": ["responseTime_1"]
+                        }]
+                    }],
+                    "leaves": [{
+                        "id": "timeliness",
+                        "description": "Timeliness",
+                        "weight": 1,
+                        "attributes": ["timeliness_06"]
+                    }]
+                },
+                "security": {
+                    "type": "AND",
+                    "leaves": [{
+                        "id": "storageEncryption",
+                        "description": "Storage encryption",
+                        "weight": 1,
+                        "attributes": ["encryptionAES_128"]
+                    }, {
+                        "id": "accessControl",
+                        "description": "Access control",
+                        "weight": 1,
+                        "attributes": ["aclRoleBasedReadOnly"]
+                    }, {
+                        "id": "tracing",
+                        "description": "Tracing and monitoring",
+                        "weight": 1,
+                        "attributes": ["tracing_1"]
+                    }]
+                },
+                "privacy": {}
+            }
+        }, {
+            "method_id": "getLastValuesForBloodTest",
+            "goalTrees": {
+                "dataUtility": {
+                    "type": "AND",
+                    "children": [{
+                        "type": "AND",
+                        "leaves": [{
+                            "id": "serviceAvailable",
+                            "description": "Service available",
+                            "weight": 1,
+                            "attributes": ["availability_999999"]
+                        }, {
+                            "id": "fastDataProcess",
+                            "description": "Fast data process",
+                            "weight": 1,
+                            "attributes": ["responseTime_1"]
+                        }]
+                    }],
+                    "leaves": [{
+                        "id": "timeliness",
+                        "description": "Timeliness",
+                        "weight": 1,
+                        "attributes": ["timeliness_06"]
+                    }]
+                },
+                "security": {
+                    "type": "AND",
+                    "leaves": [{
+                        "id": "storageEncryption",
+                        "description": "Storage encryption",
+                        "weight": 1,
+                        "attributes": ["encryptionAES_128"]
+                    }, {
+                        "id": "accessControl",
+                        "description": "Access control",
+                        "weight": 1,
+                        "attributes": ["aclRoleBasedReadOnly"]
+                    }, {
+                        "id": "tracing",
+                        "description": "Tracing and monitoring",
+                        "weight": 1,
+                        "attributes": ["tracing_1"]
+                    }]
+                },
+                "privacy": {}
+            }
+        },
+        {
+            "method_id": "getAllValuesForBloodTestComponent",
+            "goalTrees": {
+                "dataUtility": {
+                    "type": "AND",
+                    "children": [{
+                        "type": "AND",
+                        "leaves": [{
+                            "id": "serviceAvailable",
+                            "description": "Service available",
+                            "weight": 1,
+                            "attributes": ["availability_999999"]
+                        }, {
+                            "id": "fastDataProcess",
+                            "description": "Fast data process",
+                            "weight": 1,
+                            "attributes": ["responseTime_1"]
+                        }]
+                    }],
+                    "leaves": [{
+                        "id": "timeliness",
+                        "description": "Timeliness",
+                        "weight": 1,
+                        "attributes": ["timeliness_06"]
+                    }]
+                },
+                "security": {
+                    "type": "AND",
+                    "leaves": [{
+                        "id": "storageEncryption",
+                        "description": "Storage encryption",
+                        "weight": 1,
+                        "attributes": ["encryptionAES_128"]
+                    }, {
+                        "id": "accessControl",
+                        "description": "Access control",
+                        "weight": 1,
+                        "attributes": ["aclRoleBasedReadOnly"]
+                    }, {
+                        "id": "tracing",
+                        "description": "Tracing and monitoring",
+                        "weight": 1,
+                        "attributes": ["tracing_1"]
+                    }]
+                },
+                "privacy": {}
+            }
+        }
+    ],
+    "COOKBOOK_APPENDIX": {},
+    "EXPOSED_API": {
+        "openapi": "3.0.1",
+        "info": {
+            "title": "CAF API",
+            "version": "0.0.1"
+        },
+        "paths": {
+            "/patient/{SSN}": {
+                "get": {
+                    "summary": "Get patient's biographical data",
+                    "description": "This method returns the biographical data for the specified patient (identified via SSN), to be used by medical doctors",
+                    "operationId": "getPatientBiographicalData",
+                    "parameters": [{
+                        "name": "SSN",
+                        "in": "path",
+                        "description": "SSN of the patient",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }],
+                    "responses": {
+                        "200": {
+                            "description": "Biographical data of the patient",
+                            "content": {
+                                "application/json": {
+                                    "schema": {
+                                        "type": "object",
+                                        "properties": {
+                                            "SSN": {
+                                                "type": "string"
+                                            },
+                                            "name": {
+                                                "type": "string"
+                                            },
+                                            "surname": {
+                                                "type": "string"
+                                            },
+                                            "gender": {
+                                                "type": "string"
+                                            },
+                                            "birthDate": {
+                                                "type": "string"
+                                            },
+                                            "addressCity": {
+                                                "type": "string"
+                                            },
+                                            "addressRoad": {
+                                                "type": "string"
+                                            },
+                                            "addressRoadNumber": {
+                                                "type": "integer"
+                                            },
+                                            "addressPostalCode": {
+                                                "type": "integer"
+                                            },
+                                            "telephoneNumber": {
+                                                "type": "integer"
+                                            },
+                                            "birthCity": {
+                                                "type": "string"
+                                            },
+                                            "nationality": {
+                                                "type": "string"
+                                            },
+                                            "job": {
+                                                "type": "string"
+                                            },
+                                            "schoolYears": {
+                                                "type": "integer"
+                                            },
+                                            "familyDoctorId": {
+                                                "type": "string"
+                                            },
+                                            "_links": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "self": {
+                                                        "type": "object",
+                                                        "properties": {
+                                                            "href": {
+                                                                "type": "string"
+                                                            }
+                                                        },
+                                                        "required": ["href"]
+                                                    },
+                                                    "blood-test-summary": {
+                                                        "type": "object",
+                                                        "properties": {
+                                                            "href": {
+                                                                "type": "string"
+                                                            }
+                                                        },
+                                                        "required": ["href"]
+                                                    }
+                                                },
+                                                "required": ["self", "blood-test-summary"]
+                                            }
+                                        },
+                                        "required": ["patientId", "SSN", "name", "surname", "gender", "birthDate", "addressCity", "addressRoad", "addressRoadNumber", "addressPostalCode", "telephoneNumber", "birthCity", "nationality", "job", "schoolYears", "familyDoctorId", "_links"]
+                                    }
+                                }
+                            }
+                        },
+                        "404": {
+                            "description": "Patient not found"
+                        }
+                    },
+                    "x-data_sources": ["patientBiographicalData"]
+                }
+            },
+            "/patient/{SSN}/blood-test/summary": {
+                "get": {
+                    "summary": "Get patient's latest values for all measured components",
+                    "description": "This method returns the latest values of all the blood test components measured on a patient (identified by his SSN), to be used by medical doctors",
+                    "operationId": "getLastValuesForBloodTest",
+                    "parameters": [{
+                        "name": "SSN",
+                        "in": "path",
+                        "description": "SSN of the patient",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }],
+                    "responses": {
+                        "200": {
+                            "description": "Latest values of all blood test components measured on the patient",
+                            "content": {
+                                "application/json": {
+                                    "schema": {
+                                        "type": "object",
+                                        "properties": {
+                                            "components": {
+                                                "type": "array",
+                                                "items": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "date": {
+                                                            "type": "string"
+                                                        },
+                                                        "name": {
+                                                            "type": "string"
+                                                        },
+                                                        "value": {
+                                                            "type": "object"
+                                                        }
+                                                    },
+                                                    "required": ["date", "name", "value"]
+                                                }
+                                            },
+                                            "_links": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "self": {
+                                                        "type": "object",
+                                                        "properties": {
+                                                            "href": {
+                                                                "type": "string"
+                                                            }
+                                                        },
+                                                        "required": ["href"]
+                                                    },
+                                                    "patient": {
+                                                        "type": "object",
+                                                        "properties": {
+                                                            "href": {
+                                                                "type": "string"
+                                                            }
+                                                        },
+                                                        "required": ["href"]
+                                                    },
+                                                    "timeseries": {
+                                                        "type": "object",
+                                                        "properties": {
+                                                            "templated": {
+                                                                "type": "boolean",
+                                                                "default": true
+                                                            },
+                                                            "href": {
+                                                                "type": "string",
+                                                                "default": "/patient/some-SSN/blood-test/component/{name}"
+                                                            }
+                                                        },
+                                                        "required": ["href", "templated"]
+                                                    }
+                                                },
+                                                "required": ["self", "patient", "timeseries"]
+                                            }
+                                        },
+                                        "required": ["components", "_links"]
+                                    }
+                                }
+                            }
+                        },
+                        "404": {
+                            "description": "Patient not found"
+                        }
+                    },
+                    "x-data_sources": ["bloodTestSource", "patientBiographicalData"]
+                }
+            },
+            "/patient/{SSN}/blood-test/component/{component}": {
+                "get": {
+                    "summary": "Get timeseries of patient's blood test component",
+                    "description": "This method returns the collected values for a specific blood test component of a patient (identified by his SSN), to be used by medical doctors",
+                    "operationId": "getAllValuesForBloodTestComponent",
+                    "parameters": [{
+                        "name": "SSN",
+                        "in": "path",
+                        "description": "SSN of the patient",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }, {
+                        "name": "component",
+                        "in": "path",
+                        "description": "Blood test component for which the values are requested",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }],
+                    "responses": {
+                        "200": {
+                            "description": "Values for the specified blood test component in the patient's blood tests",
+                            "content": {
+                                "application/json": {
+                                    "schema": {
+                                        "type": "object",
+                                        "properties": {
+                                            "series": {
+                                                "type": "array",
+                                                "items": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "date": {
+                                                            "type": "string"
+                                                        },
+                                                        "value": {
+                                                            "type": "object"
+                                                        }
+                                                    },
+                                                    "required": ["date", "value"]
+                                                }
+                                            },
+                                            "_links": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "self": {
+                                                        "type": "object",
+                                                        "properties": {
+                                                            "href": {
+                                                                "type": "string"
+                                                            }
+                                                        },
+                                                        "required": ["href"]
+                                                    },
+                                                    "patient": {
+                                                        "type": "object",
+                                                        "properties": {
+                                                            "href": {
+                                                                "type": "string"
+                                                            }
+                                                        },
+                                                        "required": ["href"]
+                                                    }
+                                                },
+                                                "required": ["self", "patient"]
+                                            }
+                                        },
+                                        "required": ["series", "_links"]
+                                    }
+                                }
+                            }
+                        },
+                        "404": {
+                            "description": "Patient not found"
+                        }
+                    },
+                    "x-data_sources": ["bloodTestSource", "patientBiographicalData"]
+                }
+            },
+            "/blood-test/component/{component}/average/{startAgeRange}-{endAgeRange}": {
+                "get": {
+                    "summary": "Get average of component over an age range",
+                    "description": "This method returns the average value for a specific blood test component in a specific age range, to be used by researchers. Since data are for researchers, patients' identifiers and quasi-identifiers won't be returned, making the output of this method anonymized.",
+                    "operationId": "getBloodTestComponentAverage",
+                    "parameters": [{
+                        "name": "component",
+                        "in": "path",
+                        "description": "Blood test component for which the last value is requested",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }, {
+                        "name": "startAgeRange",
+                        "in": "path",
+                        "description": "Start age in age range",
+                        "required": true,
+                        "schema": {
+                            "type": "number"
+                        }
+                    }, {
+                        "name": "endAgeRange",
+                        "in": "path",
+                        "description": "End age in age range",
+                        "required": true,
+                        "schema": {
+                            "type": "number"
+                        }
+                    }],
+                    "responses": {
+                        "200": {
+                            "description": "Average value for the specified component in the selected age range",
+                            "content": {
+                                "application/json": {
+                                    "schema": {
+                                        "type": "object",
+                                        "properties": {
+                                            "value": {
+                                                "type": "number"
+                                            },
+                                            "_links": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "self": {
+                                                        "type": "object",
+                                                        "properties": {
+                                                            "href": {
+                                                                "type": "string"
+                                                            }
+                                                        },
+                                                        "required": ["href"]
+                                                    }
+                                                },
+                                                "required": ["self"]
+                                            }
+                                        },
+                                        "required": ["value", "_links"]
+                                    }
+                                }
+                            }
+                        },
+                        "404": {
+                            "description": "Component never measured"
+                        }
+                    },
+                    "x-data_sources": ["bloodTestSource", "patientBiographicalData"]
+                }
+            }
+        }
+    }
+}

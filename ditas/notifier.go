@@ -19,8 +19,11 @@ package ditas
 import (
 	assessment_model "SLALite/assessment/model"
 	"SLALite/model"
+	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
 	"strconv"
 
 	"github.com/Knetic/govaluate"
@@ -28,14 +31,20 @@ import (
 )
 
 type DitasViolation struct {
-	VDCId   string
-	Method  string
-	Metrics []model.MetricValue
+	VDCId   string              `json:"vdcId"`
+	Method  string              `json:"methodId"`
+	Metrics []model.MetricValue `json:"metrics"`
 }
 
 type DitasNotifier struct {
 	VDCId      string
 	Violations []DitasViolation
+}
+
+func NewNotifier(vdcId string) *DitasNotifier {
+	return &DitasNotifier{
+		VDCId: vdcId,
+	}
 }
 
 func toFloat(value interface{}) (float64, error) {
@@ -122,4 +131,15 @@ func (n *DitasNotifier) filterValues(methodId string, result *assessment_model.R
 
 func (n *DitasNotifier) NotifyViolations(agreement *model.Agreement, result *assessment_model.Result) {
 	n.filterValues(agreement.Id, result)
+	rawJson, err := json.Marshal(n.Violations)
+	if err == nil {
+		response, err := http.Post("http://ds4m/notifyViolation", "application/json", bytes.NewBuffer(rawJson))
+		if err != nil {
+			log.Errorf("Error sending violations: ", err.Error())
+		} else {
+			if response.StatusCode != 200 {
+				log.Errorf("Status error %d sending violations", response.StatusCode)
+			}
+		}
+	}
 }

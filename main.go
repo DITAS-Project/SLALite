@@ -18,7 +18,6 @@ package main
 import (
 	"SLALite/assessment"
 	"SLALite/assessment/monitor"
-	"SLALite/assessment/monitor/dummyadapter"
 	"SLALite/assessment/notifier"
 	"SLALite/ditas"
 	"SLALite/model"
@@ -30,6 +29,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/DITAS-Project/blueprint-go"
 
 	log "github.com/sirupsen/logrus"
 
@@ -78,8 +79,10 @@ func main() {
 	repo, _ = validation.New(repo, false)
 	if repo != nil {
 		a, _ := NewApp(config, repo)
-		go createValidationThread(repo, dummyadapter.New(1), nil, checkPeriod)
-		readBlueprint(repo)
+		vdcId := config.GetString(utils.VDCId)
+		_, ops := readBlueprint(repo)
+		go createValidationThread(repo, ditas.NewAdapter(ops), ditas.NewNotifier(vdcId), checkPeriod)
+
 		a.Run()
 	}
 }
@@ -154,9 +157,9 @@ func validateProviders(repo model.IRepository) {
 	}
 }
 
-func readBlueprint(repo model.IRepository) {
-	blueprint := ditas.ReadBlueprint(utils.BlueprintPath)
-	agreements := ditas.CreateAgreements(blueprint)
+func readBlueprint(repo model.IRepository) (model.Agreements, map[string]blueprint.ExtendedOps) {
+	blueprint := blueprint.ReadBlueprint(utils.BlueprintPath)
+	agreements, ops := ditas.CreateAgreements(blueprint)
 
 	if agreements != nil {
 		for _, agreement := range agreements {
@@ -166,4 +169,5 @@ func readBlueprint(repo model.IRepository) {
 			}
 		}
 	}
+	return agreements, ops
 }

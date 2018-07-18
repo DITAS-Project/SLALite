@@ -22,6 +22,8 @@ import (
 	"os"
 	"testing"
 	"time"
+
+	"github.com/DITAS-Project/blueprint-go"
 )
 
 type TestMonitoring struct {
@@ -44,45 +46,29 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-func checkMethodList(t *testing.T, methodList MethodListType, name string) {
-
-	if len(methodList.Methods) == 0 {
-		t.Fatalf("No methods found in %s section", name)
-	}
-
-	if *methodList.Methods[0].Name != "patient-details" {
-		t.Fatalf("Unexpected name for method in %s. Found %s", name, *methodList.Methods[0].Name)
-	}
-
-}
-
 func TestReader(t *testing.T) {
-	blueprint := ReadBlueprint("resources/vdc_blueprint_example_1.json")
-
-	checkMethodList(t, blueprint.DataManagement, "Data Management")
-	checkMethodList(t, blueprint.AbstractProperties, "Abstract Properties")
-
-	slas := CreateAgreements(blueprint)
+	bp := blueprint.ReadBlueprint("resources/concrete_blueprint_doctor.json")
+	slas, methodsInfo := CreateAgreements(bp)
 
 	if slas == nil || len(slas) == 0 {
 		t.Fatalf("Did not get any SLA from the blueprint")
 	}
 
-	sla := slas[0]
-	if sla.Id != "patient-details" {
-		t.Fatalf("Did not find patient-details SLA")
-	}
+	for _, sla := range slas {
+		_, ok := methodsInfo[sla.Id]
+		if !ok {
+			t.Fatalf("Can't find method information for SLA %s", sla.Id)
+		}
 
-	guarantees := sla.Details.Guarantees
-	if len(guarantees) != 3 {
-		t.Fatalf("Unexpected number of guarantees. Expected 3 but found %d", len(guarantees))
+		if !(len(sla.Details.Guarantees) > 0) {
+			t.Fatalf("Guarantees were not generated for SLA %s", sla.Id)
+		}
 	}
-
 }
 
 func TestNotifier(t *testing.T) {
-	blueprint := ReadBlueprint("resources/vdc_blueprint_example_1.json")
-	slas := CreateAgreements(blueprint)
+	bp := blueprint.ReadBlueprint("resources/concrete_blueprint_doctor.json")
+	slas, _ := CreateAgreements(bp)
 	slas[0].State = model.STARTED
 
 	var m1 = assessment_model.ExpressionData{

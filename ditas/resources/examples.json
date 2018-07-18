@@ -1,0 +1,34 @@
+[
+    {
+        "vdcId": "vdc1",
+        "methodId": "getPatientData",
+        "metrics": [
+            {
+                "key": "availability",
+                "value": 80,
+                "datetime" : "2018-07-18T10:20:32Z"
+            },
+            {
+                "key": "responseTime",
+                "value": 1.7,
+                "datetime" : "2018-07-18T10:21:15Z"
+            }
+        ]
+    },
+    {
+        "vdcId": "vdc1",
+        "methodId": "getBloodSamples",
+        "metrics": [
+            {
+                "key": "availability",
+                "value": 80,
+                "datetime" : "2018-07-18T10:20:32Z"
+            },
+            {
+                "key": "timeliness",
+                "value": 0.5,
+                "datetime" : "2018-07-18T10:20:46Z"
+            }
+        ]
+    }
+]

@@ -54,4 +54,7 @@ const (
 
 	// BlueprintPath is the path to the DITAS blueprint
 	BlueprintPath = BlueprintLocation + "/" + BlueprintName
+
+	// VDC Identifier
+	VDCId = "VDCId"
 )

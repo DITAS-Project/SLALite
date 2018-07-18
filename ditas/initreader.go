@@ -18,65 +18,55 @@ package ditas
 
 import (
 	"SLALite/model"
-	"encoding/json"
 	"fmt"
-	"io/ioutil"
+
+	"github.com/DITAS-Project/blueprint-go"
 
 	log "github.com/sirupsen/logrus"
 )
 
-func ReadBlueprint(path string) BlueprintType {
-	var blueprint BlueprintType
-
-	raw, err := ioutil.ReadFile(path)
-	if err != nil {
-		fmt.Println(err.Error())
-		log.Errorf("Error reading blueprint from %s: %s", path, err.Error())
-	} else {
-		err = json.Unmarshal(raw, &blueprint)
-		if err != nil {
-			log.Errorf("Error reading blueprint: %s", err.Error())
-		}
-	}
-
-	return blueprint
+type MethodInfo struct {
+	MethodID  string
+	Agreement model.Agreement
+	Path      string
+	Operation string
 }
 
-func readProperty(property MetricPropertyType) string {
+func readProperty(property blueprint.MetricPropertyType, name string) string {
 	if property.Value != nil {
-		return fmt.Sprintf("%s == %f", property.Name, *property.Value)
+		return fmt.Sprintf("%s == %f", name, *property.Value)
 	}
 
 	if property.Maximum != nil && property.Minimum != nil {
-		return fmt.Sprintf("%s <= %f && %s >= %f", property.Name, *property.Maximum, property.Name, *property.Minimum)
+		return fmt.Sprintf("%s <= %f && %s >= %f", name, *property.Maximum, name, *property.Minimum)
 	}
 
 	if property.Maximum != nil && property.Minimum == nil {
-		return fmt.Sprintf("%s <= %f", property.Name, *property.Maximum)
+		return fmt.Sprintf("%s <= %f", name, *property.Maximum)
 	}
 
 	if property.Minimum != nil && property.Maximum == nil {
-		return fmt.Sprintf("%s >= %f", property.Name, *property.Minimum)
+		return fmt.Sprintf("%s >= %f", name, *property.Minimum)
 	}
 	return ""
 }
 
-func readProperties(properties []MetricPropertyType) string {
+func readProperties(properties map[string]blueprint.MetricPropertyType) string {
 	var result string
+	i := 0
 	if properties != nil {
-		//This is repeated but so far Go doesn't support generics.
-		//If it does some day and I'm not maintaining this code, please change this to something generic.
-		for i, property := range properties {
-			result = result + readProperty(property)
+		for name, property := range properties {
+			result = result + readProperty(property, name)
 			if i < len(properties)-1 {
 				result = result + " && "
 			}
+			i++
 		}
 	}
 	return result
 }
 
-func getExpression(goal GoalType) string {
+/*func getExpression(goal blueprint.GoalType) string {
 	var result string
 	if goal.Metrics != nil {
 		for i, metric := range goal.Metrics {
@@ -87,13 +77,13 @@ func getExpression(goal GoalType) string {
 		}
 	}
 	return result
-}
+}*/
 
-func getExpressions(goals []GoalType) map[string]string {
+func getExpressions(goals []blueprint.ConstraintType) map[string]string {
 	result := make(map[string]string)
 	for _, goal := range goals {
 		if goal.ID != nil {
-			result[*goal.ID] = getExpression(goal)
+			result[*goal.ID] = readProperties(goal.Properties)
 		} else {
 			log.Errorf("Can't parse goal since it doesn't have a valid ID")
 		}
@@ -101,83 +91,98 @@ func getExpressions(goals []GoalType) map[string]string {
 	return result
 }
 
-func createGuarantee(name string, expression string) model.Guarantee {
-	return model.Guarantee{Name: name, Constraint: expression}
-}
-
-func flatten(children []TreeStructureType, expressions map[string]string, operator string) string {
-	constraint := ""
-	for _, child := range children {
-		guarantees := parseTree(child, expressions)
-		for j, guarantee := range guarantees {
-			constraint = constraint + "(" + guarantee.Constraint + ")"
-			if j < len(guarantees)-1 {
-				constraint = constraint + " " + operator + " "
+func composeExpression(ids []string, expressions map[string]string) string {
+	result := ""
+	for i, id := range ids {
+		expression, ok := expressions[id]
+		if ok {
+			result := result + expression
+			if i < len(ids)-1 {
+				result = result + " && "
 			}
+		} else {
+			log.Errorf("Invalid blueprint. Found attribute id %s not found in constraint list", id)
 		}
 	}
-	return constraint
+	return result
 }
 
-func parseTree(tree TreeStructureType, expressions map[string]string) []model.Guarantee {
-	if tree.Leaves != nil && len(tree.Leaves) > 0 {
-		switch *tree.Type {
-		case "AND":
-			if len(tree.Leaves) == 2 {
-				return []model.Guarantee{
-					createGuarantee(tree.Leaves[0], expressions[tree.Leaves[0]]),
-					createGuarantee(tree.Leaves[1], expressions[tree.Leaves[1]]),
-				}
-			}
-			init := make([]model.Guarantee, 1)
-			init[0] = createGuarantee(tree.Leaves[0], expressions[tree.Leaves[0]])
-			for _, child := range tree.Children {
-				init = append(init, parseTree(child, expressions)...)
-			}
-			return init
-		case "OR":
-			if len(tree.Leaves) == 2 {
-				name := tree.Leaves[0] + " or " + tree.Leaves[1]
-				constraint := expressions[tree.Leaves[0]] + " || " + expressions[tree.Leaves[1]]
-				return []model.Guarantee{createGuarantee(name, constraint)}
-			}
-			constraint := expressions[tree.Leaves[0]] + " || (" + flatten(tree.Children, expressions, "AND") + ")"
-			return []model.Guarantee{createGuarantee(tree.Leaves[0]+"_complex", constraint)}
-		}
-	} else {
-		switch *tree.Type {
-		case "AND":
-			result := make([]model.Guarantee, 0)
-			for _, child := range tree.Children {
-				result = append(result, parseTree(child, expressions)...)
-			}
-			return result
-		case "OR":
-			constraint := flatten(tree.Children, expressions, "||")
-			return []model.Guarantee{createGuarantee("complex", constraint)}
+func createGuarantee(leaf blueprint.LeafType, expressions map[string]string) model.Guarantee {
+	return model.Guarantee{Name: *leaf.Id, Constraint: composeExpression(leaf.Attributes, expressions)}
+}
+
+func flattenLeaves(leaves []blueprint.LeafType, expressions map[string]string, operator string) (string, string) {
+	result := ""
+	name := ""
+	for i, leaf := range leaves {
+		name = name + *leaf.Id
+		result = result + "(" + composeExpression(leaf.Attributes, expressions) + ")"
+		if i < len(leaves)-1 {
+			result = result + " " + operator + " "
+			name = name + " " + operator + " "
 		}
 	}
+	return name, result
+}
+
+func flatten(tree blueprint.TreeStructureType, expressions map[string]string) (string, string) {
+	operator := "||"
+	if *tree.Type == "AND" {
+		operator = "&&"
+	}
+	name, constraint := flattenLeaves(tree.Leaves, expressions, operator)
+
+	for _, child := range tree.Children {
+		if constraint != "" {
+			constraint = constraint + " " + operator + " "
+			name = name + " " + operator + " "
+		}
+		partialName, partialConstraint := flatten(child, expressions)
+		name = name + partialName
+		constraint = constraint + "(" + partialConstraint + ")"
+	}
+	return name, constraint
+}
+
+func parseTree(tree blueprint.TreeStructureType, expressions map[string]string) []model.Guarantee {
+	switch *tree.Type {
+	case "AND":
+		init := make([]model.Guarantee, 0, len(tree.Leaves)+len(tree.Children))
+		for _, leaf := range tree.Leaves {
+			init = append(init, createGuarantee(leaf, expressions))
+		}
+		for _, child := range tree.Children {
+			init = append(init, parseTree(child, expressions)...)
+		}
+		return init
+	case "OR":
+		name, constraint := flatten(tree, expressions)
+		return []model.Guarantee{model.Guarantee{Name: name, Constraint: constraint}}
+	}
+
 	return make([]model.Guarantee, 0)
 }
 
-func getGuarantees(method MethodType, expressions map[string]string) []model.Guarantee {
-	return parseTree(method.Constraints.DataUtility.TreeStructure, expressions)
+func getGuarantees(method blueprint.AbstractPropertiesMethodType, expressions map[string]string) []model.Guarantee {
+	return parseTree(method.GoalTrees.DataUtility, expressions)
 }
 
-func CreateAgreements(blueprint BlueprintType) []model.Agreement {
-	blueprintName := blueprint.InternalStructure.Overview.Name
+func CreateAgreements(bp blueprint.BlueprintType) (model.Agreements, map[string]blueprint.ExtendedOps) {
+	blueprintName := bp.InternalStructure.Overview.Name
+
+	methodInfo := blueprint.AssembleOperationsMap(bp)
 
 	agreements := make(map[string]*model.Agreement)
 	expressions := make(map[string]map[string]string)
 
-	methods := blueprint.DataManagement.Methods
+	methods := bp.DataManagement
 	if methods != nil && len(methods) > 0 {
 		for _, method := range methods {
-			if method.Name != nil {
+			if method.MethodId != nil {
 				var agreement model.Agreement
-				agreement.Id = *method.Name
-				if method.Constraints.DataUtility.Goals != nil {
-					expressions[*method.Name] = getExpressions(method.Constraints.DataUtility.Goals)
+				agreement.Id = *method.MethodId
+				if method.Attributes.DataUtility != nil {
+					expressions[*method.MethodId] = getExpressions(method.Attributes.DataUtility)
 				}
 				agreements[agreement.Id] = &agreement
 			} else {
@@ -185,11 +190,11 @@ func CreateAgreements(blueprint BlueprintType) []model.Agreement {
 			}
 		}
 
-		methods = blueprint.AbstractProperties.Methods
-		if methods != nil {
-			for _, method := range methods {
-				exp, foundExp := expressions[*method.Name]
-				agreement, foundAg := agreements[*method.Name]
+		absMethods := bp.AbstractProperties
+		if absMethods != nil {
+			for _, method := range absMethods {
+				exp, foundExp := expressions[*method.MethodId]
+				agreement, foundAg := agreements[*method.MethodId]
 				if foundExp && foundAg {
 					agreement.Details.Guarantees = getGuarantees(method, exp)
 				} else {
@@ -203,11 +208,11 @@ func CreateAgreements(blueprint BlueprintType) []model.Agreement {
 		log.Errorf("INVALID BLUEPRINT %s: Can't find any method in data management section", blueprintName)
 	}
 
-	var results = make([]model.Agreement, 0)
+	var results = make(model.Agreements, 0)
 	for _, value := range agreements {
 		if value.Details.Guarantees != nil && len(value.Details.Guarantees) > 0 {
 			results = append(results, *value)
 		}
 	}
-	return results
+	return results, methodInfo
 }
