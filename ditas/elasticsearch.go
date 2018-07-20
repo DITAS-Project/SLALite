@@ -75,7 +75,7 @@ func (ma *ElasticSearchAdapter) Initialize(a *model.Agreement) {
 	ma.agreement = a
 	ma.currentData = make(map[string][]model.MetricValue)
 	ma.maxLength = 0
-	query := elastic.NewTermQuery("request.path", "/"+ma.agreement.Id)
+	query := elastic.NewTermQuery("operationId", ma.agreement.Id)
 	data, err := ma.client.Search().Index("tubvdc-*").Query(query).Do(context.Background())
 	if err == nil {
 		var dataValue DataValue

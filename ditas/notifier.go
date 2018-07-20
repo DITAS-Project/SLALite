@@ -19,11 +19,11 @@ package ditas
 import (
 	assessment_model "SLALite/assessment/model"
 	"SLALite/model"
-	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strconv"
 
 	"github.com/Knetic/govaluate"
@@ -38,6 +38,7 @@ type DitasViolation struct {
 
 type DitasNotifier struct {
 	VDCId      string
+	NotifyUrl  string
 	Violations []DitasViolation
 }
 
@@ -131,14 +132,33 @@ func (n *DitasNotifier) filterValues(methodId string, result *assessment_model.R
 
 func (n *DitasNotifier) NotifyViolations(agreement *model.Agreement, result *assessment_model.Result) {
 	n.filterValues(agreement.Id, result)
-	rawJson, err := json.Marshal(n.Violations)
-	if err == nil {
-		response, err := http.Post("http://ds4m/notifyViolation", "application/json", bytes.NewBuffer(rawJson))
-		if err != nil {
-			log.Errorf("Error sending violations: ", err.Error())
-		} else {
-			if response.StatusCode != 200 {
-				log.Errorf("Status error %d sending violations", response.StatusCode)
+	if n.NotifyUrl != "" {
+		rawJSON, err := json.Marshal(n.Violations)
+		if err == nil {
+			rawJSONStr := string(rawJSON)
+			data := url.Values{
+				"violations": []string{rawJSONStr},
+			}
+			response, err := http.PostForm(n.NotifyUrl, data)
+			//response, err := http.Post("http://ds4m/notifyViolation", "application/json", bytes.NewBuffer(rawJson))
+			if err != nil {
+				log.Errorf("Error sending violations: ", err.Error())
+			} else {
+				if response.StatusCode != 200 {
+					body := make([]byte, response.ContentLength)
+					if response.ContentLength > 0 {
+						read, err := response.Body.Read(body)
+
+						if err != nil {
+							log.Errorf("Error reading response body: %s", err.Error())
+						}
+
+						if int64(read) < response.ContentLength {
+							log.Errorf("Read %d bytes while expecting %d in response body", read, response.ContentLength)
+						}
+					}
+					log.Errorf("Status error %d sending violations: %s", response.StatusCode, string(body))
+				}
 			}
 		}
 	}

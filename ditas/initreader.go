@@ -19,6 +19,7 @@ package ditas
 import (
 	"SLALite/model"
 	"fmt"
+	"strings"
 
 	"github.com/DITAS-Project/blueprint-go"
 
@@ -52,18 +53,18 @@ func readProperty(property blueprint.MetricPropertyType, name string) string {
 }
 
 func readProperties(properties map[string]blueprint.MetricPropertyType) string {
-	var result string
+	var result strings.Builder
 	i := 0
 	if properties != nil {
 		for name, property := range properties {
-			result = result + readProperty(property, name)
+			result.WriteString(readProperty(property, name))
 			if i < len(properties)-1 {
-				result = result + " && "
+				result.WriteString(" && ")
 			}
 			i++
 		}
 	}
-	return result
+	return result.String()
 }
 
 /*func getExpression(goal blueprint.GoalType) string {
@@ -92,19 +93,19 @@ func getExpressions(goals []blueprint.ConstraintType) map[string]string {
 }
 
 func composeExpression(ids []string, expressions map[string]string) string {
-	result := ""
+	var result strings.Builder
 	for i, id := range ids {
 		expression, ok := expressions[id]
 		if ok {
-			result := result + expression
+			result.WriteString(expression)
 			if i < len(ids)-1 {
-				result = result + " && "
+				result.WriteString(" && ")
 			}
 		} else {
 			log.Errorf("Invalid blueprint. Found attribute id %s not found in constraint list", id)
 		}
 	}
-	return result
+	return result.String()
 }
 
 func createGuarantee(leaf blueprint.LeafType, expressions map[string]string) model.Guarantee {
@@ -112,17 +113,24 @@ func createGuarantee(leaf blueprint.LeafType, expressions map[string]string) mod
 }
 
 func flattenLeaves(leaves []blueprint.LeafType, expressions map[string]string, operator string) (string, string) {
-	result := ""
-	name := ""
+	var result strings.Builder
+	var name strings.Builder
 	for i, leaf := range leaves {
-		name = name + *leaf.Id
-		result = result + "(" + composeExpression(leaf.Attributes, expressions) + ")"
+		name.WriteString(*leaf.Id)
+		result.WriteString("(")
+		result.WriteString(composeExpression(leaf.Attributes, expressions))
+		result.WriteString(")")
 		if i < len(leaves)-1 {
-			result = result + " " + operator + " "
-			name = name + " " + operator + " "
+			result.WriteString(" ")
+			result.WriteString(operator)
+			result.WriteString(" ")
+
+			name.WriteString(" ")
+			name.WriteString(operator)
+			name.WriteString(" ")
 		}
 	}
-	return name, result
+	return name.String(), result.String()
 }
 
 func flatten(tree blueprint.TreeStructureType, expressions map[string]string) (string, string) {
@@ -131,17 +139,29 @@ func flatten(tree blueprint.TreeStructureType, expressions map[string]string) (s
 		operator = "&&"
 	}
 	name, constraint := flattenLeaves(tree.Leaves, expressions, operator)
+	var nameBuilder strings.Builder
+	var constraintBuilder strings.Builder
+
+	nameBuilder.WriteString(name)
+	constraintBuilder.WriteString(constraint)
 
 	for _, child := range tree.Children {
 		if constraint != "" {
-			constraint = constraint + " " + operator + " "
-			name = name + " " + operator + " "
+			constraintBuilder.WriteString(" ")
+			constraintBuilder.WriteString(operator)
+			constraintBuilder.WriteString(" ")
+
+			nameBuilder.WriteString(" ")
+			nameBuilder.WriteString(operator)
+			nameBuilder.WriteString(" ")
 		}
 		partialName, partialConstraint := flatten(child, expressions)
-		name = name + partialName
-		constraint = constraint + "(" + partialConstraint + ")"
+		nameBuilder.WriteString(partialName)
+		constraintBuilder.WriteString("(")
+		constraintBuilder.WriteString(partialConstraint)
+		constraintBuilder.WriteString(")")
 	}
-	return name, constraint
+	return nameBuilder.String(), constraintBuilder.String()
 }
 
 func parseTree(tree blueprint.TreeStructureType, expressions map[string]string) []model.Guarantee {
@@ -167,10 +187,10 @@ func getGuarantees(method blueprint.AbstractPropertiesMethodType, expressions ma
 	return parseTree(method.GoalTrees.DataUtility, expressions)
 }
 
-func CreateAgreements(bp blueprint.BlueprintType) (model.Agreements, map[string]blueprint.ExtendedOps) {
+func CreateAgreements(bp *blueprint.BlueprintType) (model.Agreements, map[string]blueprint.ExtendedOps) {
 	blueprintName := bp.InternalStructure.Overview.Name
 
-	methodInfo := blueprint.AssembleOperationsMap(bp)
+	methodInfo := blueprint.AssembleOperationsMap(*bp)
 
 	agreements := make(map[string]*model.Agreement)
 	expressions := make(map[string]map[string]string)

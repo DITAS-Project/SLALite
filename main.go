@@ -158,16 +158,21 @@ func validateProviders(repo model.IRepository) {
 }
 
 func readBlueprint(repo model.IRepository) (model.Agreements, map[string]blueprint.ExtendedOps) {
-	blueprint := blueprint.ReadBlueprint(utils.BlueprintPath)
-	agreements, ops := ditas.CreateAgreements(blueprint)
+	bp, err := blueprint.ReadBlueprint(utils.BlueprintPath)
 
-	if agreements != nil {
-		for _, agreement := range agreements {
-			_, err := repo.CreateAgreement(&agreement)
-			if err != nil {
-				log.Errorf("Error creating agreement %s: %s", agreement.Id, err.Error())
+	if err == nil {
+		agreements, ops := ditas.CreateAgreements(bp)
+
+		if agreements != nil {
+			for _, agreement := range agreements {
+				_, err := repo.CreateAgreement(&agreement)
+				if err != nil {
+					log.Errorf("Error creating agreement %s: %s", agreement.Id, err.Error())
+				}
 			}
 		}
+		return agreements, ops
 	}
-	return agreements, ops
+	log.Errorf("Error reading blueprint: %s", err.Error())
+	return make(model.Agreements, 0), make(map[string]blueprint.ExtendedOps)
 }

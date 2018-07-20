@@ -19,11 +19,21 @@ import (
 	"SLALite/assessment"
 	assessment_model "SLALite/assessment/model"
 	"SLALite/model"
+	"flag"
 	"os"
 	"testing"
 	"time"
 
 	"github.com/DITAS-Project/blueprint-go"
+)
+
+const (
+	DS4MUrl = "http://31.171.247.162:50003/NotifyViolation"
+)
+
+var (
+	integrationNotifier = flag.Bool("notifier", false, "run DS4M integration tests")
+	integrationElastic  = flag.Bool("elastic", false, "run ElasticSearch integration tests")
 )
 
 type TestMonitoring struct {
@@ -39,7 +49,7 @@ func (t *TestMonitoring) GetValues(gt model.Guarantee, vars []string) assessment
 
 var t0 = time.Now()
 var notifier = DitasNotifier{
-	VDCId: "testVdc",
+	VDCId: "VDC_2",
 }
 
 func TestMain(m *testing.M) {
@@ -47,7 +57,12 @@ func TestMain(m *testing.M) {
 }
 
 func TestReader(t *testing.T) {
-	bp := blueprint.ReadBlueprint("resources/concrete_blueprint_doctor.json")
+	bp, err := blueprint.ReadBlueprint("resources/concrete_blueprint_doctor.json")
+
+	if err != nil {
+		t.Fatalf("Error reading blueprint: %s", err.Error())
+	}
+
 	slas, methodsInfo := CreateAgreements(bp)
 
 	if slas == nil || len(slas) == 0 {
@@ -63,20 +78,36 @@ func TestReader(t *testing.T) {
 		if !(len(sla.Details.Guarantees) > 0) {
 			t.Fatalf("Guarantees were not generated for SLA %s", sla.Id)
 		}
+
+		for _, guarantee := range sla.Details.Guarantees {
+			if guarantee.Name == "" {
+				t.Fatalf("Empty guarantee name for SLA %s", sla.Id)
+			}
+
+			if guarantee.Constraint == "" {
+				t.Fatalf("Empty constraint for guarantee %s of SLA %s", guarantee.Name, sla.Id)
+			}
+		}
 	}
 }
 
 func TestNotifier(t *testing.T) {
-	bp := blueprint.ReadBlueprint("resources/concrete_blueprint_doctor.json")
+	if *integrationNotifier {
+		notifier.NotifyUrl = DS4MUrl
+	}
+	bp, err := blueprint.ReadBlueprint("resources/concrete_blueprint_doctor.json")
+
+	if err != nil {
+		t.Fatalf("Error reading blueprint: %s", err.Error())
+	}
+
 	slas, _ := CreateAgreements(bp)
 	slas[0].State = model.STARTED
 
 	var m1 = assessment_model.ExpressionData{
-		"Availability":         model.MetricValue{Key: "Availability", Value: 90, DateTime: t_(0)},
-		"Timeliness":           model.MetricValue{Key: "Timeliness", Value: 1, DateTime: t_(0)},
-		"ResponseTime":         model.MetricValue{Key: "ResponseTime", Value: 1.5, DateTime: t_(0)},
-		"volume":               model.MetricValue{Key: "volume", Value: 10000, DateTime: t_(0)},
-		"Process_completeness": model.MetricValue{Key: "Process_completeness", Value: 95, DateTime: t_(0)},
+		"availability": model.MetricValue{Key: "availability", Value: 90, DateTime: t_(0)},
+		"responseTime": model.MetricValue{Key: "responseTime", Value: 1.5, DateTime: t_(0)},
+		"timeliness":   model.MetricValue{Key: "timeliness", Value: 0.5, DateTime: t_(0)},
 	}
 
 	adapter := TestMonitoring{
@@ -97,14 +128,13 @@ func TestNotifier(t *testing.T) {
 			t.Errorf("Unexpected method name: %s. Expected %s", violation.Method, slas[0].Id)
 		}
 
-		if len(violation.Metrics) != 3 {
+		if len(violation.Metrics) != 2 {
 			t.Errorf("Unexpected number of metrics: %d. Expected %d", len(violation.Metrics), 3)
 		}
 
 		expectedMetrics := make(map[string]bool)
-		expectedMetrics["Availability"] = false
-		expectedMetrics["Timeliness"] = false
-		expectedMetrics["ResponseTime"] = false
+		expectedMetrics["availability"] = false
+		expectedMetrics["responseTime"] = false
 
 		for _, metric := range violation.Metrics {
 			found, ok := expectedMetrics[metric.Key]

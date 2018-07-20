@@ -5,7 +5,7 @@
   branch = "master"
   name = "github.com/DITAS-Project/blueprint-go"
   packages = ["."]
-  revision = "ba3edf0bb70ca2817748cca00175baf2f46df9d5"
+  revision = "e85b245a4acc72dbcc564f37a49399d520ecbcb7"
 
 [[projects]]
   name = "github.com/Knetic/govaluate"
@@ -47,7 +47,7 @@
     "internal/sasl",
     "internal/scram"
   ]
-  revision = "efe0945164a7e582241f37ae8983c075f8f2e870"
+  revision = "113d3961e7311526535a1ef7042196563d442761"
 
 [[projects]]
   name = "github.com/go-openapi/jsonpointer"
@@ -126,7 +126,7 @@
     "jlexer",
     "jwriter"
   ]
-  revision = "8b799c424f57fa123fc63a99d6383bc6e4c02578"
+  revision = "efc7eb8984d6655c26b5c9d2e65c024e5767c37c"
 
 [[projects]]
   name = "github.com/mattn/go-colorable"
@@ -144,7 +144,7 @@
   branch = "master"
   name = "github.com/mitchellh/mapstructure"
   packages = ["."]
-  revision = "bb74f1db0675b241733089d5a1faa5dd8b0ef57b"
+  revision = "f15292f7a699fcc1a38a80977f80a046874ba8ac"
 
 [[projects]]
   name = "github.com/olivere/elastic"
@@ -153,14 +153,14 @@
     "config",
     "uritemplates"
   ]
-  revision = "dabcc5de0a3fd6313870c223c3119e2b1e942ba3"
-  version = "v6.1.23"
+  revision = "229adca7643e572e471ea3e8e018d651b728713d"
+  version = "v6.1.25"
 
 [[projects]]
   name = "github.com/pelletier/go-toml"
   packages = ["."]
-  revision = "acdc4509485b587f5e675510c4f2c63e90ff68a8"
-  version = "v1.1.0"
+  revision = "c01d1270ff3e442a8a57cddc1c92dc1138598194"
+  version = "v1.2.0"
 
 [[projects]]
   name = "github.com/pkg/errors"
@@ -180,8 +180,8 @@
     ".",
     "mem"
   ]
-  revision = "63644898a8da0bc22138abf860edaf5277b6102e"
-  version = "v1.1.0"
+  revision = "787d034dfe70e44075ccc060d346146ef53270ad"
+  version = "v1.1.1"
 
 [[projects]]
   name = "github.com/spf13/cast"
@@ -223,13 +223,13 @@
   branch = "master"
   name = "golang.org/x/crypto"
   packages = ["ssh/terminal"]
-  revision = "ab813273cd59e1333f7ae7bff5d027d4aadf528c"
+  revision = "a2144134853fc9a27a7b1e3eb4f19f1a76df13c9"
 
 [[projects]]
   branch = "master"
   name = "golang.org/x/net"
   packages = ["idna"]
-  revision = "d0887baf81f4598189d4e12a37c6da86f0bba4d0"
+  revision = "a680a1efc54dd51c040b3b5ce4939ea3cf2ea0d1"
 
 [[projects]]
   branch = "master"
@@ -238,7 +238,7 @@
     "unix",
     "windows"
   ]
-  revision = "c11f84a56e43e20a78cee75a7c034031ecf57d1f"
+  revision = "ac767d655b305d4e9612f5f6e33120b9176c4ad4"
 
 [[projects]]
   name = "golang.org/x/text"
