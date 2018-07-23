@@ -16,6 +16,16 @@ limitations under the License.
 
 package utils
 
+/*
+This test makes use of the certificate stored in testdata/. In case the certificate
+expires or there is other problem, generate a new self-signed cert with:
+
+	openssl req -nodes -new -x509 -keyout key.pem -out cert.pem -days 3650 -subj "/C=/ST=/L=/O=/CN=localhost"
+
+You can check the certificate info with:
+
+	openssl x509 -in cert.pem  -text -noout
+*/
 import (
 	"crypto/tls"
 	"io"
