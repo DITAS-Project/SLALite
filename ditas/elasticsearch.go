@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/DITAS-Project/blueprint-go"
+	log "github.com/sirupsen/logrus"
 
 	"github.com/olivere/elastic"
 )
@@ -30,6 +31,9 @@ import (
 const (
 	ResponseTimeKey = "ResponseTime"
 )
+
+type Logger struct {
+}
 
 type DataValue struct {
 	Timestamp   time.Time `json:"@timestamp"`
@@ -48,10 +52,18 @@ type ElasticSearchAdapter struct {
 	maxLength   int
 }
 
-func NewAdapter(methodInfo map[string]blueprint.ExtendedOps) *ElasticSearchAdapter {
-	address := "http://elasticsearch:9200"
+func (l Logger) Printf(format string, v ...interface{}) {
+	//log.Debugf(format, v)
+}
+
+func NewAdapter(url string, methodInfo map[string]blueprint.ExtendedOps) *ElasticSearchAdapter {
+	address := url
+	logger := Logger{}
 	client, _ := elastic.NewSimpleClient(
 		elastic.SetURL(address),
+		elastic.SetTraceLog(logger),
+		elastic.SetInfoLog(logger),
+		elastic.SetErrorLog(logger),
 	)
 	return &ElasticSearchAdapter{
 		client:     client,
@@ -75,7 +87,7 @@ func (ma *ElasticSearchAdapter) Initialize(a *model.Agreement) {
 	ma.agreement = a
 	ma.currentData = make(map[string][]model.MetricValue)
 	ma.maxLength = 0
-	query := elastic.NewTermQuery("operationId", ma.agreement.Id)
+	query := elastic.NewMatchQuery("request.operationID", ma.agreement.Id)
 	data, err := ma.client.Search().Index("tubvdc-*").Query(query).Do(context.Background())
 	if err == nil {
 		var dataValue DataValue
@@ -99,6 +111,8 @@ func (ma *ElasticSearchAdapter) Initialize(a *model.Agreement) {
 				}
 			}
 		}
+	} else {
+		log.Errorf("Error reading data from ElasticSearch: %s", err.Error())
 	}
 }
 

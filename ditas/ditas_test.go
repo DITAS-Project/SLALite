@@ -24,6 +24,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Knetic/govaluate"
+
 	"github.com/DITAS-Project/blueprint-go"
 )
 
@@ -159,6 +161,61 @@ func TestNotifier(t *testing.T) {
 		t.Errorf("Unexpected number of violations: %d. Expected %d", len(notViolations), 1)
 	}
 
+}
+
+func TestElastic(t *testing.T) {
+	//if *integrationElastic {
+	bp, err := blueprint.ReadBlueprint("resources/concrete_blueprint_doctor.json")
+
+	if err != nil {
+		t.Fatalf("Error reading blueprint: %s", err.Error())
+	}
+
+	slas, methods := CreateAgreements(bp)
+
+	sla := slas[0]
+
+	monitor := NewAdapter("http://localhost:9200", methods)
+
+	monitor.Initialize(&sla)
+
+	for _, guarantee := range sla.Details.Guarantees {
+		constraint := guarantee.Constraint
+		exp, err := govaluate.NewEvaluableExpression(constraint)
+		if err != nil {
+			t.Fatalf("Invalid constraint %s found: %s", constraint, err.Error())
+		}
+		vars := exp.Vars()
+		if contains("responseTime", vars) {
+			values := monitor.GetValues(guarantee, vars)
+
+			if len(values) == 0 {
+				t.Errorf("Can't find values for constraint %s", constraint)
+			}
+
+			for _, metrics := range values {
+				for key, value := range metrics {
+					if !contains(key, vars) {
+						t.Fatalf("Found metric not requested %s", key)
+					}
+					if value.Key != key {
+						t.Fatalf("Found not matching key in map. Expected: %s, found: %s", key, value.Key)
+					}
+				}
+			}
+		}
+	}
+
+	//}
+}
+
+func contains(key string, values []string) bool {
+	for _, value := range values {
+		if value == key {
+			return true
+		}
+	}
+	return false
 }
 
 func t_(second time.Duration) time.Time {
