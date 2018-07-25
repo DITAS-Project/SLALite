@@ -186,21 +186,22 @@ func TestElastic(t *testing.T) {
 			t.Fatalf("Invalid constraint %s found: %s", constraint, err.Error())
 		}
 		vars := exp.Vars()
-		if contains("responseTime", vars) {
-			values := monitor.GetValues(guarantee, vars)
+		values := monitor.GetValues(guarantee, vars)
 
-			if len(values) == 0 {
-				t.Errorf("Can't find values for constraint %s", constraint)
+		if len(values) == 0 {
+			t.Errorf("Can't find values for constraint %s", constraint)
+		}
+
+		for _, metrics := range values {
+			if len(metrics) == 0 {
+				t.Errorf("Found empty metrics map for constraint %s", constraint)
 			}
-
-			for _, metrics := range values {
-				for key, value := range metrics {
-					if !contains(key, vars) {
-						t.Fatalf("Found metric not requested %s", key)
-					}
-					if value.Key != key {
-						t.Fatalf("Found not matching key in map. Expected: %s, found: %s", key, value.Key)
-					}
+			for key, value := range metrics {
+				if !contains(key, vars) {
+					t.Fatalf("Found metric not requested %s", key)
+				}
+				if value.Key != key {
+					t.Fatalf("Found not matching key in map. Expected: %s, found: %s", key, value.Key)
 				}
 			}
 		}
