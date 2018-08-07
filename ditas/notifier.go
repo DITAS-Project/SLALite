@@ -139,6 +139,7 @@ func (n *DitasNotifier) NotifyViolations(agreement *model.Agreement, result *ass
 			data := url.Values{
 				"violations": []string{rawJSONStr},
 			}
+			log.Infof("Sending violations:\n %s\n", rawJSONStr)
 			response, err := http.PostForm(n.NotifyUrl, data)
 			//response, err := http.Post("http://ds4m/notifyViolation", "application/json", bytes.NewBuffer(rawJson))
 			if err != nil {
