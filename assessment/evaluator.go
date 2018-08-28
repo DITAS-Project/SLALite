@@ -43,7 +43,7 @@ func AssessActiveAgreements(repo model.IRepository, ma monitor.MonitoringAdapter
 			ma.Initialize(&agreement)
 			result := AssessAgreement(&agreement, ma, time.Now())
 			repo.UpdateAgreement(&agreement)
-			if not != nil {
+			if not != nil && len(result.GetViolations()) > 0 {
 				not.NotifyViolations(&agreement, &result)
 			}
 		}
@@ -95,11 +95,14 @@ func AssessAgreement(a *model.Agreement, ma monitor.MonitoringAdapter, now time.
 func EvaluateAgreement(a *model.Agreement, ma monitor.MonitoringAdapter) (assessment_model.Result, error) {
 	ma.Initialize(a)
 
-	log.Debugf("EvaluateAgreement(%s)", a.Id)
+	logger := log.WithField("agreement", a.Id)
+	log.Debug("Evaluating agreement")
 	result := make(assessment_model.Result)
 	gts := a.Details.Guarantees
 
 	for _, gt := range gts {
+		logger = logger.WithField("guarantee", gt.Constraint)
+		logger.Debug("Evaluating expression")
 		failed, err := EvaluateGuarantee(a, gt, ma)
 		if err != nil {
 			log.Warn("Error evaluating expression " + gt.Constraint + ": " + err.Error())
@@ -112,6 +115,9 @@ func EvaluateAgreement(a *model.Agreement, ma monitor.MonitoringAdapter) (assess
 				Violations: violations,
 			}
 			result[gt.Name] = gtResult
+			logger.Debugf("Found %d violations", len(failed))
+		} else {
+			logger.Debugf("No violations found")
 		}
 	}
 

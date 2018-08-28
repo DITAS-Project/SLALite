@@ -199,8 +199,25 @@ func CreateAgreements(bp *blueprint.BlueprintType) (model.Agreements, map[string
 	if methods != nil && len(methods) > 0 {
 		for _, method := range methods {
 			if method.MethodId != nil {
-				var agreement model.Agreement
+				agreement := model.Agreement{
+					Id:   *method.MethodId,
+					Name: *method.MethodId,
+					Details: model.Details{
+						Name: *method.MethodId,
+						Provider: model.Provider{
+							Id:   *blueprintName,
+							Name: *blueprintName,
+						},
+						Client: model.Client{
+							Id:   *blueprintName,
+							Name: *blueprintName,
+						},
+						Id: *method.MethodId,
+					},
+					State: model.STARTED,
+				}
 				agreement.Id = *method.MethodId
+
 				if method.Attributes.DataUtility != nil {
 					expressions[*method.MethodId] = getExpressions(method.Attributes.DataUtility)
 				}

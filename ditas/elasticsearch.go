@@ -47,7 +47,7 @@ type DataValue struct {
 	Timestamp   time.Time  `json:"@timestamp"`
 	Meter       *MeterType `json:"meter"`
 	RequestId   string     `json:"request.id"`
-	RequestTime *int       `json:"request.requestTime"`
+	RequestTime *float64   `json:"request.requestTime"`
 }
 
 type ElasticSearchAdapter struct {
@@ -94,20 +94,22 @@ func (ma *ElasticSearchAdapter) addValue(value DataValue) {
 		DateTime: value.Timestamp,
 	}
 
-	if value.Meter != nil {
+	if value.Meter != nil && value.Meter.Name != ResponseTimeKey {
 		currentValue.Key = value.Meter.Name
 		currentValue.Value = value.Meter.Value
 	} else {
 		if value.RequestTime != nil {
 			currentValue.Key = ResponseTimeKey
-			currentValue.Value = *value.RequestTime
+			currentValue.Value = float64(*value.RequestTime) / float64(time.Second)
 		}
 	}
 
 	if currentValue.Key != "" {
 		ma.addMetric(currentValue)
 	} else {
-		log.Errorf("Found invalid value without response time and meter name %s", value)
+		if value.Meter.Name != ResponseTimeKey {
+			log.Errorf("Found invalid value without response time and meter name %v", value)
+		}
 	}
 }
 
@@ -119,7 +121,9 @@ func (ma *ElasticSearchAdapter) addValues(query *elastic.MatchQuery) {
 		Sort("@timestamp", true).From(0).Size(pageSize)
 	last := int64(currentPage * pageSize)
 	var err error
-	for data, err := currentQuery.Do(context.Background()); data.TotalHits() > 0 && len(data.Hits.Hits) > 0 && err == nil; data, err = currentQuery.Do(context.Background()) {
+	var data *elastic.SearchResult
+	for data, err = currentQuery.Do(context.Background()); err == nil && data.TotalHits() > 0 && len(data.Hits.Hits) > 0; data, err = currentQuery.Do(context.Background()) {
+		log.Debugf("Got %d hits of data", data.TotalHits())
 		var dataValue DataValue
 		for _, hit := range data.Hits.Hits {
 			err := json.Unmarshal(*hit.Source, &dataValue)
@@ -137,7 +141,7 @@ func (ma *ElasticSearchAdapter) addValues(query *elastic.MatchQuery) {
 	}
 
 	if err != nil {
-		log.Errorf("Error iterating over results: %s", err.Error())
+		log.WithError(err).Error("Error iterating over results")
 	}
 }
 
@@ -145,7 +149,9 @@ func (ma *ElasticSearchAdapter) Initialize(a *model.Agreement) {
 	ma.agreement = a
 	ma.currentData = make(map[string][]model.MetricValue)
 	ma.maxLength = 0
+	log.WithField("metric", "request.operationID").Debug("Getting elasticsearch data")
 	ma.addValues(elastic.NewMatchQuery("request.operationID", ma.agreement.Id))
+	log.WithField("metric", "meter.operationID").Debug("Getting elasticsearch data")
 	ma.addValues(elastic.NewMatchQuery("meter.operationID", ma.agreement.Id))
 }
 

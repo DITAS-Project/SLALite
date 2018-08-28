@@ -166,6 +166,7 @@ func TestNotifier(t *testing.T) {
 
 func TestElastic(t *testing.T) {
 	if *integrationElastic {
+		t.Log("Testing elasticsearch integration")
 		bp, err := blueprint.ReadBlueprint("resources/concrete_blueprint_doctor.json")
 
 		if err != nil {
@@ -208,6 +209,8 @@ func TestElastic(t *testing.T) {
 			}
 		}
 
+	} else {
+		t.Error("Skipping elasticsearch integration test")
 	}
 }
 

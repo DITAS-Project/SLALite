@@ -42,9 +42,10 @@ type DitasNotifier struct {
 	Violations []DitasViolation
 }
 
-func NewNotifier(vdcId string) *DitasNotifier {
+func NewNotifier(vdcId, url string) *DitasNotifier {
 	return &DitasNotifier{
-		VDCId: vdcId,
+		VDCId:     vdcId,
+		NotifyUrl: url,
 	}
 }
 
@@ -131,8 +132,11 @@ func (n *DitasNotifier) filterValues(methodId string, result *assessment_model.R
 }
 
 func (n *DitasNotifier) NotifyViolations(agreement *model.Agreement, result *assessment_model.Result) {
+	logger := log.WithField("agreement", agreement.Id)
+	logger.Debugf("Notifying %d violations", len(result.GetViolations()))
 	n.filterValues(agreement.Id, result)
 	if n.NotifyUrl != "" {
+		logger.Debugf("Got %d violations after filtering", len(n.Violations))
 		rawJSON, err := json.Marshal(n.Violations)
 		if err == nil {
 			rawJSONStr := string(rawJSON)

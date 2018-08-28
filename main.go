@@ -81,7 +81,7 @@ func main() {
 		a, _ := NewApp(config, repo)
 		vdcId := config.GetString(utils.VDCId)
 		_, ops := readBlueprint(repo)
-		go createValidationThread(repo, ditas.NewAdapter("http://elasticsearch:9200", ops), ditas.NewNotifier(vdcId), checkPeriod)
+		go createValidationThread(repo, ditas.NewAdapter("http://localhost:9200", ops), ditas.NewNotifier(vdcId, "http://31.171.247.162:50003/NotifyViolation"), checkPeriod)
 
 		a.Run()
 	}

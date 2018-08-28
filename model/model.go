@@ -269,8 +269,8 @@ func (as *Assessment) Validate() []error {
 // Validate validates the consistency of a Details entity
 func (t *Details) Validate() []error {
 	result := make([]error, 0)
-	result = checkEmpty(t.Id, "Text.Id", result)
-	result = checkEmpty(t.Name, "Text.Name", result)
+	result = checkEmpty(t.Id, "Details.Id", result)
+	result = checkEmpty(t.Name, "Details.Name", result)
 	for _, e := range t.Provider.Validate() {
 		result = append(result, e)
 	}
