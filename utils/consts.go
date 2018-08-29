@@ -45,16 +45,4 @@ const (
 
 	// ConfigName is the default filename of the configuration file
 	ConfigName = "slalite"
-
-	// BlueprintLocation is the location where the DITAS blueprint must be found
-	BlueprintLocation = "/opt/blueprint"
-
-	// BlueprintName is the name of the DITAS blueprint file to read to compose SLAs
-	BlueprintName = "blueprint.json"
-
-	// BlueprintPath is the path to the DITAS blueprint
-	BlueprintPath = BlueprintLocation + "/" + BlueprintName
-
-	// VDC Identifier
-	VDCId = "VDCId"
 )

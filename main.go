@@ -30,8 +30,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/DITAS-Project/blueprint-go"
-
 	log "github.com/sirupsen/logrus"
 
 	"github.com/spf13/viper"
@@ -79,9 +77,8 @@ func main() {
 	repo, _ = validation.New(repo, false)
 	if repo != nil {
 		a, _ := NewApp(config, repo)
-		vdcId := config.GetString(utils.VDCId)
-		_, ops := readBlueprint(repo)
-		go createValidationThread(repo, ditas.NewAdapter("http://localhost:9200", ops), ditas.NewNotifier(vdcId, "http://31.171.247.162:50003/NotifyViolation"), checkPeriod)
+		adapter, notifier := ditas.Configure(repo)
+		go createValidationThread(repo, adapter, notifier, checkPeriod)
 
 		a.Run()
 	}
@@ -155,24 +152,4 @@ func validateProviders(repo model.IRepository) {
 	} else {
 		log.Println("Error: " + err.Error())
 	}
-}
-
-func readBlueprint(repo model.IRepository) (model.Agreements, map[string]blueprint.ExtendedOps) {
-	bp, err := blueprint.ReadBlueprint(utils.BlueprintPath)
-
-	if err == nil {
-		agreements, ops := ditas.CreateAgreements(bp)
-
-		if agreements != nil {
-			for _, agreement := range agreements {
-				_, err := repo.CreateAgreement(&agreement)
-				if err != nil {
-					log.Errorf("Error creating agreement %s: %s", agreement.Id, err.Error())
-				}
-			}
-		}
-		return agreements, ops
-	}
-	log.Errorf("Error reading blueprint: %s", err.Error())
-	return make(model.Agreements, 0), make(map[string]blueprint.ExtendedOps)
 }

@@ -17,13 +17,35 @@ limitations under the License.
 package ditas
 
 import (
+	"SLALite/assessment/monitor"
+	"SLALite/assessment/notifier"
 	"SLALite/model"
 	"fmt"
 	"strings"
 
 	"github.com/DITAS-Project/blueprint-go"
+	"github.com/spf13/viper"
 
 	log "github.com/sirupsen/logrus"
+)
+
+const (
+	// BlueprintLocation is the location where the DITAS blueprint must be found
+	BlueprintLocation = "/opt/blueprint"
+
+	// BlueprintName is the name of the DITAS blueprint file to read to compose SLAs
+	BlueprintName = "blueprint.json"
+
+	ConfigFileName = "slalite"
+
+	// BlueprintPath is the path to the DITAS blueprint
+	BlueprintPath = BlueprintLocation + "/" + BlueprintName
+
+	DS4MUrlDefault = "http://ds4m.vdm"
+
+	VDCIdPropery          = "vdcId"
+	ElasticSearchProperty = "elasticsearch.url"
+	DS4MUrlProperty       = "ds4m.url"
 )
 
 type MethodInfo struct {
@@ -252,4 +274,33 @@ func CreateAgreements(bp *blueprint.BlueprintType) (model.Agreements, map[string
 		}
 	}
 	return results, methodInfo
+}
+
+func Configure(repo model.IRepository) (monitor.MonitoringAdapter, notifier.ViolationNotifier) {
+	config := viper.New()
+
+	config.SetDefault(DS4MUrlProperty, DS4MUrlDefault)
+
+	config.AddConfigPath(BlueprintLocation)
+	config.SetConfigName(ConfigFileName)
+	config.ReadInConfig()
+
+	bp, err := blueprint.ReadBlueprint(BlueprintPath)
+
+	if err == nil {
+		agreements, ops := CreateAgreements(bp)
+
+		if agreements != nil {
+			for _, agreement := range agreements {
+				_, err := repo.CreateAgreement(&agreement)
+				if err != nil {
+					log.Errorf("Error creating agreement %s: %s", agreement.Id, err.Error())
+				}
+			}
+		}
+
+		return NewAdapter(config.GetString(ElasticSearchProperty), ops), NewNotifier(config.GetString(VDCIdPropery), config.GetString(DS4MUrlProperty))
+	}
+	log.Errorf("Error reading blueprint: %s", err.Error())
+	return nil, nil
 }
