@@ -283,6 +283,7 @@ func CreateAgreements(bp *blueprint.BlueprintType) (model.Agreements, map[string
 func sendBlueprintToVDM(logger *log.Entry, bp *blueprint.BlueprintType, ds4mUrl string) error {
 	rawJSON, err := json.Marshal(bp)
 	if err != nil {
+		logger.WithError(err).Error("Error marshalling blueprint")
 		return err
 	}
 
@@ -294,15 +295,18 @@ func sendBlueprintToVDM(logger *log.Entry, bp *blueprint.BlueprintType, ds4mUrl 
 	response, err := http.PostForm(ds4mUrl+"/AddVDC", data)
 
 	if err != nil {
+		logger.WithError(err).Error("Error received from DS4M service")
 		return err
 	}
 
 	if response.StatusCode != 200 {
+		logger.Errorf("Received error status code %d", response.StatusCode)
 		body := make([]byte, response.ContentLength)
 		if response.ContentLength > 0 {
 			read, err := response.Body.Read(body)
 
 			if err != nil {
+				logger.WithError(err).Error("Error reading response body")
 				return err
 			}
 
