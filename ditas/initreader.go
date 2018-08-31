@@ -20,7 +20,11 @@ import (
 	"SLALite/assessment/monitor"
 	"SLALite/assessment/notifier"
 	"SLALite/model"
+	"encoding/json"
+	"errors"
 	"fmt"
+	"net/http"
+	"net/url"
 	"strings"
 
 	"github.com/DITAS-Project/blueprint-go"
@@ -276,6 +280,44 @@ func CreateAgreements(bp *blueprint.BlueprintType) (model.Agreements, map[string
 	return results, methodInfo
 }
 
+func sendBlueprintToVDM(logger *log.Entry, bp *blueprint.BlueprintType, ds4mUrl string) error {
+	rawJSON, err := json.Marshal(bp)
+	if err != nil {
+		return err
+	}
+
+	rawJSONStr := string(rawJSON)
+	data := url.Values{
+		"ConcreteBlueprint": []string{rawJSONStr},
+	}
+	logger.Debug("Sending blueprint to DS4M")
+	response, err := http.PostForm(ds4mUrl+"/AddVDC", data)
+
+	if err != nil {
+		return err
+	}
+
+	if response.StatusCode != 200 {
+		body := make([]byte, response.ContentLength)
+		if response.ContentLength > 0 {
+			read, err := response.Body.Read(body)
+
+			if err != nil {
+				return err
+			}
+
+			if int64(read) < response.ContentLength {
+				msg := fmt.Sprintf("Read %d bytes while expecting %d in response body", read, response.ContentLength)
+				return errors.New(msg)
+			}
+		}
+		msg := fmt.Sprintf("Status error %d sending violations: %s", response.StatusCode, string(body))
+		return errors.New(msg)
+	}
+	return nil
+
+}
+
 func Configure(repo model.IRepository) (monitor.MonitoringAdapter, notifier.ViolationNotifier) {
 	config := viper.New()
 
@@ -288,6 +330,17 @@ func Configure(repo model.IRepository) (monitor.MonitoringAdapter, notifier.Viol
 	bp, err := blueprint.ReadBlueprint(BlueprintPath)
 
 	if err == nil {
+
+		logger := log.WithField("blueprint", *bp.InternalStructure.Overview.Name)
+
+		logger.Debug("Creating blueptint at VDM")
+
+		err = sendBlueprintToVDM(logger, bp, config.GetString(DS4MUrlProperty))
+
+		if err != nil {
+			logger.WithError(err).Error("Error registering blueprint in VDM. Violation notification will have problems")
+		}
+
 		agreements, ops := CreateAgreements(bp)
 
 		if agreements != nil {
