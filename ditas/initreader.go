@@ -45,7 +45,7 @@ const (
 	// BlueprintPath is the path to the DITAS blueprint
 	BlueprintPath = BlueprintLocation + "/" + BlueprintName
 
-	DS4MUrlDefault = "http://ds4m.vdm"
+	DS4MUrlDefault = "http://vdm:8080"
 
 	VDCIdPropery          = "vdcId"
 	ElasticSearchProperty = "elasticsearch.url"
