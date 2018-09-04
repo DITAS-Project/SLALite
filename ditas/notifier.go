@@ -147,7 +147,7 @@ func (n *DitasNotifier) NotifyViolations(agreement *model.Agreement, result *ass
 			response, err := http.PostForm(n.NotifyUrl+"/NotifyViolation", data)
 			//response, err := http.Post("http://ds4m/notifyViolation", "application/json", bytes.NewBuffer(rawJson))
 			if err != nil {
-				log.Errorf("Error sending violations: ", err.Error())
+				log.WithError(err).Error("Error sending violations")
 			} else {
 				if response.StatusCode != 200 {
 					body := make([]byte, response.ContentLength)
@@ -155,7 +155,7 @@ func (n *DitasNotifier) NotifyViolations(agreement *model.Agreement, result *ass
 						read, err := response.Body.Read(body)
 
 						if err != nil {
-							log.Errorf("Error reading response body: %s", err.Error())
+							log.WithError(err).Error("Error reading response body")
 						}
 
 						if int64(read) < response.ContentLength {

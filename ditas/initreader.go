@@ -20,9 +20,9 @@ import (
 	"SLALite/assessment/monitor"
 	"SLALite/assessment/notifier"
 	"SLALite/model"
-	"encoding/json"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"net/url"
 	"strings"
@@ -249,7 +249,7 @@ func CreateAgreements(bp *blueprint.BlueprintType) (model.Agreements, map[string
 				}
 				agreements[agreement.Id] = &agreement
 			} else {
-				log.Error("INVALID BLUEPRINT %s: Found method without name", blueprintName)
+				log.Errorf("INVALID BLUEPRINT %s: Found method without name", *blueprintName)
 			}
 		}
 
@@ -261,14 +261,14 @@ func CreateAgreements(bp *blueprint.BlueprintType) (model.Agreements, map[string
 				if foundExp && foundAg {
 					agreement.Details.Guarantees = getGuarantees(method, exp)
 				} else {
-					log.Error("INVALID BLUEPRINT %s: Method %s goals or tree not found", blueprintName)
+					log.Errorf("INVALID BLUEPRINT %s: Method %s goals or tree not found", *blueprintName, *method.MethodId)
 				}
 			}
 		} else {
-			log.Errorf("INVALID BLUEPRINT %s: Abstract properties section not found", blueprintName)
+			log.Errorf("INVALID BLUEPRINT %s: Abstract properties section not found", *blueprintName)
 		}
 	} else {
-		log.Errorf("INVALID BLUEPRINT %s: Can't find any method in data management section", blueprintName)
+		log.Errorf("INVALID BLUEPRINT %s: Can't find any method in data management section", *blueprintName)
 	}
 
 	var results = make(model.Agreements, 0)
@@ -280,10 +280,10 @@ func CreateAgreements(bp *blueprint.BlueprintType) (model.Agreements, map[string
 	return results, methodInfo
 }
 
-func sendBlueprintToVDM(logger *log.Entry, bp *blueprint.BlueprintType, ds4mUrl string) error {
-	rawJSON, err := json.Marshal(bp)
+func sendBlueprintToVDM(logger *log.Entry, ds4mUrl string) error {
+	rawJSON, err := ioutil.ReadFile(BlueprintPath)
 	if err != nil {
-		logger.WithError(err).Error("Error marshalling blueprint")
+		logger.WithError(err).Error("Error reading")
 		return err
 	}
 
@@ -339,7 +339,7 @@ func Configure(repo model.IRepository) (monitor.MonitoringAdapter, notifier.Viol
 
 		logger.Debug("Creating blueptint at VDM")
 
-		err = sendBlueprintToVDM(logger, bp, config.GetString(DS4MUrlProperty))
+		err = sendBlueprintToVDM(logger, config.GetString(DS4MUrlProperty))
 
 		if err != nil {
 			logger.WithError(err).Error("Error registering blueprint in VDM. Violation notification will have problems")

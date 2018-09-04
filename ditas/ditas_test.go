@@ -50,7 +50,7 @@ func (t *TestMonitoring) GetValues(gt model.Guarantee, vars []string) assessment
 }
 
 var t0 = time.Now()
-var notifier = DitasNotifier{
+var testNotifier = DitasNotifier{
 	VDCId: "VDC_2",
 }
 
@@ -95,14 +95,14 @@ func TestReader(t *testing.T) {
 
 func TestNotifier(t *testing.T) {
 	if *integrationNotifier {
-		notifier.NotifyUrl = DS4MUrl
+		testNotifier.NotifyUrl = DS4MUrl
 	}
 	bp, err := blueprint.ReadBlueprint("resources/concrete_blueprint_doctor.json")
 	if err != nil {
 		t.Fatalf("Error reading blueprint: %s", err.Error())
 	}
 
-	notifier.VDCId = *bp.InternalStructure.Overview.Name
+	testNotifier.VDCId = *bp.InternalStructure.Overview.Name
 
 	slas, _ := CreateAgreements(bp)
 	slas[0].State = model.STARTED
@@ -118,13 +118,13 @@ func TestNotifier(t *testing.T) {
 	}
 
 	result := assessment.AssessAgreement(&slas[0], &adapter, time.Now())
-	notifier.NotifyViolations(&slas[0], &result)
+	testNotifier.NotifyViolations(&slas[0], &result)
 
-	notViolations := notifier.Violations
+	notViolations := testNotifier.Violations
 	if len(notViolations) == 1 {
 		violation := notViolations[0]
-		if violation.VDCId != notifier.VDCId {
-			t.Errorf("Unexpected VDCId: %s. Expected %s", violation.VDCId, notifier.VDCId)
+		if violation.VDCId != testNotifier.VDCId {
+			t.Errorf("Unexpected VDCId: %s. Expected %s", violation.VDCId, testNotifier.VDCId)
 		}
 
 		if violation.Method != slas[0].Id {
