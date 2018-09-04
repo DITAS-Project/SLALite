@@ -67,7 +67,7 @@ func evaluate(comparator string, thresholdIf interface{}, valueIf interface{}) (
 		return value < threshold, nil
 	case "<=":
 		return value <= threshold, nil
-	case "=":
+	case "==":
 		return value == threshold, nil
 	case ">":
 		return value > threshold, nil
