@@ -133,6 +133,8 @@ func (a *App) initialize(repository model.IRepository) {
 	a.Router.Methods("POST").Path("/agreements").Handler(logger(a.CreateAgreement))
 	a.Router.Methods("PUT").Path("/agreements/{id}/start").Handler(logger(a.StartAgreement))
 	a.Router.Methods("PUT").Path("/agreements/{id}/stop").Handler(logger(a.StopAgreement))
+	a.Router.Methods("PUT").Path("/agreements/{id}/terminate").Handler(logger(a.TerminateAgreement))
+	a.Router.Methods("PUT").Path("/agreements/{id}").Handler(logger(a.UpdateAgreement))
 	a.Router.Methods("DELETE").Path("/agreements/{id}").Handler(logger(a.DeleteAgreement))
 	a.Router.Methods("GET").Path("/agreements/{id}/details").Handler(logger(a.GetAgreementDetails))
 }
@@ -209,6 +211,26 @@ func (a *App) create(w http.ResponseWriter, r *http.Request, decode func() error
 	}
 }
 
+// Update operation where the resource is updated with the body passed in request
+func (a *App) updateEntity(w http.ResponseWriter, r *http.Request, decode func() error, update func(id string) (model.Identity, error)) {
+	vars := mux.Vars(r)
+	id := vars["id"]
+
+	errDec := decode()
+	if errDec != nil {
+		respondWithError(w, http.StatusBadRequest, errDec.Error())
+		return
+	}
+	/* check errors */
+	updated, err := update(id)
+	if err != nil {
+		manageError(err, w)
+	} else {
+		respondWithJSON(w, http.StatusOK, updated)
+	}
+}
+
+// Any other update operation not covered by updateEntity (e.g., delete)
 func (a *App) update(w http.ResponseWriter, r *http.Request, upd func(string) error) {
 	vars := mux.Vars(r)
 	id := vars["id"]
@@ -306,17 +328,42 @@ func (a *App) DeleteAgreement(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// UpdateAgreement updates the only field updateable by REST in an agreement: the state.
+// The Id in the body is ignored; only the id path is taken into account.
+func (a *App) UpdateAgreement(w http.ResponseWriter, r *http.Request) {
+	var agreement model.Agreement
+
+	a.updateEntity(w, r,
+		func() error {
+			return json.NewDecoder(r.Body).Decode(&agreement)
+		},
+		func(id string) (model.Identity, error) {
+			newState := agreement.State
+			return a.Repository.UpdateAgreementState(id, newState)
+		})
+}
+
 // StartAgreement starts monitoring an agreement
 func (a *App) StartAgreement(w http.ResponseWriter, r *http.Request) {
 	a.update(w, r, func(id string) error {
-		return a.Repository.StartAgreement(id)
+		_, err := a.Repository.UpdateAgreementState(id, model.STARTED)
+		return err
 	})
 }
 
 // StopAgreement stop monitoring an agreement
 func (a *App) StopAgreement(w http.ResponseWriter, r *http.Request) {
 	a.update(w, r, func(id string) error {
-		return a.Repository.StopAgreement(id)
+		_, err := a.Repository.UpdateAgreementState(id, model.STOPPED)
+		return err
+	})
+}
+
+// TerminateAgreement terminates an agreement
+func (a *App) TerminateAgreement(w http.ResponseWriter, r *http.Request) {
+	a.update(w, r, func(id string) error {
+		_, err := a.Repository.UpdateAgreementState(id, model.TERMINATED)
+		return err
 	})
 }
 

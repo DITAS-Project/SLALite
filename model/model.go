@@ -241,6 +241,11 @@ func (a *Agreement) IsStopped() bool {
 	return a.State == STOPPED
 }
 
+// IsValidTransition returns if the transition to newState is valid
+func (a *Agreement) IsValidTransition(newState State) bool {
+	return a.State != TERMINATED
+}
+
 // Validate validates the consistency of an Agreement.
 func (a *Agreement) Validate() []error {
 	result := make([]error, 0)
@@ -337,6 +342,11 @@ func normalizeState(s State) State {
 		}
 	}
 	return STOPPED
+}
+
+// Normalize returns an always valid state: any different value from contained in States is STOPPED.
+func (s State) Normalize() State {
+	return normalizeState(s)
 }
 
 // Providers is the type of an slice of Provider

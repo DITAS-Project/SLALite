@@ -72,7 +72,7 @@ type IRepository interface {
 
 	/*
 	 * GetAgreementsByState returns the agreements that have one of the items in states.
-	 * 
+	 *
 	 * error != nil on error;
 	 */
 	GetAgreementsByState(states ...State) (Agreements, error)
@@ -99,20 +99,6 @@ type IRepository interface {
 	DeleteAgreement(agreement *Agreement) error
 
 	/*
-	 * StartAgreement starts monitoring the agreement provided by id.
-	 *
-	 * error != nil on error
-	 */
-	StartAgreement(id string) error
-
-	/*
-	 * StopAgreement stops monitoring the agreement provided by id.
-	 *
-	 * error != nil on error
-	 */
-	StopAgreement(id string) error
-
-	/*
 	 * CreateViolation stores a new Violation.
 	 *
 	 * error != nil on error;
@@ -127,4 +113,15 @@ type IRepository interface {
 	 * error is sql.ErrNoRows if the Violation is not found
 	 */
 	GetViolation(id string) (*Violation, error)
+
+	/*
+	 * UpdateAgreementState changes the state of an Agreement.
+	 *
+	 * Returns the updated agreement; error != nil on error
+	 *
+	 * error is sql.ErrNoRows if the Agreement does not exist
+	 * Non-sentinel error is returned if not a valid transition
+	 * (it is recommended to check a.IsValidTransition before UpdateAgreementState)
+	 */
+	UpdateAgreementState(id string, newState State) (*Agreement, error)
 }
