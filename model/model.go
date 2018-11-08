@@ -145,6 +145,15 @@ func (c *Client) Validate() []error {
 	return result
 }
 
+// Template is the entity that serves as base to create new agreements
+type Template struct {
+	Id          string            `json:"id" bson:"_id"`
+	Name        string            `json:"name"`
+	State       State             `json:"state"`
+	Details     Details           `json:"details"`
+	Constraints map[string]string `json:"constraints"`
+}
+
 // Agreement is the entity that represents an agreement between a provider and a client.
 // The Text is ReadOnly in normal conditions, with the exception of a renegotiation.
 // The Assessment cannot be modified externally.

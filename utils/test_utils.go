@@ -98,3 +98,23 @@ func ReadAgreement(path string) (model.Agreement, error) {
 	f.Close()
 	return a, nil
 }
+
+// ReadTemplate returns the template read from the file pointed by path.
+// The CWD is the location of the test.
+//
+// Ex:
+//    a, err := readAgreement("testdata/a.json")
+//    if err != nil {
+//      t.Errorf("Error reading agreement: %v", err)
+//    }
+func ReadTemplate(path string) (model.Template, error) {
+	var t model.Template
+
+	f, err := os.Open(path)
+	if err != nil {
+		return t, err
+	}
+	json.NewDecoder(f).Decode(&t)
+	f.Close()
+	return t, nil
+}
