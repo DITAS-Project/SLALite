@@ -151,10 +151,10 @@ func checkAssessmentResult(t *testing.T, a *model.Agreement, result assessment_m
 
 func checkTimes(t *testing.T, a *model.Agreement, expectedFirst time.Time, expectedLast time.Time) {
 
-	if a.Assessment.FirstExecution != expectedFirst {
+	if a.Assessment.FirstExecution.Unix() != expectedFirst.Unix() {
 		t.Errorf("Unexpected firstExecution. Expected: %v. Actual: %v", expectedFirst, a.Assessment.FirstExecution)
 	}
-	if a.Assessment.LastExecution != expectedLast {
+	if a.Assessment.LastExecution.Unix() != expectedLast.Unix() {
 		t.Errorf("Unexpected lastExecution. Expected: %v. Actual: %v", expectedLast, a.Assessment.LastExecution)
 	}
 }

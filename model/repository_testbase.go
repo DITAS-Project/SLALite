@@ -218,8 +218,8 @@ func TestUpdateAgreement(t *testing.T, repo IRepository) {
 	a, err = repo.GetAgreement(a02.Id)
 	assertEquals(t, "Unexpected error. Expected: %v; Actual: %v", nil, err)
 	assertEquals(t, "Unexpected state. Expected: %v; Actual: %v", STOPPED, a.State)
-	assertEquals(t, "Unexpected Assessment.FirstExceution. Expected: %v; Actual: %v",
-		now, a.Assessment.FirstExecution)
+	assertEquals(t, "Unexpected Assessment.FirstExecution. Expected: %v; Actual: %v",
+		now.Unix(), a.Assessment.FirstExecution.Unix())
 }
 
 // TestUpdateAgreementNotExists executes this test

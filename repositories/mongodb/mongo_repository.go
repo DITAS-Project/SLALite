@@ -31,6 +31,8 @@ import (
 )
 
 const (
+	// Name is the unique identifier of this repository
+	Name                    string = "mongodb"
 	defaultURL              string = "localhost"
 	repositoryDbName        string = "slalite"
 	providersCollectionName string = "Providers"
