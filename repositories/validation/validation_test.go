@@ -37,7 +37,7 @@ func TestCallThroughMethods(t *testing.T) {
 	v.GetAllProviders()
 	v.GetAgreement("id")
 	v.GetAllAgreements()
-	v.GetActiveAgreements()
+	v.GetAgreementsByState()
 	v.GetViolation("id")
 	v.StartAgreement("id")
 	v.StopAgreement("id")
@@ -97,12 +97,12 @@ func TestRepositoryWithExternalIds(t *testing.T) {
 	}
 
 	vi := &model.Violation{
-		Id: "",
+		Id:          "",
 		AgreementId: "id",
-		Guarantee: "gt",
-		Datetime: time.Now(),
-		Constraint: "var < 100",
-		Values: map[string]interface{} { "var": 101 },
+		Guarantee:   "gt",
+		Datetime:    time.Now(),
+		Constraint:  "var < 100",
+		Values:      []model.MetricValue{{Key: "var", Value: 101, DateTime: time.Now()}},
 	}
 	vi, err = v.CreateViolation(vi)
 	if err != nil {
@@ -156,12 +156,12 @@ func TestRepositoryWithoutExternalIds(t *testing.T) {
 	}
 
 	vi := &model.Violation{
-		Id: "",
+		Id:          "",
 		AgreementId: "id",
-		Guarantee: "gt",
-		Datetime: time.Now(),
-		Constraint: "var < 100",
-		Values: map[string]interface{} { "var": 101 },
+		Guarantee:   "gt",
+		Datetime:    time.Now(),
+		Constraint:  "var < 100",
+		Values:      []model.MetricValue{{Key: "var", Value: 101, DateTime: time.Now()}},
 	}
 	vi, err = v.CreateViolation(vi)
 	if err == nil {

@@ -17,7 +17,6 @@ package assessment
 
 import (
 	assessment_model "SLALite/assessment/model"
-	"SLALite/assessment/monitor"
 	"SLALite/assessment/monitor/simpleadapter"
 	"SLALite/model"
 	"SLALite/utils"
@@ -30,7 +29,7 @@ import (
 )
 
 type ValidationNotifier struct {
-	Expected map[string]int
+	Expected map[string]map[string]int
 	T        *testing.T
 }
 
@@ -42,9 +41,9 @@ var t0 = time.Now()
 var repo = utils.CreateTestRepository()
 
 func (n ValidationNotifier) NotifyViolations(agreement *model.Agreement, result *assessment_model.Result) {
-	numViolations, ok := n.Expected[agreement.Id]
+	violations, ok := n.Expected[agreement.Id]
 	if ok {
-		checkAssessmentResult(n.T, agreement, *result, model.STARTED, numViolations)
+		checkAssessmentResult(n.T, agreement, *result, model.STARTED, violations)
 		updated, _ := repo.GetAgreement(agreement.Id)
 		if updated != nil {
 			checkTimes(n.T, agreement, updated.Assessment.FirstExecution, updated.Assessment.LastExecution)
@@ -69,52 +68,70 @@ func TestAssessActiveAgreements(t *testing.T) {
 		"g1": "m >= 20",
 		"g2": "n < 50",
 	}
-	var aa2 = createAgreementFull("aa02", p1, c2, "Agreement aa02", guarantees)
+	var aa2 = createAgreementFull("aa02", p1, c2, "Agreement aa02", guarantees, nil)
 	aa2.State = model.STARTED
+
+	guarantees = map[string]string{
+		"g1": "m >= 20 || n < 50",
+	}
+	var aa3 = createAgreementFull("aa03", p1, c2, "Agreement aa03", guarantees, nil)
+	aa3.State = model.STARTED
 
 	repo.CreateAgreement(&aa1)
 	repo.CreateAgreement(&aa2)
+	repo.CreateAgreement(&aa3)
 
-	var m1 = []map[string]monitor.MetricValue{
+	var m1 = assessment_model.GuaranteeData{
 		{
-			"m": monitor.MetricValue{Key: "m", Value: 5, DateTime: t_(0)},
-			"n": monitor.MetricValue{Key: "n", Value: 25, DateTime: t_(0)},
+			"m": model.MetricValue{Key: "m", Value: 5, DateTime: t_(0)},
+			"n": model.MetricValue{Key: "n", Value: 25, DateTime: t_(0)},
 		},
 		{
-			"m": monitor.MetricValue{Key: "m", Value: 15, DateTime: t_(1)},
-			"n": monitor.MetricValue{Key: "n", Value: 40, DateTime: t_(1)},
+			"m": model.MetricValue{Key: "m", Value: 15, DateTime: t_(1)},
+			"n": model.MetricValue{Key: "n", Value: 40, DateTime: t_(1)},
 		},
 		{
-			"m": monitor.MetricValue{Key: "m", Value: 7, DateTime: t_(2)},
-			"n": monitor.MetricValue{Key: "n", Value: 75, DateTime: t_(2)},
+			"m": model.MetricValue{Key: "m", Value: 7, DateTime: t_(2)},
+			"n": model.MetricValue{Key: "n", Value: 75, DateTime: t_(2)},
 		},
 	}
 
-	AssessActiveAgreements(repo, simpleadapter.New(m1), ValidationNotifier{Expected: map[string]int{
-		"aa01": 1,
-		"aa02": 1,
+	AssessActiveAgreements(repo, simpleadapter.New(m1), ValidationNotifier{Expected: map[string]map[string]int{
+		"aa01": map[string]int{
+			"TestGuarantee": 2,
+		},
+		"aa02": map[string]int{
+			"g1": 3,
+			"g2": 1,
+		},
+		"aa03": map[string]int{
+			"g1": 1,
+		},
 	}, T: t})
 }
 
 func TestAssessAgreement(t *testing.T) {
 	a2 := createAgreement("a02", p1, c2, "Agreement 02", "m >= 0")
-	values := []map[string]monitor.MetricValue{
-		{"m": monitor.MetricValue{Key: "m", Value: 1, DateTime: t_(0)}},
-		{"m": monitor.MetricValue{Key: "m", Value: -1, DateTime: t_(1)}},
+	values := assessment_model.GuaranteeData{
+		{"m": model.MetricValue{Key: "m", Value: 1, DateTime: t_(0)}},
+		{"m": model.MetricValue{Key: "m", Value: -1, DateTime: t_(1)}},
 	}
 	ma := simpleadapter.New(values)
 
+	expected := map[string]int{}
+
 	a2.State = model.STOPPED
 	result := AssessAgreement(&a2, ma, t0)
-	checkAssessmentResult(t, &a2, result, model.STOPPED, 0)
+	checkAssessmentResult(t, &a2, result, model.STOPPED, expected)
 
 	a2.State = model.TERMINATED
 	result = AssessAgreement(&a2, ma, t0)
-	checkAssessmentResult(t, &a2, result, model.TERMINATED, 0)
+	checkAssessmentResult(t, &a2, result, model.TERMINATED, expected)
 
 	a2.State = model.STARTED
+	expected["TestGuarantee"] = 1
 	result = AssessAgreement(&a2, ma, t0)
-	checkAssessmentResult(t, &a2, result, model.STARTED, 1)
+	checkAssessmentResult(t, &a2, result, model.STARTED, expected)
 	checkTimes(t, &a2, t0, t0)
 
 	t1 := t_(1)
@@ -123,12 +140,22 @@ func TestAssessAgreement(t *testing.T) {
 
 }
 
-func checkAssessmentResult(t *testing.T, a *model.Agreement, result assessment_model.Result, expectedState model.State, expectedViolatedGts int) {
+func checkAssessmentResult(t *testing.T, a *model.Agreement, result assessment_model.Result, expectedState model.State, expectedViolatedGts map[string]int) {
 	if a.State != expectedState {
 		t.Errorf("Agreement in unexpected state. Expected: %v. Actual: %v", expectedState, a.State)
 	}
-	if len(result) != expectedViolatedGts {
-		t.Errorf("Unexpected violated GTs for agreement %s. Expected: %v. Actual:%v", a.Id, expectedViolatedGts, len(result))
+	if len(result) != len(expectedViolatedGts) {
+		t.Errorf("Unexpected violated GTs for agreement %s. Expected: %v. Actual:%v", a.Id, len(expectedViolatedGts), len(result))
+	}
+	for gt, numViolations := range expectedViolatedGts {
+		gtr, ok := result[gt]
+		if !ok {
+			t.Errorf("Expected violation or guarantee %s but not found", gt)
+		} else {
+			if len(gtr.Violations) != numViolations {
+				t.Errorf("Violation number differ for guarantee %s. Expected: %v. Actual %v", gt, numViolations, len(gtr.Violations))
+			}
+		}
 	}
 }
 
@@ -147,7 +174,8 @@ func TestAssessExpiredAgreement(t *testing.T) {
 	ma := simpleadapter.New(nil)
 
 	a2.State = model.STARTED
-	a2.Details.Expiration = t_(-1)
+	expiration := t_(-1)
+	a2.Details.Expiration = &expiration
 	result := AssessAgreement(&a2, ma, t0)
 	if a2.State != model.TERMINATED {
 		t.Errorf("Agreement in unexpected state. Expected: terminated. Actual: %v", a2.State)
@@ -158,9 +186,9 @@ func TestAssessExpiredAgreement(t *testing.T) {
 }
 
 func TestEvaluateAgreement(t *testing.T) {
-	values := []map[string]monitor.MetricValue{
-		{"m": monitor.MetricValue{Key: "m", Value: 1, DateTime: t_(0)}},
-		{"m": monitor.MetricValue{Key: "m", Value: -1, DateTime: t_(1)}},
+	values := assessment_model.GuaranteeData{
+		{"m": model.MetricValue{Key: "m", Value: 1, DateTime: t_(0)}},
+		{"m": model.MetricValue{Key: "m", Value: -1, DateTime: t_(1)}},
 	}
 	ma := simpleadapter.New(values)
 	invalid, err := EvaluateAgreement(&a1, ma)
@@ -176,19 +204,25 @@ func TestEvaluateAgreement(t *testing.T) {
 	if len(gtev.Violations) != 1 {
 		t.Errorf("Error in number of violations. Expected: 1. Actual: %v. %v", gtev.Violations, invalid)
 	}
-	for _, v := range(gtev.Violations) {
+	for _, v := range gtev.Violations {
 		if errs := v.Validate(); len(errs) != 1 {
 			t.Errorf("Validation error in violation: %v", errs)
 		}
-		if v.Values["m"] != -1 {
-			t.Errorf("Unexpected Values map: %v", v.Values)
+		if len(v.Values) != 1 {
+			t.Errorf("Unexpected Values number: %v", len(v.Values))
+		} else {
+			metric := v.Values[0]
+			if metric.Key != "m" && metric.Value != -1 {
+				t.Errorf("Unexpected Values information: [%s,%v]", metric.Key, metric.Value)
+			}
 		}
+
 	}
 }
 
 func TestEvaluateAgreementWithWrongValues(t *testing.T) {
-	values := []map[string]monitor.MetricValue{
-		{"n": monitor.MetricValue{Key: "n", Value: 1, DateTime: t_(0)}},
+	values := assessment_model.GuaranteeData{
+		{"n": model.MetricValue{Key: "n", Value: 1, DateTime: t_(0)}},
 	}
 	ma := simpleadapter.New(values)
 	_, err := EvaluateAgreement(&a1, ma)
@@ -198,9 +232,9 @@ func TestEvaluateAgreementWithWrongValues(t *testing.T) {
 }
 
 func TestEvaluateGuarantee(t *testing.T) {
-	values := []map[string]monitor.MetricValue{
-		{"m": monitor.MetricValue{Key: "m", Value: 1, DateTime: t_(0)}},
-		{"m": monitor.MetricValue{Key: "m", Value: -1, DateTime: t_(1)}},
+	values := assessment_model.GuaranteeData{
+		{"m": model.MetricValue{Key: "m", Value: 1, DateTime: t_(0)}},
+		{"m": model.MetricValue{Key: "m", Value: -1, DateTime: t_(1)}},
 	}
 	ma := simpleadapter.New(values)
 	invalid, err := EvaluateGuarantee(&a1, a1.Details.Guarantees[0], ma)
@@ -227,8 +261,8 @@ func TestEvaluateGuaranteeWithWrongExpression(t *testing.T) {
 }
 
 func TestEvaluateGuaranteeWithWrongValues(t *testing.T) {
-	values := []map[string]monitor.MetricValue{
-		{"n": monitor.MetricValue{Key: "n", Value: 1, DateTime: t_(0)}},
+	values := assessment_model.GuaranteeData{
+		{"n": model.MetricValue{Key: "n", Value: 1, DateTime: t_(0)}},
 	}
 	ma := simpleadapter.New(values)
 	_, err := EvaluateGuarantee(&a1, a1.Details.Guarantees[0], ma)
@@ -331,7 +365,7 @@ func TestEvaluateExpression(t *testing.T) {
 // 	return m.Result
 // }
 
-func createAgreementFull(aid string, provider model.Provider, client model.Client, name string, constraints map[string]string) model.Agreement {
+func createAgreementFull(aid string, provider model.Provider, client model.Client, name string, constraints map[string]string, expiration *time.Time) model.Agreement {
 	agreement := model.Agreement{
 		Id:    aid,
 		Name:  name,
@@ -342,7 +376,7 @@ func createAgreementFull(aid string, provider model.Provider, client model.Clien
 			Type:     model.AGREEMENT,
 			Provider: provider, Client: client,
 			Creation:   time.Now(),
-			Expiration: time.Now().Add(24 * time.Hour),
+			Expiration: expiration,
 			Guarantees: make([]model.Guarantee, len(constraints)),
 		},
 	}
@@ -357,17 +391,17 @@ func createAgreementFull(aid string, provider model.Provider, client model.Clien
 }
 
 func createAgreement(aid string, provider model.Provider, client model.Client, name string, constraint string) model.Agreement {
-	return createAgreementFull(aid, provider, client, name, map[string]string{"TestGuarantee": constraint})
+	return createAgreementFull(aid, provider, client, name, map[string]string{"TestGuarantee": constraint}, nil)
 }
 
-func createSimpleEvaluationData(key string, value interface{}) map[string]monitor.MetricValue {
-	result := make(map[string]monitor.MetricValue)
+func createSimpleEvaluationData(key string, value interface{}) assessment_model.ExpressionData {
+	result := make(assessment_model.ExpressionData)
 	result[key] = createMonitoringMetric(key, value)
 	return result
 }
 
-func createMonitoringMetric(key string, value interface{}) monitor.MetricValue {
-	return monitor.MetricValue{
+func createMonitoringMetric(key string, value interface{}) model.MetricValue {
+	return model.MetricValue{
 		Key:      key,
 		Value:    value,
 		DateTime: time.Now(),

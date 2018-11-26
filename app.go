@@ -264,7 +264,7 @@ func (a *App) GetAgreements(w http.ResponseWriter, r *http.Request) {
 
 	a.getAll(w, r, func() (interface{}, error) {
 		if active != "" {
-			return a.Repository.GetActiveAgreements()
+			return a.Repository.GetAgreementsByState(model.STARTED)
 		}
 		return a.Repository.GetAllAgreements()
 	})

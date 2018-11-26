@@ -16,25 +16,12 @@ limitations under the License.
 package monitor
 
 import (
+	assessment_model "SLALite/assessment/model"
 	"SLALite/model"
-	"fmt"
-	"time"
 )
-
-// MetricValue is the SLALite representation of a metric value.
-type MetricValue struct {
-	Key      string
-	Value    interface{}
-	DateTime time.Time
-}
-
-func (v *MetricValue) String() string {
-	return fmt.Sprintf("{Key: %s, Value: %v, DateTime: %v}", v.Key, v.Value, v.DateTime)
-}
 
 //MonitoringAdapter is an interface which should be implemented per monitoring solution
 type MonitoringAdapter interface {
 	Initialize(a *model.Agreement)
-	// GetValues(vars []string) EvaluationData
-	NextValues(gt model.Guarantee) map[string]MetricValue
+	GetValues(gt model.Guarantee, vars []string) assessment_model.GuaranteeData
 }

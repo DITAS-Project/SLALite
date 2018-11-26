@@ -34,7 +34,7 @@ func init() {
 
 //AssessActiveAgreements will get the active agreements from the provided repository and assess them, notifying about violations with the provided notifier.
 func AssessActiveAgreements(repo model.IRepository, ma monitor.MonitoringAdapter, not notifier.ViolationNotifier) {
-	agreements, err := repo.GetActiveAgreements()
+	agreements, err := repo.GetAgreementsByState(model.STARTED, model.STOPPED)
 	if err != nil {
 		log.Errorf("Error getting active agreements: %s", err.Error())
 	} else {
@@ -43,7 +43,7 @@ func AssessActiveAgreements(repo model.IRepository, ma monitor.MonitoringAdapter
 			ma.Initialize(&agreement)
 			result := AssessAgreement(&agreement, ma, time.Now())
 			repo.UpdateAgreement(&agreement)
-			if not != nil {
+			if not != nil && len(result.GetViolations()) > 0 {
 				not.NotifyViolations(&agreement, &result)
 			}
 		}
@@ -68,7 +68,7 @@ func AssessAgreement(a *model.Agreement, ma monitor.MonitoringAdapter, now time.
 	var err error
 
 	log.Debugf("AssessAgreement(%s)", a.Id)
-	if a.Details.Expiration.Before(now) {
+	if a.Details.Expiration != nil && a.Details.Expiration.Before(now) {
 		// agreement has expired
 		a.State = model.TERMINATED
 	}
@@ -95,11 +95,14 @@ func AssessAgreement(a *model.Agreement, ma monitor.MonitoringAdapter, now time.
 func EvaluateAgreement(a *model.Agreement, ma monitor.MonitoringAdapter) (assessment_model.Result, error) {
 	ma.Initialize(a)
 
-	log.Debugf("EvaluateAgreement(%s)", a.Id)
+	logger := log.WithField("agreement", a.Id)
+	log.Debug("Evaluating agreement")
 	result := make(assessment_model.Result)
 	gts := a.Details.Guarantees
 
 	for _, gt := range gts {
+		logger = logger.WithField("guarantee", gt.Constraint)
+		logger.Debug("Evaluating expression")
 		failed, err := EvaluateGuarantee(a, gt, ma)
 		if err != nil {
 			log.Warn("Error evaluating expression " + gt.Constraint + ": " + err.Error())
@@ -112,6 +115,9 @@ func EvaluateAgreement(a *model.Agreement, ma monitor.MonitoringAdapter) (assess
 				Violations: violations,
 			}
 			result[gt.Name] = gtResult
+			logger.Debugf("Found %d violations", len(failed))
+		} else {
+			logger.Debugf("No violations found")
 		}
 	}
 
@@ -131,9 +137,9 @@ func EvaluateGuarantee(a *model.Agreement, gt model.Guarantee, ma monitor.Monito
 		log.Warn("Error parsing expression '%s'", gt.Constraint)
 		return nil, err
 	}
-
-	for values := ma.NextValues(gt); values != nil; values = ma.NextValues(gt) {
-		aux, err := evaluateExpression(expression, values)
+	values := ma.GetValues(gt, expression.Vars())
+	for _, value := range values {
+		aux, err := evaluateExpression(expression, value)
 		if err != nil {
 			log.Warn("Error evaluating expression " + gt.Constraint + ": " + err.Error())
 			return nil, err
@@ -151,9 +157,9 @@ func EvaluateGtViolations(a *model.Agreement, gt model.Guarantee, violated asses
 	for _, tuple := range violated {
 		// build values map and find newer metric
 		var d *time.Time
-		var values = make(map[string]interface{})
+		var values = make([]model.MetricValue, 0, len(tuple))
 		for _, m := range tuple {
-			values[m.Key] = m.Value
+			values = append(values, m)
 			if d == nil || m.DateTime.After(*d) {
 				d = &m.DateTime
 			}

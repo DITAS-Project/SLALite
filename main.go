@@ -18,8 +18,8 @@ package main
 import (
 	"SLALite/assessment"
 	"SLALite/assessment/monitor"
-	"SLALite/assessment/monitor/dummyadapter"
 	"SLALite/assessment/notifier"
+	"SLALite/ditas"
 	"SLALite/model"
 	"SLALite/repositories/memrepository"
 	"SLALite/repositories/mongodb"
@@ -55,6 +55,8 @@ func main() {
 	checkPeriod := config.GetDuration(utils.CheckPeriodPropertyName)
 	repoType := config.GetString(utils.RepositoryTypePropertyName)
 
+	utils.AddTrustedCAs(config)
+
 	var repoconfig *viper.Viper
 	if singlefile {
 		repoconfig = config
@@ -75,7 +77,9 @@ func main() {
 	repo, _ = validation.New(repo, false)
 	if repo != nil {
 		a, _ := NewApp(config, repo)
-		go createValidationThread(repo, dummyadapter.New(), nil, checkPeriod)
+		adapter, notifier := ditas.Configure(repo)
+		go createValidationThread(repo, adapter, notifier, checkPeriod)
+
 		a.Run()
 	}
 }
@@ -121,6 +125,11 @@ func logMainConfig(config *viper.Viper) {
 		"\tRepository type: %s\n"+
 		"\tCheck period:%d\n",
 		config.ConfigFileUsed(), repoType, checkPeriod)
+
+	caPath := config.GetString(utils.CAPathPropertyName)
+	if caPath != "" {
+		log.Infof("SLALite intialization. Trusted CAs file: %s", caPath)
+	}
 }
 
 func createValidationThread(repo model.IRepository, ma monitor.MonitoringAdapter,

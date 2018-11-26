@@ -14,22 +14,22 @@ build:
 	go build -i -v -o ${OUT} -ldflags="-X main.version=${VERSION} -X main.date=${DATE}" ${PKG}
 
 test:
-	go test -v ./...
+	go test ./...
 
 run: build
 	./${OUT}
 
 docker: 
-	docker build --build-arg VERSION=${VERSION} --build-arg DATE=${DATE} -t ${IMAGE}:${VERSION} .
+	resources/bin/make_docker.sh ${IMAGE}
 
 release_patch:
-	resources/bin/release patch
+	resources/bin/release.sh patch
 
 release_minor:
-	resources/bin/release minor
+	resources/bin/release.sh minor
 
 release_major:
-	resources/bin/release major
+	resources/bin/release.sh major
 
 clean:
 	go clean
