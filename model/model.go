@@ -42,9 +42,8 @@ var ErrAlreadyExist = errors.New("Entity already exists")
  * (https://dave.cheney.net/2016/04/27/dont-just-check-errors-handle-them-gracefully)
  */
 
-//
-// Validation errors must implement this interface
-//
+// validationError is an interface that must be implemented by custom error implementations
+// swagger:ignore
 type validationError interface {
 	IsErrValidation() bool
 }
@@ -102,12 +101,14 @@ const (
 var States = [...]State{STOPPED, STARTED, TERMINATED}
 
 // Party is the entity that represents a service provider or a client
+// swagger:model
 type Party struct {
 	Id   string `json:"id" bson:"_id"`
 	Name string `json:"name"`
 }
 
 // Provider is the entity that represents a Provider
+// swagger:model
 type Provider Party
 
 // GetId returns the Id of a provider
@@ -126,6 +127,7 @@ func (p *Provider) Validate() []error {
 }
 
 // Client is the entity that represents a client.
+// swagger:model
 type Client Party
 
 // GetId returns the Id of a client
@@ -147,6 +149,7 @@ func (c *Client) Validate() []error {
 // The Text is ReadOnly in normal conditions, with the exception of a renegotiation.
 // The Assessment cannot be modified externally.
 // The Signature is the Text digitally signed by the Client (not used yet)
+// swagger:model
 type Agreement struct {
 	Id         string     `json:"id" bson:"_id"`
 	Name       string     `json:"name"`
@@ -158,12 +161,14 @@ type Agreement struct {
 }
 
 // Assessment is the struct that provides assessment information
+// swagger:model
 type Assessment struct {
 	FirstExecution time.Time `json:"first_execution"`
 	LastExecution  time.Time `json:"last_execution"`
 }
 
 // Details is the struct that represents the "contract" signed by the client
+// swagger:model
 type Details struct {
 	Id         string      `json:"id"`
 	Type       TextType    `json:"type"`
@@ -176,6 +181,7 @@ type Details struct {
 }
 
 // Guarantee is the struct that represents an SLO
+// swagger:model
 type Guarantee struct {
 	Name       string       `json:"name"`
 	Constraint string       `json:"constraint"`
@@ -184,6 +190,7 @@ type Guarantee struct {
 }
 
 // PenaltyDef is the struct that represents a penalty in case of an SLO violation
+// swagger:model
 type PenaltyDef struct {
 	Type  string `json:"type"`
 	Value string `json:"value"`
@@ -191,6 +198,7 @@ type PenaltyDef struct {
 }
 
 // MetricValue is the SLALite representation of a metric value.
+// swagger:model
 type MetricValue struct {
 	Key      string      `json:"key"`
 	Value    interface{} `json:"value"`
@@ -202,6 +210,7 @@ func (v *MetricValue) String() string {
 }
 
 // Violation is generated when a guarantee term is not fulfilled
+// swagger:model
 type Violation struct {
 	Id          string        `json:"id"`
 	AgreementId string        `json:"agreement_id"`
@@ -213,6 +222,7 @@ type Violation struct {
 
 // Penalty is generated when a guarantee term is violated is the term has
 // PenaltyDefs associated.
+// swagger:model
 type Penalty struct {
 	Id          string     `json:"id"`
 	AgreementId string     `json:"agreement_id"`
@@ -350,7 +360,9 @@ func (s State) Normalize() State {
 }
 
 // Providers is the type of an slice of Provider
+// swagger:model
 type Providers []Provider
 
 // Agreements is the type of an slice of Agreement
+// swagger:model
 type Agreements []Agreement
