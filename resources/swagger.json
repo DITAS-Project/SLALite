@@ -1,0 +1,620 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "description": "A lightweight solution to manage SLAs",
+    "title": "SLA Lite implementation",
+    "license": {
+      "name": "Apache 2.0"
+    },
+    "version": "1.0"
+  },
+  "paths": {
+    "/": {
+      "get": {
+        "description": "Returns the available operations",
+        "produces": [
+          "application/json"
+        ],
+        "operationId": "index",
+        "responses": {
+          "200": {
+            "description": "API description",
+            "schema": {
+              "type": "object",
+              "additionalProperties": {
+                "$ref": "#/definitions/endpoint"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/agreements": {
+      "get": {
+        "description": "Returns all registered agreements",
+        "produces": [
+          "application/json"
+        ],
+        "operationId": "getAllAgreements",
+        "responses": {
+          "200": {
+            "description": "The complete list of registered agreements",
+            "schema": {
+              "type": "object",
+              "additionalProperties": {
+                "$ref": "#/definitions/Agreements"
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "description": "Creates an agreement with the information passed in the request body",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "operationId": "createAgreement",
+        "parameters": [
+          {
+            "description": "The agreement to create",
+            "name": "agreement",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/Agreement"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The new agreement that has been created",
+            "schema": {
+              "$ref": "#/definitions/Agreement"
+            }
+          }
+        }
+      }
+    },
+    "/agreements/{id}": {
+      "get": {
+        "description": "Returns a agreement given its ID",
+        "produces": [
+          "application/json"
+        ],
+        "operationId": "getAgreement",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "The identifier of the agreement",
+            "name": "id",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The agreement with the ID",
+            "schema": {
+              "$ref": "#/definitions/Agreement"
+            }
+          },
+          "404": {
+            "description": "Agreement not found"
+          }
+        }
+      },
+      "put": {
+        "produces": [
+          "application/json"
+        ],
+        "summary": "Updates information in the agreement whose ID is passed as parameter. Only state is updated.",
+        "operationId": "updateAgreement",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "The identifier of the agreement",
+            "name": "id",
+            "in": "path",
+            "required": true
+          },
+          {
+            "description": "The information to update",
+            "name": "agreement",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/Agreement"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The updated agreement",
+            "schema": {
+              "$ref": "#/definitions/Agreement"
+            }
+          },
+          "404": {
+            "description": "Agreement not found"
+          }
+        }
+      },
+      "delete": {
+        "description": "Deletes an agreement given its ID",
+        "produces": [
+          "application/json"
+        ],
+        "operationId": "deleteAgreement",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "The identifier of the agreement",
+            "name": "id",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The agreement has been successfully deleted"
+          },
+          "404": {
+            "description": "Agreement not found"
+          }
+        }
+      }
+    },
+    "/agreements/{id}/details": {
+      "get": {
+        "description": "Returns the agreement details given its ID",
+        "produces": [
+          "application/json"
+        ],
+        "operationId": "getAgreementDetails",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "The identifier of the agreement",
+            "name": "id",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The agreement details with the provided ID",
+            "schema": {
+              "$ref": "#/definitions/Details"
+            }
+          },
+          "404": {
+            "description": "Agreement not found"
+          }
+        }
+      }
+    },
+    "/providers": {
+      "get": {
+        "description": "Returns all registered providers",
+        "produces": [
+          "application/json"
+        ],
+        "operationId": "getAllProviders",
+        "responses": {
+          "200": {
+            "description": "The complete list of registered providers",
+            "schema": {
+              "type": "object",
+              "additionalProperties": {
+                "$ref": "#/definitions/Providers"
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "description": "Creates a provider with the information passed in the request body",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "operationId": "createProvider",
+        "parameters": [
+          {
+            "description": "The provider to create",
+            "name": "provider",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/Provider"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The new provider that has been created",
+            "schema": {
+              "$ref": "#/definitions/Provider"
+            }
+          }
+        }
+      }
+    },
+    "/providers/{id}": {
+      "get": {
+        "description": "Returns a provider given its ID",
+        "produces": [
+          "application/json"
+        ],
+        "operationId": "getProvider",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "The identifier of the provider",
+            "name": "id",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The provider with the ID",
+            "schema": {
+              "$ref": "#/definitions/Provider"
+            }
+          },
+          "404": {
+            "description": "Provider not found"
+          }
+        }
+      },
+      "delete": {
+        "description": "Deletes a provider given its ID",
+        "produces": [
+          "application/json"
+        ],
+        "operationId": "deleteProvider",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "The identifier of the provider",
+            "name": "id",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The provider has been successfully deleted"
+          },
+          "404": {
+            "description": "Provider not found"
+          }
+        }
+      }
+    }
+  },
+  "definitions": {
+    "Agreement": {
+      "description": "The Text is ReadOnly in normal conditions, with the exception of a renegotiation.\nThe Assessment cannot be modified externally.\nThe Signature is the Text digitally signed by the Client (not used yet)",
+      "type": "object",
+      "title": "Agreement is the entity that represents an agreement between a provider and a client.",
+      "properties": {
+        "assessment": {
+          "$ref": "#/definitions/Assessment"
+        },
+        "details": {
+          "$ref": "#/definitions/Details"
+        },
+        "id": {
+          "type": "string",
+          "x-go-name": "Id"
+        },
+        "name": {
+          "type": "string",
+          "x-go-name": "Name"
+        },
+        "state": {
+          "$ref": "#/definitions/State"
+        }
+      },
+      "x-go-package": "SLALite/model"
+    },
+    "Agreements": {
+      "description": "Agreements is the type of an slice of Agreement",
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/Agreement"
+      },
+      "x-go-package": "SLALite/model"
+    },
+    "ApiError": {
+      "description": "ApiError is the struct sent to client on errors",
+      "type": "object",
+      "properties": {
+        "code": {
+          "type": "string",
+          "x-go-name": "Code"
+        },
+        "message": {
+          "type": "string",
+          "x-go-name": "Message"
+        }
+      },
+      "x-go-package": "SLALite"
+    },
+    "Assessment": {
+      "description": "Assessment is the struct that provides assessment information",
+      "type": "object",
+      "properties": {
+        "first_execution": {
+          "type": "string",
+          "format": "date-time",
+          "x-go-name": "FirstExecution"
+        },
+        "last_execution": {
+          "type": "string",
+          "format": "date-time",
+          "x-go-name": "LastExecution"
+        }
+      },
+      "x-go-package": "SLALite/model"
+    },
+    "Client": {
+      "title": "Client is the entity that represents a client.",
+      "$ref": "#/definitions/Party"
+    },
+    "Details": {
+      "description": "Details is the struct that represents the \"contract\" signed by the client",
+      "type": "object",
+      "properties": {
+        "client": {
+          "$ref": "#/definitions/Client"
+        },
+        "creation": {
+          "type": "string",
+          "format": "date-time",
+          "x-go-name": "Creation"
+        },
+        "expiration": {
+          "type": "string",
+          "format": "date-time",
+          "x-go-name": "Expiration"
+        },
+        "guarantees": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Guarantee"
+          },
+          "x-go-name": "Guarantees"
+        },
+        "id": {
+          "type": "string",
+          "x-go-name": "Id"
+        },
+        "name": {
+          "type": "string",
+          "x-go-name": "Name"
+        },
+        "provider": {
+          "$ref": "#/definitions/Provider"
+        },
+        "type": {
+          "$ref": "#/definitions/TextType"
+        }
+      },
+      "x-go-package": "SLALite/model"
+    },
+    "Guarantee": {
+      "description": "Guarantee is the struct that represents an SLO",
+      "type": "object",
+      "properties": {
+        "constraint": {
+          "type": "string",
+          "x-go-name": "Constraint"
+        },
+        "name": {
+          "type": "string",
+          "x-go-name": "Name"
+        },
+        "penalties": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/PenaltyDef"
+          },
+          "x-go-name": "Penalties"
+        },
+        "warning": {
+          "type": "string",
+          "x-go-name": "Warning"
+        }
+      },
+      "x-go-package": "SLALite/model"
+    },
+    "Identity": {
+      "description": "Identity identifies entities with an Id field",
+      "type": "object",
+      "properties": {
+        "GetId": {
+          "type": "string"
+        }
+      },
+      "x-go-package": "SLALite/model"
+    },
+    "MetricValue": {
+      "type": "object",
+      "title": "MetricValue is the SLALite representation of a metric value.",
+      "properties": {
+        "datetime": {
+          "type": "string",
+          "format": "date-time",
+          "x-go-name": "DateTime"
+        },
+        "key": {
+          "type": "string",
+          "x-go-name": "Key"
+        },
+        "value": {
+          "type": "object",
+          "x-go-name": "Value"
+        }
+      },
+      "x-go-package": "SLALite/model"
+    },
+    "Party": {
+      "description": "Party is the entity that represents a service provider or a client",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "x-go-name": "Id"
+        },
+        "name": {
+          "type": "string",
+          "x-go-name": "Name"
+        }
+      },
+      "x-go-package": "SLALite/model"
+    },
+    "Penalty": {
+      "description": "Penalty is generated when a guarantee term is violated is the term has\nPenaltyDefs associated.",
+      "type": "object",
+      "properties": {
+        "agreement_id": {
+          "type": "string",
+          "x-go-name": "AgreementId"
+        },
+        "datetime": {
+          "type": "string",
+          "format": "date-time",
+          "x-go-name": "Datetime"
+        },
+        "definition": {
+          "$ref": "#/definitions/PenaltyDef"
+        },
+        "guarantee": {
+          "type": "string",
+          "x-go-name": "Guarantee"
+        },
+        "id": {
+          "type": "string",
+          "x-go-name": "Id"
+        }
+      },
+      "x-go-package": "SLALite/model"
+    },
+    "PenaltyDef": {
+      "description": "PenaltyDef is the struct that represents a penalty in case of an SLO violation",
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "x-go-name": "Type"
+        },
+        "unit": {
+          "type": "string",
+          "x-go-name": "Unit"
+        },
+        "value": {
+          "type": "string",
+          "x-go-name": "Value"
+        }
+      },
+      "x-go-package": "SLALite/model"
+    },
+    "Provider": {
+      "description": "Provider is the entity that represents a Provider",
+      "$ref": "#/definitions/Party"
+    },
+    "Providers": {
+      "description": "Providers is the type of an slice of Provider",
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/Provider"
+      },
+      "x-go-package": "SLALite/model"
+    },
+    "State": {
+      "description": "State is the type of possible states of an agreement",
+      "type": "string",
+      "x-go-package": "SLALite/model"
+    },
+    "TextType": {
+      "description": "TextType is the type of possible types a Details type",
+      "type": "string",
+      "x-go-package": "SLALite/model"
+    },
+    "Validable": {
+      "description": "Validable identifies entities that can be validated",
+      "type": "object",
+      "properties": {
+        "Validate": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "x-go-package": "SLALite/model"
+    },
+    "Violation": {
+      "description": "Violation is generated when a guarantee term is not fulfilled",
+      "type": "object",
+      "properties": {
+        "agreement_id": {
+          "type": "string",
+          "x-go-name": "AgreementId"
+        },
+        "constraint": {
+          "type": "string",
+          "x-go-name": "Constraint"
+        },
+        "datetime": {
+          "type": "string",
+          "format": "date-time",
+          "x-go-name": "Datetime"
+        },
+        "guarantee": {
+          "type": "string",
+          "x-go-name": "Guarantee"
+        },
+        "id": {
+          "type": "string",
+          "x-go-name": "Id"
+        },
+        "values": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/MetricValue"
+          },
+          "x-go-name": "Values"
+        }
+      },
+      "x-go-package": "SLALite/model"
+    },
+    "endpoint": {
+      "type": "object",
+      "title": "endpoint represents an available operation represented by its HTTP method, the expected path for invocations and an optional help message.",
+      "properties": {
+        "Help": {
+          "type": "string",
+          "example": "Gets a list of registered providers"
+        },
+        "Method": {
+          "type": "string",
+          "example": "GET"
+        },
+        "Path": {
+          "type": "string",
+          "example": "/providers"
+        }
+      },
+      "x-go-package": "SLALite"
+    }
+  }
+}
