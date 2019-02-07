@@ -29,7 +29,7 @@ import (
 
 	"github.com/Knetic/govaluate"
 
-	"github.com/DITAS-Project/blueprint-go"
+	blueprint "github.com/DITAS-Project/blueprint-go"
 )
 
 const (
@@ -213,7 +213,7 @@ func TestElastic(t *testing.T) {
 		}
 
 	} else {
-		t.Error("Skipping elasticsearch integration test")
+		t.Log("Skipping elasticsearch integration test")
 	}
 }
 
