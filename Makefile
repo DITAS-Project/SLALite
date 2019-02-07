@@ -35,4 +35,7 @@ clean:
 	go clean
 	-@rm ${OUT} ${OUT}-v*
 
+apigen:
+	swagger generate spec -m -o resources/swagger.json
+
 .PHONY: build run docker release_patch release_minor release_major clean

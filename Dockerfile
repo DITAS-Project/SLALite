@@ -1,9 +1,6 @@
 ###
 FROM golang:alpine as builder
 
-ARG VERSION
-ARG DATE 
-
 RUN apk add --no-cache git curl
 
 RUN curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
@@ -14,6 +11,9 @@ WORKDIR /go/src/SLALite
 COPY . .
 RUN rm -rf vendor
 RUN dep ensure
+
+ARG VERSION
+ARG DATE 
 
 RUN CGO_ENABLED=0 GOOS=linux go build -a -o SLALite -ldflags="-X main.version=${VERSION} -X main.date=${DATE}" .
 

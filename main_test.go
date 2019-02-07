@@ -225,10 +225,14 @@ func TestAgreements(t *testing.T) {
 	//t.Run("CreateAgreementWrongProvider", testCreateAgreementWrongProvider)
 	t.Run("CreateAgreement", testCreateAgreement)
 	t.Run("Fix issue - Comparisons operators escaped", testAgreementNotEscaped)
+	t.Run("UpdateAgreementNotExist", testUpdateAgreementNotExist)
+	t.Run("UpdateAgreementExist", testUpdateAgreementExist)
 	t.Run("StartAgreementNotExist", testStartAgreementNotExist)
 	t.Run("StartAgreementExist", testStartAgreementExist)
 	t.Run("StopAgreementNotExist", testStopAgreementNotExist)
 	t.Run("StopAgreementExist", testStopAgreementExist)
+	t.Run("TerminateAgreementNotExist", testTerminateAgreementNotExist)
+	t.Run("TerminateAgreementExist", testTerminateAgreementExist)
 	t.Run("DeleteAgreementThatNotExists", testDeleteAgreementThatNotExists)
 	t.Run("DeleteAgreement", testDeleteAgreement)
 	t.Run("Issue - Create agreement with missing required field", testCreateAgreementWithMissingField)
@@ -248,7 +252,7 @@ func testGetAgreements(t *testing.T) {
 
 func testGetActiveAgreements(t *testing.T) {
 
-	repo.StartAgreement("a01")
+	repo.UpdateAgreementState("a01", model.STARTED)
 
 	inactive := createAgreement("in1", p1, c2, "inactive", nil)
 	inactive.State = model.STOPPED
@@ -412,7 +416,7 @@ func testStartAgreementExist(t *testing.T) {
 
 	agreement, _ := repo.GetAgreement("a01")
 	if !agreement.IsStarted() {
-		t.Error("Expected active agreement but it's not")
+		t.Errorf("Expected started agreement but it is %s", agreement.State)
 	}
 }
 
@@ -431,8 +435,72 @@ func testStopAgreementExist(t *testing.T) {
 
 	agreement, _ := repo.GetAgreement("a01")
 	if !agreement.IsStopped() {
-		t.Error("Expected inactive agreement but it's active")
+		t.Errorf("Expected stopped agreement but it is %s", agreement.State)
 	}
+}
+
+func testTerminateAgreementNotExist(t *testing.T) {
+	req, _ := http.NewRequest("PUT", "/agreements/doesnotexist/terminate", nil)
+	res := request(req)
+
+	checkStatus(t, http.StatusNotFound, res.Code)
+}
+
+func testTerminateAgreementExist(t *testing.T) {
+	req, _ := http.NewRequest("PUT", "/agreements/a01/terminate", nil)
+	res := request(req)
+
+	checkStatus(t, http.StatusNoContent, res.Code)
+
+	agreement, _ := repo.GetAgreement("a01")
+	if !agreement.IsTerminated() {
+		t.Errorf("Expected terminated agreement but it is %s", agreement.State)
+	}
+}
+
+func testUpdateAgreementNotExist(t *testing.T) {
+	a := model.Agreement{Id: "doesnotexist", State: model.STOPPED}
+	body, err := json.Marshal(a)
+	if err != nil {
+		t.Error("Unexpected marshalling error")
+	}
+
+	req, _ := http.NewRequest("PUT", "/agreements/doesnotexist", bytes.NewBuffer(body))
+	res := request(req)
+
+	checkStatus(t, http.StatusNotFound, res.Code)
+}
+
+func testUpdateAgreementExist(t *testing.T) {
+	a := model.Agreement{Id: "a01", State: model.STARTED}
+	body, err := json.Marshal(a)
+	if err != nil {
+		t.Error("Unexpected marshalling error")
+	}
+
+	req, _ := http.NewRequest("PUT", "/agreements/a01", bytes.NewBuffer(body))
+	res := request(req)
+
+	checkStatus(t, http.StatusOK, res.Code)
+
+	agreement, _ := repo.GetAgreement("a01")
+	if !agreement.IsStarted() {
+		t.Errorf("Expected started agreement but it is %s", agreement.State)
+	}
+
+	// ---
+
+	body2 := "{\"state\": \"start\"}" // any unrecognized status equals STOPPED
+	req, _ = http.NewRequest("PUT", "/agreements/a01", strings.NewReader(body2))
+	res = request(req)
+
+	checkStatus(t, http.StatusOK, res.Code)
+
+	agreement, _ = repo.GetAgreement("a01")
+	if !agreement.IsStopped() {
+		t.Errorf("Expected stopped agreement but it is %s", agreement.State)
+	}
+
 }
 
 func testDeleteAgreementThatNotExists(t *testing.T) {

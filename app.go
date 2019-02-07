@@ -42,6 +42,7 @@ const (
 )
 
 // App is a main application "object", to be built by main and testmain
+// swagger:ignore
 type App struct {
 	Router      *mux.Router
 	Repository  model.IRepository
@@ -61,10 +62,17 @@ func (e *ApiError) Error() string {
 	return e.Message
 }
 
+// endpoint represents an available operation represented by its HTTP method, the expected path for invocations and an optional help message.
+// swagger:model
 type endpoint struct {
+	// example: GET
 	Method string
-	Path   string
-	Help   string
+
+	// example: /providers
+	Path string
+
+	// example: Gets a list of registered providers
+	Help string
 }
 
 var api = map[string]endpoint{
@@ -133,6 +141,8 @@ func (a *App) initialize(repository model.IRepository) {
 	a.Router.Methods("POST").Path("/agreements").Handler(logger(a.CreateAgreement))
 	a.Router.Methods("PUT").Path("/agreements/{id}/start").Handler(logger(a.StartAgreement))
 	a.Router.Methods("PUT").Path("/agreements/{id}/stop").Handler(logger(a.StopAgreement))
+	a.Router.Methods("PUT").Path("/agreements/{id}/terminate").Handler(logger(a.TerminateAgreement))
+	a.Router.Methods("PUT").Path("/agreements/{id}").Handler(logger(a.UpdateAgreement))
 	a.Router.Methods("DELETE").Path("/agreements/{id}").Handler(logger(a.DeleteAgreement))
 	a.Router.Methods("GET").Path("/agreements/{id}/details").Handler(logger(a.GetAgreementDetails))
 }
@@ -149,6 +159,20 @@ func (a *App) Run() {
 }
 
 // Index is the API index
+// swagger:operation GET / index
+//
+// Returns the available operations
+//
+// ---
+// produces:
+// - application/json
+// responses:
+//   '200':
+//     description: API description
+//     schema:
+//       type: object
+//       additionalProperties:
+//         "$ref": "#/definitions/endpoint"
 func (a *App) Index(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(api)
 }
@@ -208,6 +232,26 @@ func (a *App) create(w http.ResponseWriter, r *http.Request, decode func() error
 	}
 }
 
+// Update operation where the resource is updated with the body passed in request
+func (a *App) updateEntity(w http.ResponseWriter, r *http.Request, decode func() error, update func(id string) (model.Identity, error)) {
+	vars := mux.Vars(r)
+	id := vars["id"]
+
+	errDec := decode()
+	if errDec != nil {
+		respondWithError(w, http.StatusBadRequest, errDec.Error())
+		return
+	}
+	/* check errors */
+	updated, err := update(id)
+	if err != nil {
+		manageError(err, w)
+	} else {
+		respondWithJSON(w, http.StatusOK, updated)
+	}
+}
+
+// Any other update operation not covered by updateEntity (e.g., delete)
 func (a *App) update(w http.ResponseWriter, r *http.Request, upd func(string) error) {
 	vars := mux.Vars(r)
 	id := vars["id"]
@@ -222,6 +266,20 @@ func (a *App) update(w http.ResponseWriter, r *http.Request, upd func(string) er
 }
 
 // GetAllProviders return all providers in db
+// swagger:operation GET /providers getAllProviders
+//
+// Returns all registered providers
+//
+// ---
+// produces:
+// - application/json
+// responses:
+//   '200':
+//     description: The complete list of registered providers
+//     schema:
+//       type: object
+//       additionalProperties:
+//         "$ref": "#/definitions/Providers"
 func (a *App) GetAllProviders(w http.ResponseWriter, r *http.Request) {
 	a.getAll(w, r, func() (interface{}, error) {
 		return a.Repository.GetAllProviders()
@@ -229,6 +287,26 @@ func (a *App) GetAllProviders(w http.ResponseWriter, r *http.Request) {
 }
 
 // GetProvider gets a provider by REST ID
+// swagger:operation GET /providers/{id} getProvider
+//
+// Returns a provider given its ID
+//
+// ---
+// produces:
+// - application/json
+// parameters:
+// - name: id
+//   in: path
+//   description: The identifier of the provider
+//   required: true
+//   type: string
+// responses:
+//   '200':
+//     description: The provider with the ID
+//     schema:
+//       "$ref": "#/definitions/Provider"
+//   '404' :
+//     description: Provider not found
 func (a *App) GetProvider(w http.ResponseWriter, r *http.Request) {
 	a.get(w, r, func(id string) (interface{}, error) {
 		return a.Repository.GetProvider(id)
@@ -236,6 +314,27 @@ func (a *App) GetProvider(w http.ResponseWriter, r *http.Request) {
 }
 
 // CreateProvider creates a provider passed by REST params
+// swagger:operation POST /providers createProvider
+//
+// Creates a provider with the information passed in the request body
+//
+// ---
+// produces:
+// - application/json
+// consumes:
+// - application/json
+// parameters:
+// - name: provider
+//   in: body
+//   description: The provider to create
+//   required: true
+//   schema:
+//     "$ref": "#/definitions/Provider"
+// responses:
+//   '200':
+//     description: The new provider that has been created
+//     schema:
+//       "$ref": "#/definitions/Provider"
 func (a *App) CreateProvider(w http.ResponseWriter, r *http.Request) {
 
 	var provider model.Provider
@@ -251,6 +350,24 @@ func (a *App) CreateProvider(w http.ResponseWriter, r *http.Request) {
 }
 
 // DeleteProvider deletes /provider/id
+// swagger:operation DELETE /providers/{id} deleteProvider
+//
+// Deletes a provider given its ID
+//
+// ---
+// produces:
+// - application/json
+// parameters:
+// - name: id
+//   in: path
+//   description: The identifier of the provider
+//   required: true
+//   type: string
+// responses:
+//   '200':
+//     description: The provider has been successfully deleted
+//   '404' :
+//     description: Provider not found
 func (a *App) DeleteProvider(w http.ResponseWriter, r *http.Request) {
 	a.update(w, r, func(id string) error {
 		return a.Repository.DeleteProvider(&model.Provider{Id: id})
@@ -258,6 +375,20 @@ func (a *App) DeleteProvider(w http.ResponseWriter, r *http.Request) {
 }
 
 // GetAgreements return all agreements in db
+// swagger:operation GET /agreements getAllAgreements
+//
+// Returns all registered agreements
+//
+// ---
+// produces:
+// - application/json
+// responses:
+//   '200':
+//     description: The complete list of registered agreements
+//     schema:
+//       type: object
+//       additionalProperties:
+//         "$ref": "#/definitions/Agreements"
 func (a *App) GetAgreements(w http.ResponseWriter, r *http.Request) {
 	v := r.URL.Query()
 	active := v.Get("active")
@@ -271,6 +402,26 @@ func (a *App) GetAgreements(w http.ResponseWriter, r *http.Request) {
 }
 
 // GetAgreement gets an agreement by REST ID
+// swagger:operation GET /agreements/{id} getAgreement
+//
+// Returns a agreement given its ID
+//
+// ---
+// produces:
+// - application/json
+// parameters:
+// - name: id
+//   in: path
+//   description: The identifier of the agreement
+//   required: true
+//   type: string
+// responses:
+//   '200':
+//     description: The agreement with the ID
+//     schema:
+//       "$ref": "#/definitions/Agreement"
+//   '404' :
+//     description: Agreement not found
 func (a *App) GetAgreement(w http.ResponseWriter, r *http.Request) {
 	a.get(w, r, func(id string) (interface{}, error) {
 		return a.Repository.GetAgreement(id)
@@ -278,6 +429,26 @@ func (a *App) GetAgreement(w http.ResponseWriter, r *http.Request) {
 }
 
 // GetAgreementDetails gets an agreement by REST ID
+// swagger:operation GET /agreements/{id}/details getAgreementDetails
+//
+// Returns the agreement details given its ID
+//
+// ---
+// produces:
+// - application/json
+// parameters:
+// - name: id
+//   in: path
+//   description: The identifier of the agreement
+//   required: true
+//   type: string
+// responses:
+//   '200':
+//     description: The agreement details with the provided ID
+//     schema:
+//       "$ref": "#/definitions/Details"
+//   '404' :
+//     description: Agreement not found
 func (a *App) GetAgreementDetails(w http.ResponseWriter, r *http.Request) {
 	a.get(w, r, func(id string) (interface{}, error) {
 		agreement, error := a.Repository.GetAgreement(id)
@@ -286,6 +457,27 @@ func (a *App) GetAgreementDetails(w http.ResponseWriter, r *http.Request) {
 }
 
 // CreateAgreement creates a agreement passed by REST params
+// swagger:operation POST /agreements createAgreement
+//
+// Creates an agreement with the information passed in the request body
+//
+// ---
+// produces:
+// - application/json
+// consumes:
+// - application/json
+// parameters:
+// - name: agreement
+//   in: body
+//   description: The agreement to create
+//   required: true
+//   schema:
+//     "$ref": "#/definitions/Agreement"
+// responses:
+//   '200':
+//     description: The new agreement that has been created
+//     schema:
+//       "$ref": "#/definitions/Agreement"
 func (a *App) CreateAgreement(w http.ResponseWriter, r *http.Request) {
 
 	var agreement model.Agreement
@@ -300,23 +492,92 @@ func (a *App) CreateAgreement(w http.ResponseWriter, r *http.Request) {
 }
 
 // DeleteAgreement deletes an agreement by id
+// swagger:operation DELETE /agreements/{id} deleteAgreement
+//
+// Deletes an agreement given its ID
+//
+// ---
+// produces:
+// - application/json
+// parameters:
+// - name: id
+//   in: path
+//   description: The identifier of the agreement
+//   required: true
+//   type: string
+// responses:
+//   '200':
+//     description: The agreement has been successfully deleted
+//   '404' :
+//     description: Agreement not found
 func (a *App) DeleteAgreement(w http.ResponseWriter, r *http.Request) {
 	a.update(w, r, func(id string) error {
 		return a.Repository.DeleteAgreement(&model.Agreement{Id: id})
 	})
 }
 
+// UpdateAgreement updates the only field updateable by REST in an agreement: the state.
+// The Id in the body is ignored; only the id path is taken into account.
+// swagger:operation PUT /agreements/{id} updateAgreement
+//
+// Updates information in the agreement whose ID is passed as parameter. Only state is updated.
+//
+// ---
+// produces:
+// - application/json
+// parameters:
+// - name: id
+//   in: path
+//   description: The identifier of the agreement
+//   required: true
+//   type: string
+// - name: agreement
+//   in: body
+//   description: The information to update
+//   required: true
+//   schema:
+//     "$ref": "#/definitions/Agreement"
+// responses:
+//   '200':
+//     description: The updated agreement
+//     schema:
+//       "$ref": "#/definitions/Agreement"
+//   '404' :
+//     description: Agreement not found
+func (a *App) UpdateAgreement(w http.ResponseWriter, r *http.Request) {
+	var agreement model.Agreement
+
+	a.updateEntity(w, r,
+		func() error {
+			return json.NewDecoder(r.Body).Decode(&agreement)
+		},
+		func(id string) (model.Identity, error) {
+			newState := agreement.State
+			return a.Repository.UpdateAgreementState(id, newState)
+		})
+}
+
 // StartAgreement starts monitoring an agreement
 func (a *App) StartAgreement(w http.ResponseWriter, r *http.Request) {
 	a.update(w, r, func(id string) error {
-		return a.Repository.StartAgreement(id)
+		_, err := a.Repository.UpdateAgreementState(id, model.STARTED)
+		return err
 	})
 }
 
 // StopAgreement stop monitoring an agreement
 func (a *App) StopAgreement(w http.ResponseWriter, r *http.Request) {
 	a.update(w, r, func(id string) error {
-		return a.Repository.StopAgreement(id)
+		_, err := a.Repository.UpdateAgreementState(id, model.STOPPED)
+		return err
+	})
+}
+
+// TerminateAgreement terminates an agreement
+func (a *App) TerminateAgreement(w http.ResponseWriter, r *http.Request) {
+	a.update(w, r, func(id string) error {
+		_, err := a.Repository.UpdateAgreementState(id, model.TERMINATED)
+		return err
 	})
 }
 

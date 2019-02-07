@@ -251,44 +251,6 @@ func (r MemRepository) DeleteAgreement(agreement *model.Agreement) error {
 }
 
 /*
-StartAgreement starts monitoring the agreement provided by id.
-
-error != nil on error
-*/
-func (r MemRepository) StartAgreement(id string) error {
-	var err error
-
-	a, ok := r.agreements[id]
-
-	if ok {
-		a.State = model.STARTED
-		r.agreements[id] = a
-	} else {
-		err = model.ErrNotFound
-	}
-	return err
-}
-
-/*
-StopAgreement stops monitoring the agreement provided by id.
-
-error != nil on error
-*/
-func (r MemRepository) StopAgreement(id string) error {
-	var err error
-
-	a, ok := r.agreements[id]
-
-	if ok {
-		a.State = model.STOPPED
-		r.agreements[id] = a
-	} else {
-		err = model.ErrNotFound
-	}
-	return err
-}
-
-/*
 CreateViolation stores a new Violation.
 
 error != nil on error;
@@ -324,4 +286,26 @@ func (r MemRepository) GetViolation(id string) (*model.Violation, error) {
 		err = model.ErrNotFound
 	}
 	return &item, err
+}
+
+/*
+UpdateAgreementState transits the state of the agreement
+*/
+func (r MemRepository) UpdateAgreementState(id string, newState model.State) (*model.Agreement, error) {
+
+	var ok bool
+	var err error
+	var current model.Agreement
+	var result *model.Agreement
+
+	current, ok = r.agreements[id]
+
+	if !ok {
+		err = model.ErrNotFound
+	} else {
+		current.State = newState
+		r.agreements[id] = current
+		result = &current
+	}
+	return result, err
 }

@@ -141,6 +141,11 @@ func (r repository) CreateAgreement(agreement *model.Agreement) (*model.Agreemen
 
 // UpdateAgreement validates and updates an agreement.
 func (r repository) UpdateAgreement(agreement *model.Agreement) (*model.Agreement, error) {
+
+	/*
+		It does not validate change of State.
+	*/
+
 	finalID := agreement.Id
 
 	idErr := r.checkIDErrOnUpdate(agreement)
@@ -162,16 +167,6 @@ func (r repository) UpdateAgreement(agreement *model.Agreement) (*model.Agreemen
 // DeleteAgreement deletes an agreement from repository.
 func (r repository) DeleteAgreement(agreement *model.Agreement) error {
 	return r.backend.DeleteAgreement(agreement)
-}
-
-// StartAgreement changes an agreement state to started.
-func (r repository) StartAgreement(id string) error {
-	return r.backend.StartAgreement(id)
-}
-
-// StopAgreement changes an agreement state to stopped.
-func (r repository) StopAgreement(id string) error {
-	return r.backend.StopAgreement(id)
 }
 
 // CreateViolation validates and persists a new Violation.
@@ -196,6 +191,33 @@ func (r repository) CreateViolation(v *model.Violation) (*model.Violation, error
 // GetViolation returns the Violation identified by id.
 func (r repository) GetViolation(id string) (*model.Violation, error) {
 	return r.backend.GetViolation(id)
+}
+
+// UpdateAgreement changes the state of an Agreement.
+func (r repository) UpdateAgreementState(id string, newState model.State) (*model.Agreement, error) {
+	var err error
+	newState = newState.Normalize()
+
+	current, err := r.GetAgreement(id)
+	if err != nil {
+		return nil, err
+	}
+	if !current.IsValidTransition(newState) {
+		msg := fmt.Sprintf("Not valid transition from %s to %s for agreement %s",
+			current.State, newState, id)
+		err := &valError{msg: msg}
+		return nil, err
+	}
+	return r.backend.UpdateAgreementState(id, newState)
+}
+
+func normalizeState(s model.State) model.State {
+	for _, v := range model.States {
+		if s == v {
+			return s
+		}
+	}
+	return model.STOPPED
 }
 
 func (r repository) checkIDErrOnCreate(e model.Identity) (string, error) {
