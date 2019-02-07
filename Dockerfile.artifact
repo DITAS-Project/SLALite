@@ -1,4 +1,4 @@
-FROM golang:alpine
+FROM alpine:latest
 WORKDIR /opt/slalite
 COPY SLALite .
 
