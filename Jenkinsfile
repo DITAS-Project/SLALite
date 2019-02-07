@@ -37,7 +37,7 @@ pipeline {
                 echo "Done"
 
                 echo "Pushing the image ditas/slalite:latest..."
-                sh "docker push ditas/slalite:latest"
+                sh "docker push ditas/slalite:production"
                 echo "Done "
             }
         }
