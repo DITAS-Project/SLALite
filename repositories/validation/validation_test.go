@@ -33,14 +33,20 @@ func TestCallThroughMethods(t *testing.T) {
 	r, _ := memrepository.New(nil)
 	v, _ := New(r, true)
 
+	a, err := readAgreement("testdata/a.json")
+	if err != nil {
+		t.Errorf("Error reading agreement: %v", err)
+	}
+
 	v.GetProvider("id")
 	v.GetAllProviders()
 	v.GetAgreement("id")
 	v.GetAllAgreements()
 	v.GetAgreementsByState()
 	v.GetViolation("id")
-	v.StartAgreement("id")
-	v.StopAgreement("id")
+	v.CreateAgreement(a)
+	v.UpdateAgreement(a)
+	v.UpdateAgreementState(a.Id, model.TERMINATED)
 }
 
 func TestRepositoryWithExternalIds(t *testing.T) {
