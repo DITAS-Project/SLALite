@@ -24,7 +24,6 @@ import (
 	"SLALite/repositories/memrepository"
 	"SLALite/repositories/mongodb"
 	"SLALite/repositories/validation"
-	"encoding/json"
 	"os"
 	"strings"
 	"time"
@@ -88,15 +87,10 @@ func (t *Timeline) T(second time.Duration) time.Time {
 //      t.Errorf("Error reading agreement: %v", err)
 //    }
 func ReadAgreement(path string) (model.Agreement, error) {
-	var a model.Agreement
-
-	f, err := os.Open(path)
-	if err != nil {
-		return a, err
-	}
-	json.NewDecoder(f).Decode(&a)
-	f.Close()
-	return a, nil
+	/*
+	 * Moved to model to avoid cyclic dependency when used in model package tests
+	 */
+	return model.ReadAgreement(path)
 }
 
 // ReadTemplate returns the template read from the file pointed by path.
@@ -108,13 +102,8 @@ func ReadAgreement(path string) (model.Agreement, error) {
 //      t.Errorf("Error reading agreement: %v", err)
 //    }
 func ReadTemplate(path string) (model.Template, error) {
-	var t model.Template
-
-	f, err := os.Open(path)
-	if err != nil {
-		return t, err
-	}
-	json.NewDecoder(f).Decode(&t)
-	f.Close()
-	return t, nil
+	/*
+	 * Moved to model to avoid cyclic dependency when used in model package tests
+	 */
+	return model.ReadTemplate(path)
 }
