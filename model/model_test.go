@@ -17,6 +17,8 @@ package model
 
 import (
 	"encoding/json"
+	"errors"
+	"fmt"
 	"os"
 	"reflect"
 	"strings"
@@ -47,6 +49,13 @@ func TestProviders(t *testing.T) {
 
 	p = Provider{Id: "", Name: ""}
 	checkNumber(t, &p, 2)
+}
+
+func TestClient(t *testing.T) {
+	checkNumber(t, &cl, 0)
+	if cl.GetId() != cl.Id {
+		t.Errorf("Provider.Id and Provider.GetId() do not match")
+	}
 }
 
 func TestAssessment(t *testing.T) {
@@ -137,6 +146,30 @@ func TestAgreement(t *testing.T) {
 	a.Name = "name1"
 	a.Details.Name = "name2"
 	checkNumber(t, &a, 1)
+}
+
+func TestTemplate(test *testing.T) {
+	t, err := ReadTemplate("testdata/template.json")
+	if err != nil {
+		test.Error(err)
+	}
+	checkNumber(test, &t, 0)
+
+	t.Id = "does-not-match-details-id"
+	checkNumber(test, &t, 1)
+
+	t.Id = ""
+	t.Details.Id = ""
+	checkNumber(test, &t, 2) // one error per empty id
+
+	t.Id = "id"
+	t.Details.Id = "id"
+	t.Name = ""
+	checkNumber(test, &t, 1)
+
+	t.Name = "name"
+	t.Details.Type = AGREEMENT
+	checkNumber(test, &t, 1)
 }
 
 func TestStates(t *testing.T) {
@@ -238,6 +271,9 @@ func TestAgreementSerialization(t *testing.T) {
 func TestViolation(t *testing.T) {
 	var v = Violation{}
 	checkNumber(t, &v, 6)
+	if v.GetId() != v.Id {
+		t.Errorf("Violation.Id and Violation.GetId() do not match")
+	}
 }
 
 func TestViolationSerialization(t *testing.T) {
@@ -255,6 +291,36 @@ func TestViolationSerialization(t *testing.T) {
 		t.Fatalf("Error decoding %v", err)
 	}
 	checkNumber(t, &v, 0)
+}
+
+type valError string
+
+func (e valError) Error() string {
+	return string(e)
+}
+func (e valError) IsErrValidation() bool {
+	return true
+}
+
+func TestValidationError(t *testing.T) {
+	var e error
+	if e = valError("error"); !IsErrValidation(e) {
+		t.Errorf("Error %v should be a validation error", e)
+	}
+	if e = errors.New("error"); IsErrValidation(e) {
+		t.Errorf("Error %v should not be a validation error", e)
+	}
+}
+
+func TestMetricValue(t *testing.T) {
+	m := MetricValue{
+		DateTime: time.Now(),
+		Key:      "m1",
+		Value:    100,
+	}
+	if s := fmt.Sprintf("%s", m); s == "" {
+		t.Errorf("MetricValue.String() should not be an empty string")
+	}
 }
 
 func checkNumber(t *testing.T, v Validable, expected int) {
