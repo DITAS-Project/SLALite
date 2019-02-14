@@ -96,96 +96,11 @@ func TestRepository(t *testing.T) {
 
 	// t.Run("GetViolation", ctx.TestGetViolation)
 	// t.Run("GetViolationNotExists", ctx.TestGetViolationNotExists)
-}
 
-func testCreateProvider(t *testing.T) {
-	model.TestCreateProvider(t, repo)
-}
-
-func testCreateProviderExists(t *testing.T) {
-	model.TestCreateProviderExists(t, repo)
-}
-
-func testGetAllProviders(t *testing.T) {
-	model.TestGetAllProviders(t, repo)
-}
-
-func testGetProvider(t *testing.T) {
-	model.TestGetProvider(t, repo)
-}
-
-func testGetProviderNotExists(t *testing.T) {
-	model.TestGetProviderNotExists(t, repo)
-}
-
-func testDeleteProvider(t *testing.T) {
-	model.TestDeleteProvider(t, repo)
-}
-
-func testDeleteProviderNotExists(t *testing.T) {
-	model.TestDeleteProviderNotExists(t, repo)
-}
-
-func testCreateAgreement(t *testing.T) {
-	model.TestCreateAgreement(t, repo)
-}
-
-func testCreateAgreementExists(t *testing.T) {
-	model.TestCreateAgreementExists(t, repo)
-}
-
-func testGetAllAgreements(t *testing.T) {
-	model.TestGetAllAgreements(t, repo)
-}
-
-func testGetAgreement(t *testing.T) {
-	model.TestGetAgreement(t, repo)
-}
-
-func testGetAgreementNotExists(t *testing.T) {
-	model.TestGetAgreementNotExists(t, repo)
-}
-
-func testUpdateAgreementState(t *testing.T) {
-	model.TestUpdateAgreementState(t, repo)
-}
-
-func testUpdateAgreementStateNotExists(t *testing.T) {
-	model.TestUpdateAgreementStateNotExists(t, repo)
-}
-
-func testGetAgreementsByState(t *testing.T) {
-	model.TestGetAgreementsByState(t, repo)
-}
-
-func testUpdateAgreement(t *testing.T) {
-	model.TestUpdateAgreement(t, repo)
-}
-
-func testUpdateAgreementNotExists(t *testing.T) {
-	model.TestUpdateAgreementNotExists(t, repo)
-}
-
-func testDeleteAgreement(t *testing.T) {
-	model.TestDeleteAgreement(t, repo)
-}
-
-func testDeleteAgreementNotExists(t *testing.T) {
-	model.TestDeleteAgreementNotExists(t, repo)
-}
-
-func testCreateViolation(t *testing.T) {
-	model.TestCreateViolation(t, repo)
-}
-
-func testCreateViolationExists(t *testing.T) {
-	model.TestCreateViolationExists(t, repo)
-}
-
-func testGetViolation(t *testing.T) {
-	model.TestGetViolation(t, repo)
-}
-
-func testGetViolationNotExists(t *testing.T) {
-	model.TestGetViolationNotExists(t, repo)
+	/* Templates */
+	// t.Run("CreateTemplate", ctx.TestCreateTemplate)
+	// t.Run("CreateTemplateExists", ctx.TestCreateTemplateExists)
+	// t.Run("GetAllTemplates", ctx.TestGetAllTemplates)
+	// t.Run("GetTemplate", ctx.TestGetTemplate)
+	// t.Run("GetTemplateNotExists", ctx.TestGetTemplateNotExists)
 }

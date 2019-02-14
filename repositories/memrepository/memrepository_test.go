@@ -78,4 +78,11 @@ func TestRepository(t *testing.T) {
 
 	t.Run("GetViolation", ctx.TestGetViolation)
 	t.Run("GetViolationNotExists", ctx.TestGetViolationNotExists)
+
+	/* Templates */
+	t.Run("CreateTemplate", ctx.TestCreateTemplate)
+	t.Run("CreateTemplateExists", ctx.TestCreateTemplateExists)
+	t.Run("GetAllTemplates", ctx.TestGetAllTemplates)
+	t.Run("GetTemplate", ctx.TestGetTemplate)
+	t.Run("GetTemplateNotExists", ctx.TestGetTemplateNotExists)
 }

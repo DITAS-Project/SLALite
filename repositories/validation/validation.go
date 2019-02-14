@@ -211,6 +211,33 @@ func (r repository) UpdateAgreementState(id string, newState model.State) (*mode
 	return r.backend.UpdateAgreementState(id, newState)
 }
 
+// GetAllTemplates gets all Templates.
+func (r repository) GetAllTemplates() (model.Templates, error) {
+	return r.backend.GetAllTemplates()
+}
+
+// GetTemplate gets an template by id
+func (r repository) GetTemplate(id string) (*model.Template, error) {
+	return r.backend.GetTemplate(id)
+}
+
+// CreateTemplate validates and persists an template.
+func (r repository) CreateTemplate(template *model.Template) (*model.Template, error) {
+	finalID, idErr := r.checkIDErrOnCreate(template)
+	if idErr != nil {
+		return template, idErr
+	}
+	if r.externalIDs {
+		template.Id = template.Details.Id
+	}
+	if errs := template.Validate(); len(errs) > 0 {
+		err := newValError(errs)
+		return template, err
+	}
+	template.Id = finalID
+	return r.backend.CreateTemplate(template)
+}
+
 func normalizeState(s model.State) model.State {
 	for _, v := range model.States {
 		if s == v {
