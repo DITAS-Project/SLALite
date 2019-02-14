@@ -14,6 +14,10 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+/*
+Package generator builds an Agreement from a Template.
+
+*/
 package generator
 
 import (
@@ -38,6 +42,7 @@ const (
 	errOther      = ""
 )
 
+// Model contains the parameters needed to do an agreement generation
 type Model struct {
 	Template  model.Template         `json:"template"`
 	Variables map[string]interface{} `json:"variables"`
@@ -48,11 +53,13 @@ type generatorError interface {
 	IsErrUnreplaced() bool
 }
 
+// IsErrValidation checks that the err is an ErrValidation error
 func IsErrValidation(err error) bool {
 	v, ok := err.(generatorError)
 	return ok && v.IsErrValidation()
 }
 
+// IsErrUnreplaced checks that the err is an ErrUnreplaced error
 func IsErrUnreplaced(err error) bool {
 	v, ok := err.(generatorError)
 	return ok && v.IsErrUnreplaced()
@@ -85,7 +92,46 @@ func (e *genError) IsErrUnreplaced() bool {
 // 	"N": 0.5
 // }
 
-// Do generates an agreement from a generator model
+/*
+Do generates an agreement from a generator model.
+
+This generator receives a model, which contains a Template and a list of variables
+with their values, and substitutes the placeholders in the template the appropriate
+variable values. The output is an agreement.
+
+The generator uses text/template syntax for the substitution of the placeholds,
+i.e., placeholders are of the type {{.var}} to substitute the value of {{.var}} with
+the value of the key 'var' in the model.Variables map.
+
+A right template should define placeholders in the following paths:
+
+- Details.Client
+
+- Details.Provider if the template is used by more than one provider
+(if not, the provider can be hardcoded in the template)
+
+- Details.Name
+
+Placeholders may be defined in other paths, e.g.
+Guarantee[i].Constraint, Details.Expiration
+
+After the substitution, the following fields are modified,
+regardless of the template content:
+
+- Details.Type: set to agreement type
+
+- Details.Id: UUID value
+
+- Id: equals to agreement.Details.Id
+
+- Details.Creation: current time
+
+- Name: equal to agreement.Details.Name
+
+An error of type validation is returned if the validation on the generated agreement
+fails. An error of type unreplaced is returned if there is a placeholder that is
+not substituted. Use IsErrValidation and IsErrUnreplaced to check type of an error.
+*/
 func Do(genmodel *Model) (*model.Agreement, error) {
 
 	// marshal template

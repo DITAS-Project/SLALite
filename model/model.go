@@ -146,10 +146,19 @@ func (c *Client) Validate() []error {
 }
 
 // Template is the entity that serves as base to create new agreements
+//
+// The Details field of the template contains placeholders that are substituted
+// when generating an agreement from a template (see generator package).
+// The Constraints fields contains constraints that a variable used in a guarantee
+// must satisfy. F.e., if the guarantee expression is "cpu_usage < {{M}}", one could
+// specify in Constraints that "M" : "M >= 0 && M <= 100".Template
+//
+// The Id and Name are relative to the template itself, and should not match
+// the fields in Details.
 type Template struct {
-	Id          string            `json:"id" bson:"_id"`
-	Name        string            `json:"name"`
-	State       State             `json:"state"`
+	Id   string `json:"id" bson:"_id"`
+	Name string `json:"name"`
+	//	State       State             `json:"state"`
 	Details     Details           `json:"details"`
 	Constraints map[string]string `json:"constraints"`
 }
