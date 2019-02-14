@@ -145,6 +145,8 @@ func (a *App) initialize(repository model.IRepository) {
 	a.Router.Methods("PUT").Path("/agreements/{id}").Handler(logger(a.UpdateAgreement))
 	a.Router.Methods("DELETE").Path("/agreements/{id}").Handler(logger(a.DeleteAgreement))
 	a.Router.Methods("GET").Path("/agreements/{id}/details").Handler(logger(a.GetAgreementDetails))
+
+	a.Router.Methods("GET").Path("/templates").Handler(logger(a.GetTemplates))
 }
 
 // Run starts the REST API
@@ -578,6 +580,28 @@ func (a *App) TerminateAgreement(w http.ResponseWriter, r *http.Request) {
 	a.update(w, r, func(id string) error {
 		_, err := a.Repository.UpdateAgreementState(id, model.TERMINATED)
 		return err
+	})
+}
+
+// GetTemplates return all templates in db
+// swagger:operation GET /templates getAllTemplates
+//
+// Returns all registered templates
+//
+// ---
+// produces:
+// - application/json
+// responses:
+//   '200':
+//     description: The complete list of registered templates
+//     schema:
+//       type: object
+//       additionalProperties:
+//         "$ref": "#/definitions/Templates"
+func (a *App) GetTemplates(w http.ResponseWriter, r *http.Request) {
+
+	a.getAll(w, r, func() (interface{}, error) {
+		return a.Repository.GetAllTemplates()
 	})
 }
 

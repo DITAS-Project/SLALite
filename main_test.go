@@ -47,6 +47,7 @@ var providerPrefix = "pf_" + strconv.Itoa(rand.Int())
 var agreementPrefix = "apf_" + strconv.Itoa(rand.Int())
 
 var a1 = createAgreement("a01", p1, c2, "Agreement 01", nil)
+var t1, _ = utils.ReadTemplate("model/testdata/template.json")
 
 // TestMain runs the tests
 func TestMain(m *testing.M) {
@@ -58,6 +59,9 @@ func TestMain(m *testing.M) {
 		}
 		if err == nil {
 			_, err = repo.CreateAgreement(&a1)
+		}
+		if err == nil {
+			_, err = repo.CreateTemplate(&t1)
 		}
 		if err != nil {
 			log.Fatalf("Error creating initial state: %v", err)
@@ -531,6 +535,30 @@ func testAgreementNotEscaped(t *testing.T) {
 	s := res.Body.String()
 	if strings.Contains(s, "\\u003e") {
 		t.Error("Agreement is HTML escaped")
+	}
+}
+
+/********************************************************************
+*****************TEMPLATES******************************************
+********************************************************************/
+
+func TestTemplates(t *testing.T) {
+	t.Run("GetTemplates", testGetTemplates)
+	// t.Run("GetTemplateExists", testGetTemplateExists)
+	// t.Run("GetTemplateNotExists", testGetTemplateNotExists)
+	// t.Run("CreateTemplateThatExists", testCreateTemplateThatExists)
+	// t.Run("CreateTemplate", testCreateTemplate)
+}
+
+func testGetTemplates(t *testing.T) {
+	req, _ := http.NewRequest("GET", "/templates", nil)
+	res := request(req)
+	checkStatus(t, http.StatusOK, res.Code)
+
+	var templates model.Templates
+	_ = json.NewDecoder(res.Body).Decode(&templates)
+	if len(templates) != 1 {
+		t.Errorf("Expected 1 template. Received: %v", templates)
 	}
 }
 
