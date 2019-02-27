@@ -17,7 +17,7 @@ limitations under the License.
 /*
 This tests mongorepository, making use of the repository_testbase file.
 
-To run this test, set up a mongodb and set env var SLA_REPOSITORY=mongodb. 
+To run this test, set up a mongodb and set env var SLA_REPOSITORY=mongodb.
 If mongodb is not accessible at localhost:27017, set SLA_CONNECTION=<host>
 
 To test other repository, copy this file, create the repository in TestMain
@@ -66,35 +66,36 @@ func createRepository() (model.IRepository, error) {
 }
 
 func TestRepository(t *testing.T) {
+	ctx := model.TestContext{Repo: repo}
 	/* Providers */
-	t.Run("CreateProvider", testCreateProvider)
-	t.Run("CreateProviderExists", testCreateProviderExists)
-	t.Run("GetAllProviders", testGetAllProviders)
-	t.Run("GetProvider", testGetProvider)
-	t.Run("GetProviderNotExists", testGetProviderNotExists)
-	t.Run("DeleteProvider", testDeleteProvider)
-	t.Run("DeleteProviderNotExists", testDeleteProviderNotExists)
+	t.Run("CreateProvider", ctx.TestCreateProvider)
+	t.Run("CreateProviderExists", ctx.TestCreateProviderExists)
+	t.Run("GetAllProviders", ctx.TestGetAllProviders)
+	t.Run("GetProvider", ctx.TestGetProvider)
+	t.Run("GetProviderNotExists", ctx.TestGetProviderNotExists)
+	t.Run("DeleteProvider", ctx.TestDeleteProvider)
+	t.Run("DeleteProviderNotExists", ctx.TestDeleteProviderNotExists)
 
 	/* Agreements */
-	t.Run("CreateAgreement", testCreateAgreement)
-	t.Run("CreateAgreementExists", testCreateAgreementExists)
-	t.Run("GetAllAgreements", testGetAllAgreements)
-	t.Run("GetAgreement", testGetAgreement)
-	t.Run("GetAgreementNotExists", testGetAgreementNotExists)
-	t.Run("UpdateAgreementState", testUpdateAgreementState)
-	t.Run("UpdateAgreementStateNotExists", testUpdateAgreementStateNotExists)
-	t.Run("GetAgreementsByState", testGetAgreementsByState)
-	t.Run("UpdateAgreement", testUpdateAgreement)
-	t.Run("UpdateAgreementNotExists", testUpdateAgreementNotExists)
-	t.Run("DeleteAgreement", testDeleteAgreement)
-	t.Run("DeleteAgreementNotExists", testDeleteAgreementNotExists)
+	t.Run("CreateAgreement", ctx.TestCreateAgreement)
+	t.Run("CreateAgreementExists", ctx.TestCreateAgreementExists)
+	t.Run("GetAllAgreements", ctx.TestGetAllAgreements)
+	t.Run("GetAgreement", ctx.TestGetAgreement)
+	t.Run("GetAgreementNotExists", ctx.TestGetAgreementNotExists)
+	t.Run("UpdateAgreementState", ctx.TestUpdateAgreementState)
+	t.Run("UpdateAgreementStateNotExists", ctx.TestUpdateAgreementStateNotExists)
+	t.Run("GetAgreementsByState", ctx.TestGetAgreementsByState)
+	t.Run("UpdateAgreement", ctx.TestUpdateAgreement)
+	t.Run("UpdateAgreementNotExists", ctx.TestUpdateAgreementNotExists)
+	t.Run("DeleteAgreement", ctx.TestDeleteAgreement)
+	t.Run("DeleteAgreementNotExists", ctx.TestDeleteAgreementNotExists)
 
 	/* Violations */
-	// t.Run("CreateViolation", testCreateViolation)
-	// t.Run("CreateViolationExists", testCreateViolationExists)
+	// t.Run("CreateViolation", ctx.TestCreateViolation)
+	// t.Run("CreateViolationExists", ctx.TestCreateViolationExists)
 
-	// t.Run("GetViolation", testGetViolation)
-	// t.Run("GetViolationNotExists", testGetViolationNotExists)
+	// t.Run("GetViolation", ctx.TestGetViolation)
+	// t.Run("GetViolationNotExists", ctx.TestGetViolationNotExists)
 }
 
 func testCreateProvider(t *testing.T) {
