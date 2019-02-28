@@ -147,6 +147,8 @@ func (a *App) initialize(repository model.IRepository) {
 	a.Router.Methods("GET").Path("/agreements/{id}/details").Handler(logger(a.GetAgreementDetails))
 
 	a.Router.Methods("GET").Path("/templates").Handler(logger(a.GetTemplates))
+	a.Router.Methods("GET").Path("/templates/{id}").Handler(logger(a.GetTemplate))
+	a.Router.Methods("POST").Path("/templates").Handler(logger(a.CreateTemplate))
 }
 
 // Run starts the REST API
@@ -603,6 +605,68 @@ func (a *App) GetTemplates(w http.ResponseWriter, r *http.Request) {
 	a.getAll(w, r, func() (interface{}, error) {
 		return a.Repository.GetAllTemplates()
 	})
+}
+
+// GetTemplate gets a template by REST ID
+// swagger:operation GET /templates/{id} getTemplate
+//
+// Returns a template given its ID
+//
+// ---
+// produces:
+// - application/json
+// parameters:
+// - name: id
+//   in: path
+//   description: The identifier of the template
+//   required: true
+//   type: string
+// responses:
+//   '200':
+//     description: The template with the ID
+//     schema:
+//       "$ref": "#/definitions/Template"
+//   '404' :
+//     description: Template not found
+func (a *App) GetTemplate(w http.ResponseWriter, r *http.Request) {
+	a.get(w, r, func(id string) (interface{}, error) {
+		return a.Repository.GetTemplate(id)
+	})
+}
+
+// CreateTemplate creates a template passed by REST params
+// swagger:operation POST /templates createTemplate
+//
+// Creates a template with the information passed in the request body
+//
+// ---
+// produces:
+// - application/json
+// consumes:
+// - application/json
+// parameters:
+// - name: template
+//   in: body
+//   description: The template to create
+//   required: true
+//   schema:
+//     "$ref": "#/definitions/Template"
+// responses:
+//   '200':
+//     description: The new template that has been created
+//     schema:
+//       "$ref": "#/definitions/Template"
+func (a *App) CreateTemplate(w http.ResponseWriter, r *http.Request) {
+
+	var template model.Template
+
+	a.create(w, r,
+		func() error {
+			return json.NewDecoder(r.Body).Decode(&template)
+		},
+		func() (model.Identity, error) {
+			return a.Repository.CreateTemplate(&template)
+		})
 }
 
 func manageError(err error, w http.ResponseWriter) {
