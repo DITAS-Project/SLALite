@@ -3,7 +3,7 @@
     "name": "Template 02",
     "state": "started",
     "details":{
-        "id": "t01",
+        "id": "t02",
         "type": "template",
         "name": "{{.agreementname}}",
         "provider": { "id": "{{.provider.Id}}", "name": "{{.provider.Name}}" },

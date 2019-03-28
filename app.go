@@ -78,6 +78,7 @@ type endpoint struct {
 var api = map[string]endpoint{
 	"providers":  endpoint{"GET", "/providers", "Providers"},
 	"agreements": endpoint{"GET", "/agreements", "Agreements"},
+	"templates":  endpoint{"GET", "/templates", "Templates"},
 }
 
 func NewApp(config *viper.Viper, repository model.IRepository) (App, error) {
