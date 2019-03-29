@@ -249,6 +249,29 @@ type Penalty struct {
 	Definition  PenaltyDef `json:"definition"`
 }
 
+// GetId returns the id of an template
+func (t *Template) GetId() string {
+	return t.Id
+}
+
+// Validate validates the consistency of a Template.
+func (t *Template) Validate() []error {
+	result := make([]error, 0)
+
+	result = checkEmpty(t.Id, "Template.Id", result)
+	result = checkEmpty(t.Name, "Template.Name", result)
+
+	for _, e := range t.Details.Validate() {
+		result = append(result, e)
+	}
+
+	result = checkEquals(t.Id, "Template.Id", t.Details.Id, "Template.Details.Id", result)
+	if t.Details.Type != TEMPLATE {
+		result = append(result, fmt.Errorf("Template.Details.Type must be equal to '%s'", TEMPLATE))
+	}
+	return result
+}
+
 // GetId returns the id of an agreement
 func (a *Agreement) GetId() string {
 	return a.Id
@@ -272,24 +295,6 @@ func (a *Agreement) IsStopped() bool {
 // IsValidTransition returns if the transition to newState is valid
 func (a *Agreement) IsValidTransition(newState State) bool {
 	return a.State != TERMINATED
-}
-
-// Validate validates the consistency of a Template.
-func (t *Template) Validate() []error {
-	result := make([]error, 0)
-
-	result = checkEmpty(t.Id, "Template.Id", result)
-	result = checkEmpty(t.Name, "Template.Name", result)
-
-	for _, e := range t.Details.Validate() {
-		result = append(result, e)
-	}
-
-	result = checkEquals(t.Id, "Template.Id", t.Details.Id, "Template.Details.Id", result)
-	if t.Details.Type != TEMPLATE {
-		result = append(result, fmt.Errorf("Template.Details.Type must be equal to '%s'", TEMPLATE))
-	}
-	return result
 }
 
 // Validate validates the consistency of an Agreement.
@@ -402,3 +407,7 @@ type Providers []Provider
 // Agreements is the type of an slice of Agreement
 // swagger:model
 type Agreements []Agreement
+
+// Templates is the type of an slice of Template
+// swagger:model
+type Templates []Template

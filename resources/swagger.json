@@ -297,6 +297,84 @@
           }
         }
       }
+    },
+    "/templates": {
+      "get": {
+        "description": "Returns all registered templates",
+        "produces": [
+          "application/json"
+        ],
+        "operationId": "getAllTemplates",
+        "responses": {
+          "200": {
+            "description": "The complete list of registered templates",
+            "schema": {
+              "type": "object",
+              "additionalProperties": {
+                "$ref": "#/definitions/Templates"
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "description": "Creates a template with the information passed in the request body",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "operationId": "createTemplate",
+        "parameters": [
+          {
+            "description": "The template to create",
+            "name": "template",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/Template"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The new template that has been created",
+            "schema": {
+              "$ref": "#/definitions/Template"
+            }
+          }
+        }
+      }
+    },
+    "/templates/{id}": {
+      "get": {
+        "description": "Returns a template given its ID",
+        "produces": [
+          "application/json"
+        ],
+        "operationId": "getTemplate",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "The identifier of the template",
+            "name": "id",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The template with the ID",
+            "schema": {
+              "$ref": "#/definitions/Template"
+            }
+          },
+          "404": {
+            "description": "Template not found"
+          }
+        }
+      }
     }
   },
   "definitions": {
@@ -542,6 +620,40 @@
     "State": {
       "description": "State is the type of possible states of an agreement",
       "type": "string",
+      "x-go-package": "SLALite/model"
+    },
+    "Template": {
+      "description": "The Details field of the template contains placeholders that are substituted\nwhen generating an agreement from a template (see generator package).\nThe Constraints fields contains constraints that a variable used in a guarantee\nmust satisfy. F.e., if the guarantee expression is \"cpu_usage \u003c {{M}}\", one could\nspecify in Constraints that \"M\" : \"M \u003e= 0 \u0026\u0026 M \u003c= 100\".Template\n\nThe Id and Name are relative to the template itself, and should not match\nthe fields in Details.",
+      "type": "object",
+      "title": "Template is the entity that serves as base to create new agreements",
+      "properties": {
+        "constraints": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "x-go-name": "Constraints"
+        },
+        "details": {
+          "$ref": "#/definitions/Details"
+        },
+        "id": {
+          "type": "string",
+          "x-go-name": "Id"
+        },
+        "name": {
+          "type": "string",
+          "x-go-name": "Name"
+        }
+      },
+      "x-go-package": "SLALite/model"
+    },
+    "Templates": {
+      "description": "Templates is the type of an slice of Template",
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/Template"
+      },
       "x-go-package": "SLALite/model"
     },
     "TextType": {

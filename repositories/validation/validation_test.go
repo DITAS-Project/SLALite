@@ -57,7 +57,7 @@ func TestRepositoryWithExternalIds(t *testing.T) {
 		"id": *a,
 	}
 
-	r := memrepository.NewMemRepository(nil, as, nil, nil)
+	r := memrepository.NewMemRepository(nil, as, nil, nil, nil)
 	v, _ := New(r, true)
 
 	p := &model.Provider{Id: "", Name: "Name"}

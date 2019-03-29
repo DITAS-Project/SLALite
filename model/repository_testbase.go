@@ -24,6 +24,7 @@ import (
 	"time"
 )
 
+// TestData contains the data type to be used in these tests
 type TestData struct {
 	P01        Provider
 	P02        Provider
@@ -34,8 +35,10 @@ type TestData struct {
 	Anotexists Agreement
 	V01        Violation
 	Vnotexists Violation
+	T01        Template
 }
 
+// Data contains the data to be used in these tests. It can be overwritten if needed.
 var Data = TestData{
 	P01: Provider{
 		Id:   "p01",
@@ -86,6 +89,10 @@ var Data = TestData{
 	Vnotexists: Violation{
 		Id:          "vnotexists",
 		AgreementId: "a01",
+	},
+	T01: Template{
+		Id:   "t01",
+		Name: "Template01",
 	},
 }
 
@@ -326,6 +333,46 @@ func (r *TestContext) TestGetViolation(t *testing.T) {
 func (r *TestContext) TestGetViolationNotExists(t *testing.T) {
 	_, err := r.Repo.GetViolation(Data.Vnotexists.Id)
 	assertEquals(t, "Unexpected error. Expected: %v; Actual: %v", ErrNotFound, err)
+}
+
+// TestCreateTemplate executes this test
+func (r *TestContext) TestCreateTemplate(t *testing.T) {
+	var tpl *Template
+	var err error
+
+	tpl, err = r.Repo.CreateTemplate(&Data.T01)
+	assertEquals(t, "Unexpected error. Expected: %v; Actual: %v", nil, err)
+	Data.T01 = *tpl
+
+	tpl, err = r.Repo.GetTemplate(Data.T01.Id)
+	assertEquals(t, "Unexpected error. Expected: %v; Actual: %v", nil, err)
+	assertEquals(t, "Unexpected violation. Expected: %v; Actual: %v", Data.T01.Id, tpl.Id)
+}
+
+// TestCreateTemplateExists executes this test
+func (r *TestContext) TestCreateTemplateExists(t *testing.T) {
+	_, err := r.Repo.CreateTemplate(&Data.T01)
+	assertEquals(t, "Expected error: %v; actual: %v", ErrAlreadyExist, err)
+}
+
+// TestGetAllTemplates executes this test
+func (r *TestContext) TestGetAllTemplates(t *testing.T) {
+	actual, err := r.Repo.GetAllTemplates()
+	assertEquals(t, "Unexpected error. Expected: %v; Actual: %v", nil, err)
+	assertEquals(t, "Unexpected len(Templates). Expected: %d; Actual: %d", 1, len(actual))
+}
+
+// TestGetTemplate executes this test
+func (r *TestContext) TestGetTemplate(t *testing.T) {
+	result, err := r.Repo.GetTemplate(Data.T01.Id)
+	assertEquals(t, "Unexpected error. Expected: %v; Actual: %v", nil, err)
+	assertEquals(t, "Unexpected result. Expected: %v; Actual: %v", Data.T01.Id, result.Id)
+}
+
+// TestGetTemplateNotExists executes this test
+func (r *TestContext) TestGetTemplateNotExists(t *testing.T) {
+	_, err := r.Repo.GetAgreement("notexists")
+	assertEquals(t, "Expected error: %v; actual: %v", ErrNotFound, err)
 }
 
 /*

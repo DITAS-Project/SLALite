@@ -302,3 +302,33 @@ func (r MongoDBRepository) UpdateAgreementState(id string, newState model.State)
 	}
 	return agreement, err
 }
+
+/*
+GetAllTemplates returns the list of templates.
+
+The list is empty when there are no templates;
+error != nil on error
+*/
+func (r MongoDBRepository) GetAllTemplates() (model.Templates, error) {
+	return nil, fmt.Errorf("Not implemented")
+}
+
+/*
+GetTemplate returns the Template identified by id.
+
+error != nil on error;
+error is sql.ErrNoRows if the Template is not found
+*/
+func (r MongoDBRepository) GetTemplate(id string) (*model.Template, error) {
+	return nil, fmt.Errorf("Not implemented")
+}
+
+/*
+CreateTemplate stores a new Template.
+
+error != nil on error;
+error is sql.ErrNoRows if the Template already exists
+*/
+func (r MongoDBRepository) CreateTemplate(template *model.Template) (*model.Template, error) {
+	return nil, fmt.Errorf("Not implemented")
+}
