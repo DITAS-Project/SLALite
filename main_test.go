@@ -66,7 +66,7 @@ func TestMain(m *testing.M) {
 		if err != nil {
 			log.Fatalf("Error creating initial state: %v", err)
 		}
-		a, _ = NewApp(viper.New(), repo)
+		a, _ = NewApp(viper.New(), repo, model.NewDefaultValidator(false, true))
 	} else {
 		log.Fatal("Error initializing repository")
 	}
@@ -610,6 +610,98 @@ func testCreateTemplate(t *testing.T) {
 	if !reflect.DeepEqual(created, posted) {
 		t.Errorf("Expected: %v. Actual: %v", posted, created)
 	}
+}
+
+/********************************************************************
+*****************CREATEAGREEMENT(FROM TEMPLATE)**********************
+********************************************************************/
+
+func TestCreateAgreements(t *testing.T) {
+	t.Run("Create agreement from template", testCreateAgreementFromTemplate)
+	t.Run("Missing fields in create agreement from template", testCreateAgreementFromTemplateMissingFields)
+	t.Run("Wrong templateID in create agreement from template", testCreateAgreementFromTemplateWrongID)
+}
+
+func testCreateAgreementFromTemplate(t *testing.T) {
+	/*
+	 * Provider or Client are not decoded as the respective entity in the endpoint;
+	 * that is why the provider is traversed in the template as
+	 * {{provider.id}}, instead of {{provider.Id}}
+	 * (see model/testdata/template.json)
+	 */
+	ca := model.CreateAgreement{
+		TemplateID: "t01",
+		Parameters: map[string]interface{}{
+			"M":             1,
+			"N":             2,
+			"agreementname": "agreement-test",
+			"provider":      model.Provider{Id: "p01", Name: "p01-name"},
+			"client":        map[string]string{"Id": "c01", "Name": "c01-name"},
+		},
+	}
+	body, err := json.Marshal(ca)
+	if err != nil {
+		t.Error("Unexpected marshalling error")
+	}
+
+	req, _ := http.NewRequest("POST", "/create-agreement", bytes.NewBuffer(body))
+	res := request(req)
+
+	checkStatus(t, http.StatusCreated, res.Code)
+	if res.Code != http.StatusCreated {
+		var e ApiError
+		_ = json.NewDecoder(res.Body).Decode(&e)
+		log.Infof("Error=%#v", e)
+		return
+	}
+
+	var created model.CreateAgreement
+	_ = json.NewDecoder(res.Body).Decode(&created)
+
+	a, _ := repo.GetAgreement(created.AgreementID)
+	log.Infof("Generated agreement: %#v", a)
+}
+
+func testCreateAgreementFromTemplateWrongID(t *testing.T) {
+	ca := model.CreateAgreement{
+		TemplateID: "tnotexists",
+		Parameters: map[string]interface{}{
+			"M":             1,
+			"N":             2,
+			"agreementname": "agreement-test",
+			"provider":      model.Provider{Id: "p01", Name: "p01-name"},
+			"client":        map[string]string{"Id": "c01", "Name": "c01-name"},
+		},
+	}
+	body, err := json.Marshal(ca)
+	if err != nil {
+		t.Error("Unexpected marshalling error")
+	}
+
+	req, _ := http.NewRequest("POST", "/create-agreement", bytes.NewBuffer(body))
+	res := request(req)
+
+	checkStatus(t, http.StatusNotFound, res.Code)
+}
+
+func testCreateAgreementFromTemplateMissingFields(t *testing.T) {
+
+	ca := model.CreateAgreement{
+		TemplateID: "t01",
+		Parameters: map[string]interface{}{
+			"M": 1,
+			"N": 2,
+		},
+	}
+	body, err := json.Marshal(ca)
+	if err != nil {
+		t.Error("Unexpected marshalling error")
+	}
+
+	req, _ := http.NewRequest("POST", "/create-agreement", bytes.NewBuffer(body))
+	res := request(req)
+
+	checkStatus(t, http.StatusBadRequest, res.Code)
 }
 
 func request(req *http.Request) *httptest.ResponseRecorder {

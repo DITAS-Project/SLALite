@@ -77,7 +77,7 @@ func main() {
 	validater := model.NewDefaultValidator(config.GetBool(utils.ExternalIDsPropertyName), true)
 	repo, _ = validation.New(repo, validater)
 	if repo != nil {
-		a, _ := NewApp(config, repo)
+		a, _ := NewApp(config, repo, validater)
 		go createValidationThread(repo, dummyadapter.New(1), nil, checkPeriod)
 		a.Run()
 	}

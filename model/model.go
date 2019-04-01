@@ -145,12 +145,21 @@ func (c *Client) Validate(val Validator, mode ValidationMode) []error {
 //
 // The Id and Name are relative to the template itself, and should not match
 // the fields in Details.
+// swagger:model
 type Template struct {
 	Id   string `json:"id" bson:"_id"`
 	Name string `json:"name"`
 	//	State       State             `json:"state"`
 	Details     Details           `json:"details"`
 	Constraints map[string]string `json:"constraints"`
+}
+
+// CreateAgreement is the resource used to create an agreement from a template.
+// swagger:model
+type CreateAgreement struct {
+	TemplateID  string                 `json:"template_id"`
+	AgreementID string                 `json:"agreement_id"`
+	Parameters  map[string]interface{} `json:"parameters"`
 }
 
 // Agreement is the entity that represents an agreement between a provider and a client.
@@ -247,6 +256,11 @@ func (t *Template) GetId() string {
 // Validate validates the consistency of a Template.
 func (t *Template) Validate(val Validator, mode ValidationMode) []error {
 	return val.ValidateTemplate(t, mode)
+}
+
+// GetId returns the id of a CreateAgreement entity
+func (ca *CreateAgreement) GetId() string {
+	return ""
 }
 
 // GetId returns the id of an agreement

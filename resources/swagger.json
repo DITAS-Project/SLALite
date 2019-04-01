@@ -196,6 +196,43 @@
         }
       }
     },
+    "/create-agreement": {
+      "post": {
+        "description": "Creates an agreement from a template; templateId is the templateID to base the\nagreement from; agreementID is an output field, containing the ID of the created\nand stored agreement; parameters must contain a property for each placeholder to\nbe substituted in the template.",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "operationId": "createAgreementFromTemplate",
+        "parameters": [
+          {
+            "description": "Parameters to create an agreement from a template",
+            "name": "createAgreement",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/CreateAgreement"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The response contains the ID of the created agreement",
+            "schema": {
+              "$ref": "#/definitions/CreateAgreement"
+            }
+          },
+          "400": {
+            "description": "Not all template placeholders were substituted"
+          },
+          "404": {
+            "description": "Not found the TemplateID to create the agreement from"
+          }
+        }
+      }
+    },
     "/providers": {
       "get": {
         "description": "Returns all registered providers",
@@ -447,6 +484,28 @@
       "title": "Client is the entity that represents a client.",
       "$ref": "#/definitions/Party"
     },
+    "CreateAgreement": {
+      "type": "object",
+      "title": "CreateAgreement is the resource used to create an agreement from a template.",
+      "properties": {
+        "agreement_id": {
+          "type": "string",
+          "x-go-name": "AgreementID"
+        },
+        "parameters": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object"
+          },
+          "x-go-name": "Parameters"
+        },
+        "template_id": {
+          "type": "string",
+          "x-go-name": "TemplateID"
+        }
+      },
+      "x-go-package": "SLALite/model"
+    },
     "Details": {
       "description": "Details is the struct that represents the \"contract\" signed by the client",
       "type": "object",
@@ -664,14 +723,6 @@
     "Validable": {
       "description": "Validable identifies entities that can be validated",
       "type": "object",
-      "properties": {
-        "Validate": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        }
-      },
       "x-go-package": "SLALite/model"
     },
     "Violation": {
