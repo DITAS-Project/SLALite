@@ -190,28 +190,3 @@ func (r repository) CreateTemplate(template *model.Template) (*model.Template, e
 	}
 	return r.backend.CreateTemplate(template)
 }
-
-func normalizeState(s model.State) model.State {
-	for _, v := range model.States {
-		if s == v {
-			return s
-		}
-	}
-	return model.STOPPED
-}
-
-// func (r repository) checkIDErrOnCreate(e model.Identity) error {
-// 	if r.externalIDs {
-// 		if e.GetId() != "" {
-// 			return fmt.Errorf("Entity %T[id='%s'] must have empty Id on create", e, e.GetId())
-// 		}
-// 	}
-// 	return nil
-// }
-
-// func (r repository) checkIDErrOnUpdate(e model.Identity) error {
-// 	if r.externalIDs && e.GetId() == "" {
-// 		return fmt.Errorf("Entity %T[id='%s'] must have non empty Id on update", e, e.GetId())
-// 	}
-// 	return nil
-// }
