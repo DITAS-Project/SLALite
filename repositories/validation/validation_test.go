@@ -31,7 +31,8 @@ func TestMain(m *testing.M) {
 
 func TestCallThroughMethods(t *testing.T) {
 	r, _ := memrepository.New(nil)
-	v, _ := New(r, true)
+	validater := model.NewDefaultValidater(false, true)
+	v, _ := New(r, validater)
 
 	a, err := readAgreement("testdata/a.json")
 	if err != nil {
@@ -58,7 +59,8 @@ func TestRepositoryWithExternalIds(t *testing.T) {
 	}
 
 	r := memrepository.NewMemRepository(nil, as, nil, nil, nil)
-	v, _ := New(r, true)
+	validater := model.NewDefaultValidater(true, false)
+	v, _ := New(r, validater)
 
 	p := &model.Provider{Id: "", Name: "Name"}
 	p, err = v.CreateProvider(p)
@@ -128,7 +130,8 @@ func TestRepositoryWithExternalIds(t *testing.T) {
 func TestRepositoryWithoutExternalIds(t *testing.T) {
 	var err error
 	r, _ := memrepository.New(nil)
-	v, _ := New(r, false)
+	validater := model.NewDefaultValidater(false, true)
+	v, _ := New(r, validater)
 
 	p := &model.Provider{Id: "Id", Name: "Name"}
 	p, err = v.CreateProvider(p)

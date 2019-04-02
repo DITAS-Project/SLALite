@@ -69,7 +69,7 @@ type Identity interface {
 // Validable identifies entities that can be validated
 //
 type Validable interface {
-	Validate() []error
+	Validate(val Validater, mode ValidationMode) []error
 }
 
 // State is the type of possible states of an agreement
@@ -117,13 +117,8 @@ func (p *Provider) GetId() string {
 }
 
 // Validate validates the consistency of a Provider entity
-func (p *Provider) Validate() []error {
-	result := make([]error, 0, 2)
-
-	result = checkEmpty(p.Id, "Provider.Id", result)
-	result = checkEmpty(p.Name, "Provider.Name", result)
-
-	return result
+func (p *Provider) Validate(val Validater, mode ValidationMode) []error {
+	return val.ValidateProvider(p, mode)
 }
 
 // Client is the entity that represents a client.
@@ -136,13 +131,8 @@ func (c *Client) GetId() string {
 }
 
 // Validate validates the consistency of a Client entity
-func (c *Client) Validate() []error {
-	result := make([]error, 0, 2)
-
-	result = checkEmpty(c.Id, "Client.Id", result)
-	result = checkEmpty(c.Name, "Client.Name", result)
-
-	return result
+func (c *Client) Validate(val Validater, mode ValidationMode) []error {
+	return val.ValidateClient(c, mode)
 }
 
 // Template is the entity that serves as base to create new agreements
@@ -255,21 +245,8 @@ func (t *Template) GetId() string {
 }
 
 // Validate validates the consistency of a Template.
-func (t *Template) Validate() []error {
-	result := make([]error, 0)
-
-	result = checkEmpty(t.Id, "Template.Id", result)
-	result = checkEmpty(t.Name, "Template.Name", result)
-
-	for _, e := range t.Details.Validate() {
-		result = append(result, e)
-	}
-
-	result = checkEquals(t.Id, "Template.Id", t.Details.Id, "Template.Details.Id", result)
-	if t.Details.Type != TEMPLATE {
-		result = append(result, fmt.Errorf("Template.Details.Type must be equal to '%s'", TEMPLATE))
-	}
-	return result
+func (t *Template) Validate(val Validater, mode ValidationMode) []error {
+	return val.ValidateTemplate(t, mode)
 }
 
 // GetId returns the id of an agreement
@@ -298,56 +275,23 @@ func (a *Agreement) IsValidTransition(newState State) bool {
 }
 
 // Validate validates the consistency of an Agreement.
-func (a *Agreement) Validate() []error {
-	result := make([]error, 0)
-
-	a.State = normalizeState(a.State)
-	result = checkEmpty(a.Id, "Agreement.Id", result)
-	result = checkEmpty(a.Name, "Agreement.Name", result)
-	for _, e := range a.Assessment.Validate() {
-		result = append(result, e)
-	}
-	for _, e := range a.Details.Validate() {
-		result = append(result, e)
-	}
-
-	result = checkEquals(a.Id, "Agreement.Id", a.Details.Id, "Agreement.Details.Id", result)
-	result = checkEquals(a.Name, "Agreement.Name", a.Details.Name, "Agreement.Details.Name", result)
-
-	return result
+func (a *Agreement) Validate(val Validater, mode ValidationMode) []error {
+	return val.ValidateAgreement(a, mode)
 }
 
 // Validate validates the consistency of an Assessment entity
-func (as *Assessment) Validate() []error {
-	return []error{}
+func (as *Assessment) Validate(val Validater, mode ValidationMode) []error {
+	return val.ValidateAssessment(as, mode)
 }
 
 // Validate validates the consistency of a Details entity
-func (t *Details) Validate() []error {
-	result := make([]error, 0)
-	result = checkEmpty(t.Id, "Text.Id", result)
-	result = checkEmpty(t.Name, "Text.Name", result)
-	for _, e := range t.Provider.Validate() {
-		result = append(result, e)
-	}
-	for _, e := range t.Client.Validate() {
-		result = append(result, e)
-	}
-	for _, g := range t.Guarantees {
-		for _, e := range g.Validate() {
-			result = append(result, e)
-		}
-	}
-	return result
+func (t *Details) Validate(val Validater, mode ValidationMode) []error {
+	return val.ValidateDetails(t, mode)
 }
 
 // Validate validates the consistency of a Guarantee entity
-func (g *Guarantee) Validate() []error {
-	result := make([]error, 0)
-	result = checkEmpty(g.Name, "Guarantee.Name", result)
-	result = checkEmpty(g.Constraint, fmt.Sprintf("Guarantee['%s'].Constraint", g.Name), result)
-
-	return result
+func (g *Guarantee) Validate(val Validater, mode ValidationMode) []error {
+	return val.ValidateGuarantee(g, mode)
 }
 
 // GetId returns the Id of a violation
@@ -356,43 +300,8 @@ func (v *Violation) GetId() string {
 }
 
 // Validate validates the consistency of a Violation entity
-func (v *Violation) Validate() []error {
-	result := make([]error, 0)
-	result = checkEmpty(v.Id, "Violation.Id", result)
-	result = checkEmpty(v.AgreementId, "Violation.AgreementId", result)
-	result = checkEmpty(v.Guarantee, "Violation.Guarantee", result)
-	if v.Datetime.IsZero() {
-		result = append(result, fmt.Errorf("%v is not a valid date", v.Datetime))
-	}
-	if v.Values == nil || len(v.Values) == 0 {
-		result = append(result, fmt.Errorf("Violation.Values cannot be empty"))
-	}
-	result = checkEmpty(v.Constraint, "Violation.Constraint", result)
-
-	return result
-}
-
-func checkEmpty(field string, description string, current []error) []error {
-	if field == "" {
-		current = append(current, fmt.Errorf("%s is empty", description))
-	}
-	return current
-}
-
-func checkEquals(f1 string, f1desc, f2 string, f2desc string, current []error) []error {
-	if f1 != f2 {
-		current = append(current, fmt.Errorf("%s and %s do not match", f1desc, f2desc))
-	}
-	return current
-}
-
-func normalizeState(s State) State {
-	for _, v := range States {
-		if s == v {
-			return s
-		}
-	}
-	return STOPPED
+func (v *Violation) Validate(val Validater, mode ValidationMode) []error {
+	return val.ValidateViolation(v, mode)
 }
 
 // Normalize returns an always valid state: any different value from contained in States is STOPPED.

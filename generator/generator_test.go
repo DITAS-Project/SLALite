@@ -19,15 +19,18 @@ package generator
 import (
 	"SLALite/model"
 	"SLALite/utils"
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"os"
 	"testing"
-	"bytes"
+
 	log "github.com/sirupsen/logrus"
 )
 
 var tpl, tplIncomplete model.Template
+
+var val = model.NewDefaultValidater(false, true)
 
 func TestMain(m *testing.M) {
 	var err error
@@ -60,7 +63,7 @@ func TestGenerateAgreement(t *testing.T) {
 			"agreementname": "<a-name>",
 		},
 	}
-	a, err := Do(&genmodel)
+	a, err := Do(&genmodel, val, false)
 	if err == nil {
 		var b bytes.Buffer
 		enc := json.NewEncoder(&b)
@@ -87,7 +90,7 @@ func TestGenerateAgreementMissingFields(t *testing.T) {
 			"N":             "0.9",
 		},
 	}
-	a, err := Do(&genmodel)
+	a, err := Do(&genmodel, val, false)
 	if err == nil || !IsErrUnreplaced(err) {
 		enc := json.NewEncoder(os.Stdout)
 		enc.SetEscapeHTML(false)
@@ -108,7 +111,7 @@ func TestGenerateAgreementNonValid(t *testing.T) {
 			"N":             "0.9",
 		},
 	}
-	a, err := Do(&genmodel)
+	a, err := Do(&genmodel, val, false)
 	if err == nil || !IsErrValidation(err) {
 		enc := json.NewEncoder(os.Stdout)
 		enc.SetEscapeHTML(false)
