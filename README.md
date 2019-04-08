@@ -81,6 +81,8 @@ Usage of SLALite:
   the MongoDB settings are read from the file `mongodb.yml`.
 * `repository` (default: `memory`). Sets the repository type to use. Set this
   value to `mongodb` to use a MongoDB database.
+* `externalIDs` (default: `false`). Set this to true if the repository auto assign 
+  the IDs of the saved entities.
 * `checkPeriod` (default: `60`). Sets the period in seconds of assessments 
   executions.
 * `CAPath`. Sets the value of a file path containing certificates of trusted

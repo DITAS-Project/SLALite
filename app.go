@@ -17,6 +17,7 @@ package main
 
 import (
 	"SLALite/model"
+	"SLALite/utils"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -50,6 +51,7 @@ type App struct {
 	SslEnabled  bool
 	SslCertPath string
 	SslKeyPath  string
+	externalIDs bool
 }
 
 // ApiError is the struct sent to client on errors
@@ -91,6 +93,7 @@ func NewApp(config *viper.Viper, repository model.IRepository) (App, error) {
 		SslEnabled:  config.GetBool(enableSslPropertyName),
 		SslCertPath: config.GetString(sslCertPathPropertyName),
 		SslKeyPath:  config.GetString(sslKeyPathPropertyName),
+		externalIDs: config.GetBool(utils.ExternalIDsPropertyName),
 	}
 
 	a.initialize(repository)
