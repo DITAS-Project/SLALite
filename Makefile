@@ -33,6 +33,7 @@ release_major:
 
 clean:
 	go clean
+	go clean -cache
 	-@rm ${OUT} ${OUT}-v*
 
 apigen:

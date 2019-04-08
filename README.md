@@ -81,6 +81,8 @@ Usage of SLALite:
   the MongoDB settings are read from the file `mongodb.yml`.
 * `repository` (default: `memory`). Sets the repository type to use. Set this
   value to `mongodb` to use a MongoDB database.
+* `externalIDs` (default: `false`). Set this to true if the repository auto assign 
+  the IDs of the saved entities.
 * `checkPeriod` (default: `60`). Sets the period in seconds of assessments 
   executions.
 * `CAPath`. Sets the value of a file path containing certificates of trusted
@@ -115,10 +117,24 @@ SLALite offers a usual REST API, with an endpoint on /agreements
 
 Add an agreement:
 
-    curl -k -X POST -d @agreement.json https://localhost:8090/agreements
+    curl -k -X POST -d @resources/samples/agreement.json https://localhost:8090/agreements
 
 Get agreements:
 
     curl -k https://localhost:8090/agreements
     curl -k https://localhost:8090/agreements/a02
 
+Add a template:
+
+    curl -k -X POST -d @resources/samples/template.json https://localhost:8090/templates
+
+Get templates:
+
+    curl -k https://localhost:8090/templates
+    curl -k https://localhost:8090/templates/t01
+
+Create agreement from template:
+
+    curl -k -X POST -d @resources/samples/create-agreement.json https://localhost:8090/create-agreement
+
+    {"template_id":"t01","agreement_id":"9be511e8-347f-4a40-b784-e80789e4c65b","parameters":{"M":1,"N":100,"agreementname":"An agreement name","client":{"id":"client01","name":"A name of a client"},"provider":{"id":"provider01","name":"A name of a provider"}}}
