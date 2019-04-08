@@ -74,7 +74,8 @@ func main() {
 		log.Fatal("Error creating repository: ", errRepo.Error())
 	}
 
-	repo, _ = validation.New(repo, false)
+	validater := model.NewDefaultValidator(false, true)
+	repo, _ = validation.New(repo, validater)
 	if repo != nil {
 		a, _ := NewApp(config, repo)
 		go createValidationThread(repo, dummyadapter.New(1), nil, checkPeriod)

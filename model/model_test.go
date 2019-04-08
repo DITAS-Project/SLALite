@@ -32,6 +32,7 @@ func TestMain(m *testing.M) {
 
 var pr = Provider{Id: "id", Name: "name"}
 var cl = Client{Id: "id", Name: "name"}
+var val = NewDefaultValidator(false, true)
 
 func TestProviders(t *testing.T) {
 	p := Provider{Id: "id", Name: "name"}
@@ -324,8 +325,7 @@ func TestMetricValue(t *testing.T) {
 }
 
 func checkNumber(t *testing.T, v Validable, expected int) {
-
-	if errs := v.Validate(); len(errs) != expected {
-		t.Errorf("Error validating %s%v. Errors = %v", reflect.TypeOf(v), v, errs)
+	if errs := v.Validate(val, CREATE); len(errs) != expected {
+		t.Errorf("Error validating %s%v. Errors = %v; Expected: %d", reflect.TypeOf(v), v, errs, expected)
 	}
 }

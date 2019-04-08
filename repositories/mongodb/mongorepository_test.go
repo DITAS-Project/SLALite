@@ -28,6 +28,7 @@ package mongodb
 
 import (
 	"SLALite/model"
+	"SLALite/repositories"
 	"os"
 	"testing"
 
@@ -66,7 +67,7 @@ func createRepository() (model.IRepository, error) {
 }
 
 func TestRepository(t *testing.T) {
-	ctx := model.TestContext{Repo: repo}
+	ctx := repositories.TestContext{Repo: repo}
 	/* Providers */
 	t.Run("CreateProvider", ctx.TestCreateProvider)
 	t.Run("CreateProviderExists", ctx.TestCreateProviderExists)

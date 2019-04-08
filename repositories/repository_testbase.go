@@ -14,9 +14,10 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package model
+package repositories
 
 import (
+	"SLALite/model"
 	"bytes"
 	"fmt"
 	"runtime/debug"
@@ -26,71 +27,71 @@ import (
 
 // TestData contains the data type to be used in these tests
 type TestData struct {
-	P01        Provider
-	P02        Provider
-	Pnotexists Provider
-	A01        Agreement
-	A02        Agreement
-	A03        Agreement
-	Anotexists Agreement
-	V01        Violation
-	Vnotexists Violation
-	T01        Template
+	P01        model.Provider
+	P02        model.Provider
+	Pnotexists model.Provider
+	A01        model.Agreement
+	A02        model.Agreement
+	A03        model.Agreement
+	Anotexists model.Agreement
+	V01        model.Violation
+	Vnotexists model.Violation
+	T01        model.Template
 }
 
 // Data contains the data to be used in these tests. It can be overwritten if needed.
 var Data = TestData{
-	P01: Provider{
+	P01: model.Provider{
 		Id:   "p01",
 		Name: "Provider01",
 	},
-	P02: Provider{
+	P02: model.Provider{
 		Id:   "p02",
 		Name: "Provider02",
 	},
-	Pnotexists: Provider{
+	Pnotexists: model.Provider{
 		Id:   "notexists",
 		Name: "ProviderNotExists",
 	},
-	A01: Agreement{
+	A01: model.Agreement{
 		Id:         "a01",
 		Name:       "Agreement01",
-		State:      STOPPED,
-		Assessment: Assessment{},
+		State:      model.STOPPED,
+		Assessment: model.Assessment{},
 	},
-	A02: Agreement{
+	A02: model.Agreement{
 		Id:         "a02",
 		Name:       "Agreement02",
-		State:      STARTED,
-		Assessment: Assessment{},
+		State:      model.STARTED,
+		Assessment: model.Assessment{},
 	},
-	A03: Agreement{
+	A03: model.Agreement{
 		Id:         "a03",
 		Name:       "Agreement03",
-		State:      TERMINATED,
-		Assessment: Assessment{},
+		State:      model.TERMINATED,
+		Assessment: model.Assessment{},
 	},
-	Anotexists: Agreement{
+	Anotexists: model.Agreement{
 		Id:         "notexists",
 		Name:       "AgreementNotExists",
-		State:      STOPPED,
-		Assessment: Assessment{},
+		State:      model.STOPPED,
+		Assessment: model.Assessment{},
 	},
-	V01: Violation{
+	V01: model.Violation{
 		Id:          "v01",
 		AgreementId: "a01",
 		Datetime:    time.Now(),
 		Constraint:  "t < 100",
 		Guarantee:   "gt1",
-		Values: []MetricValue{
-			MetricValue{DateTime: time.Now(), Key: "t", Value: 101},
+		Values: []model.MetricValue{
+			model.MetricValue{DateTime: time.Now(), Key: "t", Value: 101},
 		},
 	},
-	Vnotexists: Violation{
+	Vnotexists: model.Violation{
 		Id:          "vnotexists",
 		AgreementId: "a01",
 	},
-	T01: Template{
+	T01: model.Template{
 		Id:   "t01",
 		Name: "Template01",
 	},
@@ -98,7 +99,7 @@ var Data = TestData{
 
 // CheckSetup checks that the entities to be created on this test do not exist in the
 // repository (this would make the test fail). To be called from TestMain method.
-func CheckSetup(repo IRepository) error {
+func CheckSetup(repo model.IRepository) error {
 
 	providers := []string{Data.P01.Id, Data.P02.Id}
 	agreements := []string{Data.A01.Id, Data.A02.Id}
@@ -106,16 +107,16 @@ func CheckSetup(repo IRepository) error {
 	var id string
 	var err error
 	for _, id = range providers {
-		if _, err = repo.GetProvider(id); err != ErrNotFound {
+		if _, err = repo.GetProvider(id); err != model.ErrNotFound {
 			return fmt.Errorf("Provider[%s] exists or err[%v]", id, err)
 		}
 	}
 	for _, id = range agreements {
-		if _, err = repo.GetAgreement(id); err != ErrNotFound {
+		if _, err = repo.GetAgreement(id); err != model.ErrNotFound {
 			return fmt.Errorf("Agreement[%s] exists or err[%v]", id, err)
 		}
 	}
-	if _, err = repo.GetViolation(Data.V01.Id); err != ErrNotFound {
+	if _, err = repo.GetViolation(Data.V01.Id); err != model.ErrNotFound {
 		return fmt.Errorf("Violation[%s] exists or err[%v]", Data.V01.Id, err)
 	}
 	return nil
@@ -128,7 +129,7 @@ a t.Run() statement
 This way, t.Run() can be called like t.Run("Test", ctx.testSomething).
 */
 type TestContext struct {
-	Repo IRepository
+	Repo model.IRepository
 }
 
 // TestCreateProvider executes this test
@@ -143,7 +144,7 @@ func (r *TestContext) TestCreateProvider(t *testing.T) {
 // TestCreateProviderExists executes this test
 func (r *TestContext) TestCreateProviderExists(t *testing.T) {
 	_, err := r.Repo.CreateProvider(&Data.P01)
-	assertEquals(t, "Expected error: %v; actual: %v", ErrAlreadyExist, err)
+	assertEquals(t, "Expected error: %v; actual: %v", model.ErrAlreadyExist, err)
 }
 
 // TestGetAllProviders executes this test
@@ -163,7 +164,7 @@ func (r *TestContext) TestGetProvider(t *testing.T) {
 // TestGetProviderNotExists executes this test
 func (r *TestContext) TestGetProviderNotExists(t *testing.T) {
 	_, err := r.Repo.GetProvider("notexists")
-	assertEquals(t, "Unexpected error. Expected: %v; Actual: %v", ErrNotFound, err)
+	assertEquals(t, "Unexpected error. Expected: %v; Actual: %v", model.ErrNotFound, err)
 }
 
 // TestDeleteProvider executes this test
@@ -175,12 +176,12 @@ func (r *TestContext) TestDeleteProvider(t *testing.T) {
 // TestDeleteProviderNotExists executes this test
 func (r *TestContext) TestDeleteProviderNotExists(t *testing.T) {
 	err := r.Repo.DeleteProvider(&Data.Pnotexists)
-	assertEquals(t, "Expected error: %v; actual: %v", ErrNotFound, err)
+	assertEquals(t, "Expected error: %v; actual: %v", model.ErrNotFound, err)
 }
 
 // TestCreateAgreement executes this test
 func (r *TestContext) TestCreateAgreement(t *testing.T) {
-	var a *Agreement
+	var a *model.Agreement
 	var err error
 
 	a, err = r.Repo.CreateAgreement(&Data.A01)
@@ -199,7 +200,7 @@ func (r *TestContext) TestCreateAgreement(t *testing.T) {
 // TestCreateAgreementExists executes this test
 func (r *TestContext) TestCreateAgreementExists(t *testing.T) {
 	_, err := r.Repo.CreateAgreement(&Data.A01)
-	assertEquals(t, "Expected error: %v; actual: %v", ErrAlreadyExist, err)
+	assertEquals(t, "Expected error: %v; actual: %v", model.ErrAlreadyExist, err)
 }
 
 // TestGetAllAgreements executes this test
@@ -219,58 +220,58 @@ func (r *TestContext) TestGetAgreement(t *testing.T) {
 // TestGetAgreementNotExists executes this test
 func (r *TestContext) TestGetAgreementNotExists(t *testing.T) {
 	_, err := r.Repo.GetAgreement("notexists")
-	assertEquals(t, "Expected error: %v; actual: %v", ErrNotFound, err)
+	assertEquals(t, "Expected error: %v; actual: %v", model.ErrNotFound, err)
 }
 
 // TestGetAgreementsByState executes this test
 func (r *TestContext) TestGetAgreementsByState(t *testing.T) {
-	actual, err := r.Repo.GetAgreementsByState(STARTED)
+	actual, err := r.Repo.GetAgreementsByState(model.STARTED)
 	assertEquals(t, "Unexpected error. Expected: %v; Actual: %v", nil, err)
 	assertEquals(t, "Get(STARTED). Unexpected len(agreements). Expected: %v; Actual: %v", 1, len(actual))
-	assertEquals(t, "Unexpected state. Expected: %v; Actual: %v", STARTED, actual[0].State)
+	assertEquals(t, "Unexpected state. Expected: %v; Actual: %v", model.STARTED, actual[0].State)
 
-	actual, err = r.Repo.GetAgreementsByState(STARTED, STOPPED)
+	actual, err = r.Repo.GetAgreementsByState(model.STARTED, model.STOPPED)
 	assertEquals(t, "Unexpected error. Expected: %v; Actual: %v", nil, err)
 	assertEquals(t, "Get(STARTED, STOPPED). Unexpected len(agreements). Expected: %v; Actual: %v", 2, len(actual))
 	for _, a := range actual {
-		if a.State != STOPPED && a.State != STARTED {
+		if a.State != model.STOPPED && a.State != model.STARTED {
 			t.Errorf("Unexpected state. Expected: %v; Actual: %v", "STARTED||STOPPED", a.State)
 		}
 	}
 
-	actual, err = r.Repo.GetAgreementsByState(STARTED, STOPPED, TERMINATED)
+	actual, err = r.Repo.GetAgreementsByState(model.STARTED, model.STOPPED, model.TERMINATED)
 	assertEquals(t, "Unexpected error. Expected: %v; Actual: %v", nil, err)
 	assertEquals(t, "Get(STARTED, STOPPED, TERMINATED). Unexpected len(agreements). Expected: %v; Actual: %v", 3, len(actual))
 }
 
 // TestUpdateAgreementState executes this test
 func (r *TestContext) TestUpdateAgreementState(t *testing.T) {
-	a, err := r.Repo.UpdateAgreementState(Data.A02.Id, STOPPED)
+	a, err := r.Repo.UpdateAgreementState(Data.A02.Id, model.STOPPED)
 	assertEquals(t, "Unexpected error. Expected: %v; Actual: %v", nil, err)
 	a, err = r.Repo.GetAgreement(Data.A02.Id)
-	assertEquals(t, "Unexpected state. Expected: %v; Actual: %v", STOPPED, a.State)
+	assertEquals(t, "Unexpected state. Expected: %v; Actual: %v", model.STOPPED, a.State)
 
-	a, err = r.Repo.UpdateAgreementState(Data.A02.Id, TERMINATED)
+	a, err = r.Repo.UpdateAgreementState(Data.A02.Id, model.TERMINATED)
 	assertEquals(t, "Unexpected error. Expected: %v; Actual: %v", nil, err)
 	a, err = r.Repo.GetAgreement(Data.A02.Id)
-	assertEquals(t, "Unexpected state. Expected: %v; Actual: %v", TERMINATED, a.State)
+	assertEquals(t, "Unexpected state. Expected: %v; Actual: %v", model.TERMINATED, a.State)
 
-	a, err = r.Repo.UpdateAgreementState(Data.A02.Id, STARTED)
+	a, err = r.Repo.UpdateAgreementState(Data.A02.Id, model.STARTED)
 	assertEquals(t, "Unexpected error. Expected: %v; Actual: %v", nil, err)
 	a, err = r.Repo.GetAgreement(Data.A02.Id)
-	assertEquals(t, "Unexpected state. Expected: %v; Actual: %v", STARTED, a.State)
+	assertEquals(t, "Unexpected state. Expected: %v; Actual: %v", model.STARTED, a.State)
 }
 
 // TestUpdateAgreementStateNotExists executes this test
 func (r *TestContext) TestUpdateAgreementStateNotExists(t *testing.T) {
-	_, err := r.Repo.UpdateAgreementState(Data.Anotexists.Id, STOPPED)
-	assertEquals(t, "Unexpected error. Expected: %v; Actual: %v", ErrNotFound, err)
+	_, err := r.Repo.UpdateAgreementState(Data.Anotexists.Id, model.STOPPED)
+	assertEquals(t, "Unexpected error. Expected: %v; Actual: %v", model.ErrNotFound, err)
 }
 
 // TestUpdateAgreement executes this test
 func (r *TestContext) TestUpdateAgreement(t *testing.T) {
 	now := time.Now()
-	Data.A02.State = STOPPED
+	Data.A02.State = model.STOPPED
 	Data.A02.Assessment.FirstExecution = now
 
 	a, err := r.Repo.UpdateAgreement(&Data.A02)
@@ -278,17 +279,17 @@ func (r *TestContext) TestUpdateAgreement(t *testing.T) {
 
 	a, err = r.Repo.GetAgreement(Data.A02.Id)
 	assertEquals(t, "Unexpected error. Expected: %v; Actual: %v", nil, err)
-	assertEquals(t, "Unexpected state. Expected: %v; Actual: %v", STOPPED, a.State)
+	assertEquals(t, "Unexpected state. Expected: %v; Actual: %v", model.STOPPED, a.State)
 	assertEquals(t, "Unexpected Assessment.FirstExecution. Expected: %v; Actual: %v",
 		now.Unix(), a.Assessment.FirstExecution.Unix())
 }
 
 // TestUpdateAgreementNotExists executes this test
 func (r *TestContext) TestUpdateAgreementNotExists(t *testing.T) {
-	Data.Anotexists.State = STOPPED
+	Data.Anotexists.State = model.STOPPED
 
 	_, err := r.Repo.UpdateAgreement(&Data.Anotexists)
-	assertEquals(t, "Unexpected error. Expected: %v; Actual: %v", ErrNotFound, err)
+	assertEquals(t, "Unexpected error. Expected: %v; Actual: %v", model.ErrNotFound, err)
 }
 
 // TestDeleteAgreement executes this test
@@ -300,7 +301,7 @@ func (r *TestContext) TestDeleteAgreement(t *testing.T) {
 // TestDeleteAgreementNotExists executes this test
 func (r *TestContext) TestDeleteAgreementNotExists(t *testing.T) {
 	err := r.Repo.DeleteAgreement(&Data.Anotexists)
-	assertEquals(t, "Unexpected error. Expected: %v; Actual: %v", ErrNotFound, err)
+	assertEquals(t, "Unexpected error. Expected: %v; Actual: %v", model.ErrNotFound, err)
 }
 
 // TestCreateViolation executes this test
@@ -319,7 +320,7 @@ func (r *TestContext) TestCreateViolation(t *testing.T) {
 // TestCreateViolationExists executes this test
 func (r *TestContext) TestCreateViolationExists(t *testing.T) {
 	_, err := r.Repo.CreateViolation(&Data.V01)
-	assertEquals(t, "Unexpected error. Expected: %v; Actual: %v", ErrAlreadyExist, err)
+	assertEquals(t, "Unexpected error. Expected: %v; Actual: %v", model.ErrAlreadyExist, err)
 }
 
 // TestGetViolation executes this test
@@ -332,12 +333,12 @@ func (r *TestContext) TestGetViolation(t *testing.T) {
 // TestGetViolationNotExists executes this test
 func (r *TestContext) TestGetViolationNotExists(t *testing.T) {
 	_, err := r.Repo.GetViolation(Data.Vnotexists.Id)
-	assertEquals(t, "Unexpected error. Expected: %v; Actual: %v", ErrNotFound, err)
+	assertEquals(t, "Unexpected error. Expected: %v; Actual: %v", model.ErrNotFound, err)
 }
 
 // TestCreateTemplate executes this test
 func (r *TestContext) TestCreateTemplate(t *testing.T) {
-	var tpl *Template
+	var tpl *model.Template
 	var err error
 
 	tpl, err = r.Repo.CreateTemplate(&Data.T01)
@@ -352,7 +353,7 @@ func (r *TestContext) TestCreateTemplate(t *testing.T) {
 // TestCreateTemplateExists executes this test
 func (r *TestContext) TestCreateTemplateExists(t *testing.T) {
 	_, err := r.Repo.CreateTemplate(&Data.T01)
-	assertEquals(t, "Expected error: %v; actual: %v", ErrAlreadyExist, err)
+	assertEquals(t, "Expected error: %v; actual: %v", model.ErrAlreadyExist, err)
 }
 
 // TestGetAllTemplates executes this test
@@ -372,7 +373,7 @@ func (r *TestContext) TestGetTemplate(t *testing.T) {
 // TestGetTemplateNotExists executes this test
 func (r *TestContext) TestGetTemplateNotExists(t *testing.T) {
 	_, err := r.Repo.GetAgreement("notexists")
-	assertEquals(t, "Expected error: %v; actual: %v", ErrNotFound, err)
+	assertEquals(t, "Expected error: %v; actual: %v", model.ErrNotFound, err)
 }
 
 /*
@@ -382,161 +383,161 @@ func (r *TestContext) TestGetTemplateNotExists(t *testing.T) {
 
 // TestCreateProvider executes this test
 // Deprecated: use TestContext function
-func TestCreateProvider(t *testing.T, repo IRepository) {
+func TestCreateProvider(t *testing.T, repo model.IRepository) {
 	ctx := TestContext{repo}
 	ctx.TestCreateProvider(t)
 }
 
 // TestCreateProviderExists executes this test
 // Deprecated: use TestContext function
-func TestCreateProviderExists(t *testing.T, repo IRepository) {
+func TestCreateProviderExists(t *testing.T, repo model.IRepository) {
 	ctx := TestContext{repo}
 	ctx.TestCreateProvider(t)
 }
 
 // TestGetAllProviders executes this test
 // Deprecated: use TestContext function
-func TestGetAllProviders(t *testing.T, repo IRepository) {
+func TestGetAllProviders(t *testing.T, repo model.IRepository) {
 	ctx := TestContext{repo}
 	ctx.TestGetAllProviders(t)
 }
 
 // TestGetProvider executes this test
 // Deprecated: use TestContext function
-func TestGetProvider(t *testing.T, repo IRepository) {
+func TestGetProvider(t *testing.T, repo model.IRepository) {
 	ctx := TestContext{repo}
 	ctx.TestGetProvider(t)
 }
 
 // TestGetProviderNotExists executes this test
 // Deprecated: use TestContext function
-func TestGetProviderNotExists(t *testing.T, repo IRepository) {
+func TestGetProviderNotExists(t *testing.T, repo model.IRepository) {
 	ctx := TestContext{repo}
 	ctx.TestGetProviderNotExists(t)
 }
 
 // TestDeleteProvider executes this test
 // Deprecated: use TestContext function
-func TestDeleteProvider(t *testing.T, repo IRepository) {
+func TestDeleteProvider(t *testing.T, repo model.IRepository) {
 	ctx := TestContext{repo}
 	ctx.TestDeleteProvider(t)
 }
 
 // TestDeleteProviderNotExists executes this test
 // Deprecated: use TestContext function
-func TestDeleteProviderNotExists(t *testing.T, repo IRepository) {
+func TestDeleteProviderNotExists(t *testing.T, repo model.IRepository) {
 	ctx := TestContext{repo}
 	ctx.TestDeleteProviderNotExists(t)
 }
 
 // TestCreateAgreement executes this test
 // Deprecated: use TestContext function
-func TestCreateAgreement(t *testing.T, repo IRepository) {
+func TestCreateAgreement(t *testing.T, repo model.IRepository) {
 	ctx := TestContext{repo}
 	ctx.TestCreateAgreement(t)
 }
 
 // TestCreateAgreementExists executes this test
 // Deprecated: use TestContext function
-func TestCreateAgreementExists(t *testing.T, repo IRepository) {
+func TestCreateAgreementExists(t *testing.T, repo model.IRepository) {
 	ctx := TestContext{repo}
 	ctx.TestCreateAgreementExists(t)
 }
 
 // TestGetAllAgreements executes this test
 // Deprecated: use TestContext function
-func TestGetAllAgreements(t *testing.T, repo IRepository) {
+func TestGetAllAgreements(t *testing.T, repo model.IRepository) {
 	ctx := TestContext{repo}
 	ctx.TestGetAllAgreements(t)
 }
 
 // TestGetAgreement executes this test
 // Deprecated: use TestContext function
-func TestGetAgreement(t *testing.T, repo IRepository) {
+func TestGetAgreement(t *testing.T, repo model.IRepository) {
 	ctx := TestContext{repo}
 	ctx.TestGetAgreement(t)
 }
 
 // TestGetAgreementNotExists executes this test
 // Deprecated: use TestContext function
-func TestGetAgreementNotExists(t *testing.T, repo IRepository) {
+func TestGetAgreementNotExists(t *testing.T, repo model.IRepository) {
 	ctx := TestContext{repo}
 	ctx.TestGetAgreementNotExists(t)
 }
 
 // TestGetAgreementsByState executes this test
 // Deprecated: use TestContext function
-func TestGetAgreementsByState(t *testing.T, repo IRepository) {
+func TestGetAgreementsByState(t *testing.T, repo model.IRepository) {
 	ctx := TestContext{repo}
 	ctx.TestGetAgreementsByState(t)
 }
 
 // TestUpdateAgreementState executes this test
 // Deprecated: use TestContext function
-func TestUpdateAgreementState(t *testing.T, repo IRepository) {
+func TestUpdateAgreementState(t *testing.T, repo model.IRepository) {
 	ctx := TestContext{repo}
 	ctx.TestUpdateAgreementState(t)
 }
 
 // TestUpdateAgreementStateNotExists executes this test
 // Deprecated: use TestContext function
-func TestUpdateAgreementStateNotExists(t *testing.T, repo IRepository) {
+func TestUpdateAgreementStateNotExists(t *testing.T, repo model.IRepository) {
 	ctx := TestContext{repo}
 	ctx.TestUpdateAgreementStateNotExists(t)
 }
 
 // TestUpdateAgreement executes this test
 // Deprecated: use TestContext function
-func TestUpdateAgreement(t *testing.T, repo IRepository) {
+func TestUpdateAgreement(t *testing.T, repo model.IRepository) {
 	ctx := TestContext{repo}
 	ctx.TestUpdateAgreement(t)
 }
 
 // TestUpdateAgreementNotExists executes this test
 // Deprecated: use TestContext function
-func TestUpdateAgreementNotExists(t *testing.T, repo IRepository) {
+func TestUpdateAgreementNotExists(t *testing.T, repo model.IRepository) {
 	ctx := TestContext{repo}
 	ctx.TestUpdateAgreementNotExists(t)
 }
 
 // TestDeleteAgreement executes this test
 // Deprecated: use TestContext function
-func TestDeleteAgreement(t *testing.T, repo IRepository) {
+func TestDeleteAgreement(t *testing.T, repo model.IRepository) {
 	ctx := TestContext{repo}
 	ctx.TestDeleteAgreement(t)
 }
 
 // TestDeleteAgreementNotExists executes this test
 // Deprecated: use TestContext function
-func TestDeleteAgreementNotExists(t *testing.T, repo IRepository) {
+func TestDeleteAgreementNotExists(t *testing.T, repo model.IRepository) {
 	ctx := TestContext{repo}
 	ctx.TestDeleteAgreementNotExists(t)
 }
 
 // TestCreateViolation executes this test
 // Deprecated: use TestContext function
-func TestCreateViolation(t *testing.T, repo IRepository) {
+func TestCreateViolation(t *testing.T, repo model.IRepository) {
 	ctx := TestContext{repo}
 	ctx.TestCreateViolation(t)
 }
 
 // TestCreateViolationExists executes this test
 // Deprecated: use TestContext function
-func TestCreateViolationExists(t *testing.T, repo IRepository) {
+func TestCreateViolationExists(t *testing.T, repo model.IRepository) {
 	ctx := TestContext{repo}
 	ctx.TestCreateViolationExists(t)
 }
 
 // TestGetViolation executes this test
 // Deprecated: use TestContext function
-func TestGetViolation(t *testing.T, repo IRepository) {
+func TestGetViolation(t *testing.T, repo model.IRepository) {
 	ctx := TestContext{repo}
 	ctx.TestGetViolation(t)
 }
 
 // TestGetViolationNotExists executes this test
 // Deprecated: use TestContext function
-func TestGetViolationNotExists(t *testing.T, repo IRepository) {
+func TestGetViolationNotExists(t *testing.T, repo model.IRepository) {
 	ctx := TestContext{repo}
 	ctx.TestGetViolationNotExists(t)
 }

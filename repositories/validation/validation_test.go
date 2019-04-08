@@ -19,7 +19,6 @@ package validation
 import (
 	"SLALite/model"
 	"SLALite/repositories/memrepository"
-	"encoding/json"
 	"os"
 	"testing"
 	"time"
@@ -30,13 +29,17 @@ func TestMain(m *testing.M) {
 }
 
 func TestCallThroughMethods(t *testing.T) {
+	var err error
+
 	r, _ := memrepository.New(nil)
-	v, _ := New(r, true)
+	validater := model.NewDefaultValidator(false, true)
+	v, _ := New(r, validater)
 
 	a, err := readAgreement("testdata/a.json")
 	if err != nil {
 		t.Errorf("Error reading agreement: %v", err)
 	}
+	tpl, err := readTemplate("testdata/t.json")
 
 	v.GetProvider("id")
 	v.GetAllProviders()
@@ -47,18 +50,24 @@ func TestCallThroughMethods(t *testing.T) {
 	v.CreateAgreement(a)
 	v.UpdateAgreement(a)
 	v.UpdateAgreementState(a.Id, model.TERMINATED)
+	v.UpdateAgreementState(a.Id, model.STARTED)
+	v.GetAllTemplates()
+	v.GetTemplate("id")
+	v.CreateTemplate(tpl)
 }
 
 func TestRepositoryWithExternalIds(t *testing.T) {
 	var err error
 	a, _ := readAgreement("testdata/a.json")
+	tpl, _ := readTemplate("testdata/t.json")
 
 	as := map[string]model.Agreement{
 		"id": *a,
 	}
 
 	r := memrepository.NewMemRepository(nil, as, nil, nil, nil)
-	v, _ := New(r, true)
+	validater := model.NewDefaultValidator(true, false)
+	v, _ := New(r, validater)
 
 	p := &model.Provider{Id: "", Name: "Name"}
 	p, err = v.CreateProvider(p)
@@ -123,12 +132,25 @@ func TestRepositoryWithExternalIds(t *testing.T) {
 		return
 	}
 
+	tpl.Id = ""
+	tpl, err = v.CreateTemplate(tpl)
+	if err != nil {
+		t.Errorf("No errors expected. Found %v", err)
+		return
+	}
+	tpl.Id = "id"
+	tpl, err = v.CreateTemplate(tpl)
+	if err == nil {
+		t.Errorf("Errors expected. Found %v", err)
+		return
+	}
 }
 
 func TestRepositoryWithoutExternalIds(t *testing.T) {
 	var err error
 	r, _ := memrepository.New(nil)
-	v, _ := New(r, false)
+	validater := model.NewDefaultValidator(false, true)
+	v, _ := New(r, validater)
 
 	p := &model.Provider{Id: "Id", Name: "Name"}
 	p, err = v.CreateProvider(p)
@@ -181,17 +203,14 @@ func TestRepositoryWithoutExternalIds(t *testing.T) {
 		t.Errorf("Errors expected. Found %v", err)
 		return
 	}
-
 }
 
 func readAgreement(path string) (*model.Agreement, error) {
-	var a model.Agreement
+	a, err := model.ReadAgreement(path)
+	return &a, err
+}
 
-	f, err := os.Open(path)
-	if err != nil {
-		return nil, err
-	}
-	json.NewDecoder(f).Decode(&a)
-	f.Close()
-	return &a, nil
+func readTemplate(path string) (*model.Template, error) {
+	t, err := model.ReadTemplate(path)
+	return &t, err
 }

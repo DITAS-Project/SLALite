@@ -194,8 +194,9 @@ func TestEvaluateAgreement(t *testing.T) {
 	if len(gtev.Violations) != 1 {
 		t.Errorf("Error in number of violations. Expected: 1. Actual: %v. %v", gtev.Violations, invalid)
 	}
+	validater := model.NewDefaultValidator(false, true)
 	for _, v := range gtev.Violations {
-		if errs := v.Validate(); len(errs) != 1 {
+		if errs := v.Validate(validater, model.CREATE); len(errs) != 1 {
 			t.Errorf("Validation error in violation: %v", errs)
 		}
 		if len(v.Values) != 1 {
