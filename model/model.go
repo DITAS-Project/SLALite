@@ -69,7 +69,7 @@ type Identity interface {
 // Validable identifies entities that can be validated
 //
 type Validable interface {
-	Validate(val Validater, mode ValidationMode) []error
+	Validate(val Validator, mode ValidationMode) []error
 }
 
 // State is the type of possible states of an agreement
@@ -117,7 +117,7 @@ func (p *Provider) GetId() string {
 }
 
 // Validate validates the consistency of a Provider entity
-func (p *Provider) Validate(val Validater, mode ValidationMode) []error {
+func (p *Provider) Validate(val Validator, mode ValidationMode) []error {
 	return val.ValidateProvider(p, mode)
 }
 
@@ -131,7 +131,7 @@ func (c *Client) GetId() string {
 }
 
 // Validate validates the consistency of a Client entity
-func (c *Client) Validate(val Validater, mode ValidationMode) []error {
+func (c *Client) Validate(val Validator, mode ValidationMode) []error {
 	return val.ValidateClient(c, mode)
 }
 
@@ -245,7 +245,7 @@ func (t *Template) GetId() string {
 }
 
 // Validate validates the consistency of a Template.
-func (t *Template) Validate(val Validater, mode ValidationMode) []error {
+func (t *Template) Validate(val Validator, mode ValidationMode) []error {
 	return val.ValidateTemplate(t, mode)
 }
 
@@ -275,22 +275,22 @@ func (a *Agreement) IsValidTransition(newState State) bool {
 }
 
 // Validate validates the consistency of an Agreement.
-func (a *Agreement) Validate(val Validater, mode ValidationMode) []error {
+func (a *Agreement) Validate(val Validator, mode ValidationMode) []error {
 	return val.ValidateAgreement(a, mode)
 }
 
 // Validate validates the consistency of an Assessment entity
-func (as *Assessment) Validate(val Validater, mode ValidationMode) []error {
+func (as *Assessment) Validate(val Validator, mode ValidationMode) []error {
 	return val.ValidateAssessment(as, mode)
 }
 
 // Validate validates the consistency of a Details entity
-func (t *Details) Validate(val Validater, mode ValidationMode) []error {
+func (t *Details) Validate(val Validator, mode ValidationMode) []error {
 	return val.ValidateDetails(t, mode)
 }
 
 // Validate validates the consistency of a Guarantee entity
-func (g *Guarantee) Validate(val Validater, mode ValidationMode) []error {
+func (g *Guarantee) Validate(val Validator, mode ValidationMode) []error {
 	return val.ValidateGuarantee(g, mode)
 }
 
@@ -300,7 +300,7 @@ func (v *Violation) GetId() string {
 }
 
 // Validate validates the consistency of a Violation entity
-func (v *Violation) Validate(val Validater, mode ValidationMode) []error {
+func (v *Violation) Validate(val Validator, mode ValidationMode) []error {
 	return val.ValidateViolation(v, mode)
 }
 

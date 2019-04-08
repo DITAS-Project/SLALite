@@ -74,7 +74,7 @@ func main() {
 		log.Fatal("Error creating repository: ", errRepo.Error())
 	}
 
-	validater := model.NewDefaultValidater(false, true)
+	validater := model.NewDefaultValidator(false, true)
 	repo, _ = validation.New(repo, validater)
 	if repo != nil {
 		a, _ := NewApp(config, repo)

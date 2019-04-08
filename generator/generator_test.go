@@ -30,7 +30,7 @@ import (
 
 var tpl, tplIncomplete model.Template
 
-var val = model.NewDefaultValidater(false, true)
+var val = model.NewDefaultValidator(false, true)
 
 func TestMain(m *testing.M) {
 	var err error

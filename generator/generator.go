@@ -132,7 +132,7 @@ An error of type validation is returned if the validation on the generated agree
 fails. An error of type unreplaced is returned if there is a placeholder that is
 not substituted. Use IsErrValidation and IsErrUnreplaced to check type of an error.
 */
-func Do(genmodel *Model, val model.Validater, externalIDs bool) (*model.Agreement, error) {
+func Do(genmodel *Model, val model.Validator, externalIDs bool) (*model.Agreement, error) {
 
 	// marshal template
 	marshalled, err := json.Marshal(genmodel.Template)

@@ -19,11 +19,11 @@ package model
 import "fmt"
 
 /*
-Validater is the interface that contains validate functions for the model entities.
+Validator is the interface that contains validate functions for the model entities.
 
 Each function takes an entities and calls Validate(val) on it
 */
-type Validater interface {
+type Validator interface {
 	ValidateProvider(p *Provider, mode ValidationMode) []error
 	ValidateClient(c *Client, mode ValidationMode) []error
 	ValidateAgreement(a *Agreement, mode ValidationMode) []error
@@ -46,16 +46,16 @@ const (
 )
 
 /*
-DefaultValidater is an implementation of Validater.
+DefaultValidator is an implementation of Validator.
 
 It validates inputs to the system and should cover most of the cases.
 */
-type DefaultValidater struct {
+type DefaultValidator struct {
 	externalIDs bool
 	equalIDs    bool
 }
 
-// NewDefaultValidater returns a default Validater.
+// NewDefaultValidator returns a default Validator.
 //
 // The externalIDs parameter is true when the Id of the entity is set by the repository,
 // and therefore, out of the control of the SLALite; in this case, we cannot enforce that
@@ -63,15 +63,15 @@ type DefaultValidater struct {
 //
 // If externalIDs is false, Id and Details.Id can be forced to be equal passing
 // equalIDs=true. externalIDs is consider false regardless of its value if externalIDs=true
-func NewDefaultValidater(externalIDs bool, equalIDs bool) Validater {
-	return DefaultValidater{
+func NewDefaultValidator(externalIDs bool, equalIDs bool) Validator {
+	return DefaultValidator{
 		externalIDs: externalIDs,
 		equalIDs:    !externalIDs && equalIDs,
 	}
 }
 
-// ValidateProvider implements model.Validater.ValidateProvider
-func (val DefaultValidater) ValidateProvider(p *Provider, mode ValidationMode) []error {
+// ValidateProvider implements model.Validator.ValidateProvider
+func (val DefaultValidator) ValidateProvider(p *Provider, mode ValidationMode) []error {
 	result := make([]error, 0, 2)
 
 	result = checkEmpty(mode == CREATE && val.externalIDs, p.Id, "Provider.Id", result)
@@ -80,8 +80,8 @@ func (val DefaultValidater) ValidateProvider(p *Provider, mode ValidationMode) [
 	return result
 }
 
-// ValidateClient implements model.Validater.ValidateClient
-func (val DefaultValidater) ValidateClient(c *Client, mode ValidationMode) []error {
+// ValidateClient implements model.Validator.ValidateClient
+func (val DefaultValidator) ValidateClient(c *Client, mode ValidationMode) []error {
 	result := make([]error, 0, 2)
 
 	result = checkEmpty(mode == CREATE && val.externalIDs, c.Id, "Client.Id", result)
@@ -90,8 +90,8 @@ func (val DefaultValidater) ValidateClient(c *Client, mode ValidationMode) []err
 	return result
 }
 
-// ValidateTemplate implements model.Validater.ValidateTemplate
-func (val DefaultValidater) ValidateTemplate(t *Template, mode ValidationMode) []error {
+// ValidateTemplate implements model.Validator.ValidateTemplate
+func (val DefaultValidator) ValidateTemplate(t *Template, mode ValidationMode) []error {
 	result := make([]error, 0)
 
 	result = checkEmpty(mode == CREATE && val.externalIDs, t.Id, "Template.Id", result)
@@ -110,8 +110,8 @@ func (val DefaultValidater) ValidateTemplate(t *Template, mode ValidationMode) [
 	return result
 }
 
-// ValidateAgreement implements model.Validater.ValidateAgreement
-func (val DefaultValidater) ValidateAgreement(a *Agreement, mode ValidationMode) []error {
+// ValidateAgreement implements model.Validator.ValidateAgreement
+func (val DefaultValidator) ValidateAgreement(a *Agreement, mode ValidationMode) []error {
 	result := make([]error, 0)
 
 	a.State = normalizeState(a.State)
@@ -132,13 +132,13 @@ func (val DefaultValidater) ValidateAgreement(a *Agreement, mode ValidationMode)
 	return result
 }
 
-// ValidateAssessment implements model.Validater.ValidateAssessment
-func (val DefaultValidater) ValidateAssessment(as *Assessment, mode ValidationMode) []error {
+// ValidateAssessment implements model.Validator.ValidateAssessment
+func (val DefaultValidator) ValidateAssessment(as *Assessment, mode ValidationMode) []error {
 	return []error{}
 }
 
-// ValidateDetails implements model.Validater.ValidateDetails
-func (val DefaultValidater) ValidateDetails(t *Details, mode ValidationMode) []error {
+// ValidateDetails implements model.Validator.ValidateDetails
+func (val DefaultValidator) ValidateDetails(t *Details, mode ValidationMode) []error {
 	result := make([]error, 0)
 	result = checkNotEmpty(t.Id, "Text.Id", result)
 	result = checkNotEmpty(t.Name, "Text.Name", result)
@@ -159,8 +159,8 @@ func (val DefaultValidater) ValidateDetails(t *Details, mode ValidationMode) []e
 	return result
 }
 
-// ValidateViolation implements model.Validater.ValidateViolation
-func (val DefaultValidater) ValidateViolation(v *Violation, mode ValidationMode) []error {
+// ValidateViolation implements model.Validator.ValidateViolation
+func (val DefaultValidator) ValidateViolation(v *Violation, mode ValidationMode) []error {
 	result := make([]error, 0)
 
 	result = checkEmpty(mode == CREATE && val.externalIDs, v.Id, "Violation.Id", result)
@@ -177,8 +177,8 @@ func (val DefaultValidater) ValidateViolation(v *Violation, mode ValidationMode)
 	return result
 }
 
-// ValidateGuarantee implements model.Validater.ValidateGuarantee
-func (val DefaultValidater) ValidateGuarantee(g *Guarantee, mode ValidationMode) []error {
+// ValidateGuarantee implements model.Validator.ValidateGuarantee
+func (val DefaultValidator) ValidateGuarantee(g *Guarantee, mode ValidationMode) []error {
 	result := make([]error, 0)
 	result = checkNotEmpty(g.Name, "Guarantee.Name", result)
 	result = checkNotEmpty(g.Constraint, fmt.Sprintf("Guarantee['%s'].Constraint", g.Name), result)

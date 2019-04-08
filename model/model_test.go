@@ -32,7 +32,7 @@ func TestMain(m *testing.M) {
 
 var pr = Provider{Id: "id", Name: "name"}
 var cl = Client{Id: "id", Name: "name"}
-var val = NewDefaultValidater(false, true)
+var val = NewDefaultValidator(false, true)
 
 func TestProviders(t *testing.T) {
 	p := Provider{Id: "id", Name: "name"}

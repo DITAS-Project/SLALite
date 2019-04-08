@@ -38,7 +38,7 @@ const (
 
 type repository struct {
 	backend model.IRepository
-	val     model.Validater
+	val     model.Validator
 }
 
 type valError struct {
@@ -63,7 +63,7 @@ func (e *valError) IsErrValidation() bool {
 }
 
 // New returns an IRepository that performs validation before calling the actual repository.
-func New(backend model.IRepository, val model.Validater) (model.IRepository, error) {
+func New(backend model.IRepository, val model.Validator) (model.IRepository, error) {
 	return repository{
 		backend: backend,
 		val:     val,
