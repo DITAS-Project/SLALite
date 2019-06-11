@@ -40,8 +40,8 @@ func AssessActiveAgreements(repo model.IRepository, ma monitor.MonitoringAdapter
 	} else {
 		log.Printf("AssessActiveAgreements(). %d agreements to evaluate", len(agreements))
 		for _, agreement := range agreements {
-			ma.Initialize(&agreement)
-			result := AssessAgreement(&agreement, ma, time.Now())
+			adapter := ma.Initialize(&agreement)
+			result := AssessAgreement(&agreement, adapter, time.Now())
 			repo.UpdateAgreement(&agreement)
 			if not != nil {
 				not.NotifyViolations(&agreement, &result)

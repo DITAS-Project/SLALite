@@ -22,6 +22,6 @@ import (
 
 //MonitoringAdapter is an interface which should be implemented per monitoring solution
 type MonitoringAdapter interface {
-	Initialize(a *model.Agreement)
+	Initialize(a *model.Agreement) MonitoringAdapter
 	GetValues(gt model.Guarantee, vars []string) assessment_model.GuaranteeData
 }
