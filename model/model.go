@@ -78,6 +78,9 @@ type State string
 // TextType is the type of possible types a Details type
 type TextType string
 
+// AggregationType is the type of supported variable aggregations
+type AggregationType string
+
 const (
 	// STARTED is the state of an agreement that can be evaluated
 	STARTED State = "started"
@@ -95,6 +98,13 @@ const (
 
 	// TEMPLATE is the text type of a Template text
 	TEMPLATE TextType = "template"
+)
+
+const (
+	// NONE is used when the variable is not aggregated
+	NONE AggregationType = "none"
+	// AVERAGE is used to calculate average of a variable
+	AVERAGE AggregationType = "average"
 )
 
 // States is the list of possible states of an agreement/template
@@ -187,14 +197,32 @@ type Assessment struct {
 // Details is the struct that represents the "contract" signed by the client
 // swagger:model
 type Details struct {
-	Id         string      `json:"id"`
-	Type       TextType    `json:"type"`
-	Name       string      `json:"name"`
-	Provider   Provider    `json:"provider"`
-	Client     Client      `json:"client"`
-	Creation   time.Time   `json:"creation"`
-	Expiration *time.Time  `json:"expiration,omitempty"`
-	Guarantees []Guarantee `json:"guarantees"`
+	Id         string              `json:"id"`
+	Type       TextType            `json:"type"`
+	Name       string              `json:"name"`
+	Provider   Provider            `json:"provider"`
+	Client     Client              `json:"client"`
+	Creation   time.Time           `json:"creation"`
+	Expiration *time.Time          `json:"expiration,omitempty"`
+	Variables  map[string]Variable `json:"variables"`
+	Guarantees []Guarantee         `json:"guarantees"`
+}
+
+// Variable gives additional information about a metric used in a Guarantee constraint
+// swagger:model
+type Variable struct {
+	Metric      string       `json:"metric"`
+	Aggregation *Aggregation `json:"aggregation,omitempty"`
+}
+
+// Aggregation gives aggregation information of a variable.
+// If defined and value is not NONE, the metric must be aggregated
+// in the specified window in seconds.
+// I.e. (average, 3600) means that the average over a period of one hour is calculated.
+// swagger:model
+type Aggregation struct {
+	Type   AggregationType `json:"type"`
+	Window int             `json:"window"`
 }
 
 // Guarantee is the struct that represents an SLO
