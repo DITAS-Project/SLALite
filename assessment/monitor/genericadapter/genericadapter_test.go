@@ -1,6 +1,7 @@
 package genericadapter
 
 import (
+	"SLALite/assessment"
 	"SLALite/model"
 	"SLALite/utils"
 	"os"
@@ -94,6 +95,23 @@ func testAverageWrongInput(t *testing.T, v model.Variable, values []model.Metric
 		t.Errorf("Unexpected values length. Expected: %d; Actual: %d", len(values), len(output))
 		return
 	}
+}
+
+func TestGenericAdapter(t *testing.T) {
+	retriever := Retriever{3}
+	retrieve := retriever.RetrieveFunction()
+
+	ga := GenericAdapter{
+		Retrieve: retrieve,
+		Process:  Aggregate,
+	}
+	a, _ := utils.ReadAgreement("testdata/a.json")
+
+	ma := ga.Initialize(&a)
+	assessment.EvaluateAgreement(&a, ma)
+	/*
+	 * Just tests that nothing breaks
+	 */
 }
 
 func newVar(name string) model.Variable {

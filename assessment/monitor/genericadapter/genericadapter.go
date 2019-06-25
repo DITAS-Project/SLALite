@@ -33,6 +33,7 @@ import (
 	amodel "SLALite/assessment/model"
 	"SLALite/assessment/monitor"
 	"SLALite/model"
+	"math/rand"
 	"time"
 )
 
@@ -114,8 +115,22 @@ func (ga *GenericAdapter) GetValues(gt model.Guarantee,
 	return result
 }
 
+/*
+GetFromForVariable returns the interval start for the query to monitoring.
+
+If the variable is aggregated, it depends on the aggregation window.
+If not, returns defaultFrom (which should be the last time the guarantee term
+was evaluated)
+*/
+func GetFromForVariable(v model.Variable, defaultFrom, to time.Time) time.Time {
+	if v.Aggregation != nil && v.Aggregation.Window != 0 {
+		return to.Add(-time.Duration(v.Aggregation.Window) * time.Second)
+	}
+	return defaultFrom
+}
+
 func buildVarsFromVarnames(a *model.Agreement, names []string) []model.Variable {
-	vars := make([]model.Variable, len(names))
+	vars := make([]model.Variable, 0, len(names))
 	for _, name := range names {
 		v, ok := a.Details.Variables[name]
 		if !ok {
@@ -126,6 +141,39 @@ func buildVarsFromVarnames(a *model.Agreement, names []string) []model.Variable 
 		vars = append(vars, v)
 	}
 	return vars
+}
+
+// Retriever is a simple struct that generates a RetrieveFunction that works similar
+// to the DummyAdapter.
+type Retriever struct {
+	// Size is the number of values that the retrieval returns per metric
+	Size int
+}
+
+// RetrieveFunction returns a Retrieve function.
+func (r *Retriever) RetrieveFunction() Retrieve {
+
+	return func(agreement model.Agreement,
+		vars []model.Variable,
+		from, to time.Time) map[model.Variable][]model.MetricValue {
+
+		result := map[model.Variable][]model.MetricValue{}
+		for _, v := range vars {
+			result[v] = make([]model.MetricValue, 0, r.Size)
+			actualFrom := GetFromForVariable(v, from, to)
+			step := to.Sub(actualFrom) // (r.Size + 1)
+
+			for i := 0; i < r.Size; i++ {
+				m := model.MetricValue{
+					Key:      v.Metric,
+					Value:    rand.Float64(),
+					DateTime: actualFrom.Add(step * time.Duration(i+1)),
+				}
+				result[v] = append(result[v], m)
+			}
+		}
+		return result
+	}
 }
 
 // Identity returns the input

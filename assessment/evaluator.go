@@ -40,8 +40,7 @@ func AssessActiveAgreements(repo model.IRepository, ma monitor.MonitoringAdapter
 	} else {
 		log.Printf("AssessActiveAgreements(). %d agreements to evaluate", len(agreements))
 		for _, agreement := range agreements {
-			adapter := ma.Initialize(&agreement)
-			result := AssessAgreement(&agreement, adapter, time.Now())
+			result := AssessAgreement(&agreement, ma, time.Now())
 			repo.UpdateAgreement(&agreement)
 			if not != nil {
 				not.NotifyViolations(&agreement, &result)
@@ -93,7 +92,7 @@ func AssessAgreement(a *model.Agreement, ma monitor.MonitoringAdapter, now time.
 // (e.g. if the constraint of a guarantee term is of the type "A>B && C>D", the
 // MonitoringAdapter must supply pairs of values).
 func EvaluateAgreement(a *model.Agreement, ma monitor.MonitoringAdapter) (assessment_model.Result, error) {
-	ma.Initialize(a)
+	ma = ma.Initialize(a)
 
 	log.Debugf("EvaluateAgreement(%s)", a.Id)
 	result := make(assessment_model.Result)

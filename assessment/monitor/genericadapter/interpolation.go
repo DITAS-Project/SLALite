@@ -37,9 +37,12 @@ type mountCtx struct {
 	maxlen int
 	// maxdelta is maximum time allowed for metrics to be considered in the same pointset
 	maxdelta float64
+	// sumlens is the sum of the series lengths in values
+	sumlens int
 }
 
-var _INF = time.Unix(1>>62, 0)
+// Be careful if you run the code here after 73069258126-09-25!
+var _INF = time.Unix(1<<61, 0)
 
 /*
 Mount builds the GuaranteeData structure, directly used for agreement assessment,
@@ -84,15 +87,23 @@ func Mount(valuesmap map[model.Variable][]model.MetricValue,
 
 	result := make(amodel.GuaranteeData, 0, ctx.maxlen)
 
-	for !areAllValuesExhausted(ctx.index, ctx.lens) {
+	var step int
+	for step := 0; step < ctx.sumlens && !areAllValuesExhausted(ctx.index, ctx.lens); step++ {
 		nextp := ctx.findNextPoint()
-
 		pointset, ok := ctx.buildNextPointSet(nextp)
 
 		if ok {
 			result = append(result, pointset)
 		}
 	}
+	/*
+	 * The maximum number of pointsets is the sum of all series lengths.
+	 * Above that, we have entered an infinite loop (probably because of wrong input)
+	 */
+	if step == ctx.sumlens {
+		return amodel.GuaranteeData{}
+	}
+
 	return result
 }
 
@@ -103,6 +114,7 @@ func initCtx(valuesmap map[model.Variable][]model.MetricValue,
 	index := make(map[model.Variable]int)
 	lens := make(map[model.Variable]int)
 	max := 0
+	sum := 0
 
 	for v := range valuesmap {
 		// fill index
@@ -114,6 +126,7 @@ func initCtx(valuesmap map[model.Variable][]model.MetricValue,
 		if l > max {
 			max = l
 		}
+		sum += l
 	}
 	ctx := mountCtx{
 		values:   valuesmap,
@@ -122,6 +135,7 @@ func initCtx(valuesmap map[model.Variable][]model.MetricValue,
 		lens:     lens,
 		maxlen:   max,
 		maxdelta: maxdelta,
+		sumlens:  sum,
 	}
 	return ctx
 }
@@ -140,6 +154,7 @@ func (ctx *mountCtx) findNextPoint() model.MetricValue {
 		}
 		point := valuesmap[v][i]
 		t := point.DateTime
+
 		if t.Before(mint) {
 			mint = t
 			result = point

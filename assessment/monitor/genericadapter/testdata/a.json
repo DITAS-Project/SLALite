@@ -1,0 +1,28 @@
+{
+    "id": "id",
+    "name": "Agreement 02",
+    "state": "stopped",
+    "details":{
+        "id": "id",
+        "type": "agreement",
+        "name": "Agreement name",
+        "provider": { "id": "provider-id" },
+        "client": { "id": "client-id" },
+        "creation": "2018-01-16T17:09:45.0Z",
+        "variables": {
+            "availability": {
+                "metric": "availability",
+                "aggregation": {
+                    "type": "average",
+                    "window": 120
+                }
+            }
+        },
+        "guarantees": [
+            {
+                "name": "qos",
+                "constraint": "availability > 0.1 && responsetime > 0.2"
+            }
+        ]
+    }
+}
