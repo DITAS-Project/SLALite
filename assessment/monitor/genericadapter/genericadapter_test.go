@@ -42,6 +42,7 @@ func TestAverage(t *testing.T) {
 		t.Errorf("Unexpected average. Expected: %f; Actual: %f", 1.25, avg)
 	}
 	v := model.Variable{
+		Name:        name,
 		Metric:      name,
 		Aggregation: &Average,
 	}
@@ -116,6 +117,7 @@ func TestGenericAdapter(t *testing.T) {
 
 func newVar(name string) model.Variable {
 	return model.Variable{
+		Name:   name,
 		Metric: name,
 	}
 }

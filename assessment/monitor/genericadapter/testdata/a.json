@@ -9,15 +9,20 @@
         "provider": { "id": "provider-id" },
         "client": { "id": "client-id" },
         "creation": "2018-01-16T17:09:45.0Z",
-        "variables": {
-            "availability": {
-                "metric": "availability",
+        "variables": [
+            {
+                "name": "availability",
+                "metric": "av",
                 "aggregation": {
                     "type": "average",
                     "window": 120
                 }
+            },
+            {
+                "name": "responsetime",
+                "metric": "rt"
             }
-        },
+        ],
         "guarantees": [
             {
                 "name": "qos",

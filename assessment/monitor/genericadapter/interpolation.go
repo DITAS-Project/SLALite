@@ -169,15 +169,14 @@ func (ctx *mountCtx) buildNextPointSet(nextp model.MetricValue) (amodel.Expressi
 
 	for v := range ctx.values {
 		value := ctx.getCurrentValue(v)
-
 		if deltaTimes(nextp, value) <= ctx.maxdelta {
-			data[v.Metric] = value
+			data[v.Name] = value
 			ctx.index[v]++
-			ctx.last[v.Metric] = value
-		} else if _, ok := ctx.last[v.Metric]; !ok {
+			ctx.last[v.Name] = value
+		} else if _, ok := ctx.last[v.Name]; !ok {
 			discard = true
 		} else {
-			data[v.Metric] = ctx.last[v.Metric]
+			data[v.Name] = ctx.last[v.Name]
 		}
 	}
 	return data, !discard
@@ -193,7 +192,10 @@ it returns a empty metric in the infinite future.
 func (ctx *mountCtx) getCurrentValue(v model.Variable) model.MetricValue {
 	i := ctx.index[v]
 	if i == ctx.lens[v] {
-		return model.MetricValue{DateTime: _INF}
+		return model.MetricValue{
+			Key:      v.Name,
+			DateTime: _INF,
+		}
 	}
 	return ctx.values[v][i]
 }

@@ -132,12 +132,8 @@ func GetFromForVariable(v model.Variable, defaultFrom, to time.Time) time.Time {
 func buildVarsFromVarnames(a *model.Agreement, names []string) []model.Variable {
 	vars := make([]model.Variable, 0, len(names))
 	for _, name := range names {
-		v, ok := a.Details.Variables[name]
-		if !ok {
-			v = model.Variable{
-				Metric: name,
-			}
-		}
+		v, _ := a.Details.GetVariable(name)
+
 		vars = append(vars, v)
 	}
 	return vars
@@ -161,11 +157,11 @@ func (r *Retriever) RetrieveFunction() Retrieve {
 		for _, v := range vars {
 			result[v] = make([]model.MetricValue, 0, r.Size)
 			actualFrom := GetFromForVariable(v, from, to)
-			step := to.Sub(actualFrom) // (r.Size + 1)
+			step := time.Duration(int(to.Sub(actualFrom)) / (r.Size + 1))
 
 			for i := 0; i < r.Size; i++ {
 				m := model.MetricValue{
-					Key:      v.Metric,
+					Key:      v.Name,
 					Value:    rand.Float64(),
 					DateTime: actualFrom.Add(step * time.Duration(i+1)),
 				}
@@ -194,7 +190,7 @@ func Aggregate(v model.Variable, values []model.MetricValue) []model.MetricValue
 		avg := average(values)
 		return []model.MetricValue{
 			model.MetricValue{
-				Key:      v.Metric,
+				Key:      v.Name,
 				Value:    avg,
 				DateTime: values[len(values)-1].DateTime,
 			},

@@ -218,6 +218,32 @@ func TestIsValidTransition(t *testing.T) {
 	}
 }
 
+func TestGetVariable(t *testing.T) {
+	a, _ := ReadAgreement("testdata/agreement.json")
+	// No variable section. Should return default value
+	name := "execution_time"
+
+	actual, _ := a.Details.GetVariable(name)
+	expected := Variable{Name: name, Metric: name}
+	if actual != expected {
+		t.Errorf("GetVariable(). Expected: %v; Actual: %v", expected, actual)
+	}
+
+	a, _ = ReadAgreement("testdata/agreement2.json")
+	actual, _ = a.Details.GetVariable(name)
+	expected = Variable{
+		Name:        name,
+		Metric:      "exec_time",
+		Aggregation: &Aggregation{Type: AVERAGE, Window: 3600},
+	}
+	if actual.Name != expected.Name || actual.Metric != expected.Metric {
+		t.Errorf("GetVariable(). Expected: %v; Actual: %v", expected, actual)
+	}
+	if *actual.Aggregation != *expected.Aggregation {
+		t.Errorf("GetVariable(). Expected: %v; Actual: %v", *expected.Aggregation, *actual.Aggregation)
+	}
+}
+
 func TestProviderSerialization(t *testing.T) {
 	var p Provider
 
@@ -267,6 +293,20 @@ func TestAgreementSerialization(t *testing.T) {
 		t.Errorf("State=%s is not STOPPED", a2.State)
 	}
 
+}
+
+func TestVariableOmitted(t *testing.T) {
+	a, _ := ReadAgreement("testdata/agreement.json")
+
+	marshalled, err := json.Marshal(a)
+	if err != nil {
+		/* should not happen */
+		t.Fatalf("Error marshalling agreement")
+	}
+	str := string(marshalled)
+	if strings.Contains(str, "\"variables\"") {
+		t.Errorf("Variables section is not omitted. Marshalled agreement is %s", str)
+	}
 }
 
 func TestViolation(t *testing.T) {

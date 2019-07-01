@@ -197,20 +197,21 @@ type Assessment struct {
 // Details is the struct that represents the "contract" signed by the client
 // swagger:model
 type Details struct {
-	Id         string              `json:"id"`
-	Type       TextType            `json:"type"`
-	Name       string              `json:"name"`
-	Provider   Provider            `json:"provider"`
-	Client     Client              `json:"client"`
-	Creation   time.Time           `json:"creation"`
-	Expiration *time.Time          `json:"expiration,omitempty"`
-	Variables  map[string]Variable `json:"variables"`
-	Guarantees []Guarantee         `json:"guarantees"`
+	Id         string      `json:"id"`
+	Type       TextType    `json:"type"`
+	Name       string      `json:"name"`
+	Provider   Provider    `json:"provider"`
+	Client     Client      `json:"client"`
+	Creation   time.Time   `json:"creation"`
+	Expiration *time.Time  `json:"expiration,omitempty"`
+	Variables  []Variable  `json:"variables,omitempty"`
+	Guarantees []Guarantee `json:"guarantees"`
 }
 
 // Variable gives additional information about a metric used in a Guarantee constraint
 // swagger:model
 type Variable struct {
+	Name        string       `json:"name"`
 	Metric      string       `json:"metric"`
 	Aggregation *Aggregation `json:"aggregation,omitempty"`
 }
@@ -329,6 +330,19 @@ func (as *Assessment) Validate(val Validator, mode ValidationMode) []error {
 // Validate validates the consistency of a Details entity
 func (t *Details) Validate(val Validator, mode ValidationMode) []error {
 	return val.ValidateDetails(t, mode)
+}
+
+// GetVariable returns the variable with name "varname".
+//
+// If not found, it returns a default value for the variable
+// (i.e., Name and Metric equal to varname).
+func (t *Details) GetVariable(varname string) (result Variable, ok bool) {
+	for _, val := range t.Variables {
+		if varname == val.Name {
+			return val, true
+		}
+	}
+	return Variable{Name: varname, Metric: varname}, false
 }
 
 // Validate validates the consistency of a Guarantee entity
