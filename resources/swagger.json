@@ -415,6 +415,27 @@
     }
   },
   "definitions": {
+    "Aggregation": {
+      "description": "If defined and value is not NONE, the metric must be aggregated\nin the specified window in seconds.\nI.e. (average, 3600) means that the average over a period of one hour is calculated.",
+      "type": "object",
+      "title": "Aggregation gives aggregation information of a variable.",
+      "properties": {
+        "type": {
+          "$ref": "#/definitions/AggregationType"
+        },
+        "window": {
+          "type": "integer",
+          "format": "int64",
+          "x-go-name": "Window"
+        }
+      },
+      "x-go-package": "SLALite/model"
+    },
+    "AggregationType": {
+      "description": "AggregationType is the type of supported variable aggregations",
+      "type": "string",
+      "x-go-package": "SLALite/model"
+    },
     "Agreement": {
       "description": "The Text is ReadOnly in normal conditions, with the exception of a renegotiation.\nThe Assessment cannot be modified externally.\nThe Signature is the Text digitally signed by the Client (not used yet)",
       "type": "object",
@@ -476,6 +497,9 @@
           "type": "string",
           "format": "date-time",
           "x-go-name": "LastExecution"
+        },
+        "last_values": {
+          "$ref": "#/definitions/LastValues"
         }
       },
       "x-go-package": "SLALite/model"
@@ -543,6 +567,13 @@
         },
         "type": {
           "$ref": "#/definitions/TextType"
+        },
+        "variables": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Variable"
+          },
+          "x-go-name": "Variables"
         }
       },
       "x-go-package": "SLALite/model"
@@ -580,6 +611,14 @@
         "GetId": {
           "type": "string"
         }
+      },
+      "x-go-package": "SLALite/model"
+    },
+    "LastValues": {
+      "description": "LastValues contain last values of variables in guarantee terms",
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/definitions/MetricValue"
       },
       "x-go-package": "SLALite/model"
     },
@@ -723,6 +762,24 @@
     "Validable": {
       "description": "Validable identifies entities that can be validated",
       "type": "object",
+      "x-go-package": "SLALite/model"
+    },
+    "Variable": {
+      "description": "Variable gives additional information about a metric used in a Guarantee constraint",
+      "type": "object",
+      "properties": {
+        "aggregation": {
+          "$ref": "#/definitions/Aggregation"
+        },
+        "metric": {
+          "type": "string",
+          "x-go-name": "Metric"
+        },
+        "name": {
+          "type": "string",
+          "x-go-name": "Name"
+        }
+      },
       "x-go-package": "SLALite/model"
     },
     "Violation": {

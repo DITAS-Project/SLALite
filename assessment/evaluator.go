@@ -42,7 +42,7 @@ func AssessActiveAgreements(repo model.IRepository, ma monitor.MonitoringAdapter
 		for _, agreement := range agreements {
 			result := AssessAgreement(&agreement, ma, time.Now())
 			repo.UpdateAgreement(&agreement)
-			if not != nil {
+			if not != nil && len(result.Violated) > 0 {
 				not.NotifyViolations(&agreement, &result)
 			}
 		}
@@ -191,12 +191,12 @@ func EvaluateGtViolations(a *model.Agreement, gt model.Guarantee, violated amode
 // or nil if expression was true
 func evaluateExpression(expression *govaluate.EvaluableExpression, values amodel.ExpressionData) (amodel.ExpressionData, error) {
 
-	log.Debugf("Evaluating expression '%v' with values %v", expression, values)
 	evalues := make(map[string]interface{})
 	for key, value := range values {
 		evalues[key] = value.Value
 	}
 	result, err := expression.Evaluate(evalues)
+	log.Debugf("Evaluating expression '%v'=%v with values %v", expression, result, values)
 
 	if err == nil && !result.(bool) {
 		return values, nil

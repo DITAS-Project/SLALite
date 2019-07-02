@@ -38,7 +38,7 @@ import (
 )
 
 /*
-GenericAdapter is the type of a customizable adapter.
+Adapter is the type of a customizable adapter.
 
 The Retrieve field is a function to query data to monitoring;
 the Process field is a function to perform additional processing
@@ -48,7 +48,7 @@ Two Process functions are provided in the package:
 Identity (returns the input) and Aggregation (aggregates values according
 to the aggregation type)
 */
-type GenericAdapter struct {
+type Adapter struct {
 	Retrieve  Retrieve
 	Process   Process
 	agreement *model.Agreement
@@ -61,9 +61,25 @@ type Retrieve func(agreement model.Agreement,
 	v []model.Variable,
 	from, to time.Time) map[model.Variable][]model.MetricValue
 
+// Retriever is the interface of structs that define a RetrieveFunction() function
+// that return a Retrieve() to be used in the generic Adapter.
+//
+// You can pass a Retriever to New() to facilitate the creation of a generic Adapter.
+type Retriever interface {
+	RetrieveFunction() Retrieve
+}
+
 // Process is the type of the function that performs additional custom processing on
 // retrieved data.
 type Process func(v model.Variable, values []model.MetricValue) []model.MetricValue
+
+// New is a helper function to build an Adapter from a Retriever and the Process function.
+func New(retriever Retriever, process Process) monitor.MonitoringAdapter {
+	return &Adapter{
+		Retrieve: retriever.RetrieveFunction(),
+		Process:  process,
+	}
+}
 
 /*
 Initialize implements MonitoringAdapter.Initialize().
@@ -82,14 +98,14 @@ Usage:
 	}
 
 */
-func (ga *GenericAdapter) Initialize(a *model.Agreement) monitor.MonitoringAdapter {
+func (ga *Adapter) Initialize(a *model.Agreement) monitor.MonitoringAdapter {
 	result := *ga
 	result.agreement = a
 	return &result
 }
 
 // GetValues implements Monitoring.GetValues().
-func (ga *GenericAdapter) GetValues(gt model.Guarantee,
+func (ga *Adapter) GetValues(gt model.Guarantee,
 	varnames []string) amodel.GuaranteeData {
 
 	a := ga.agreement
@@ -139,15 +155,18 @@ func buildVarsFromVarnames(a *model.Agreement, names []string) []model.Variable 
 	return vars
 }
 
-// Retriever is a simple struct that generates a RetrieveFunction that works similar
-// to the DummyAdapter.
-type Retriever struct {
+// DummyRetriever is a simple struct that generates a RetrieveFunction that works similar
+// to the DummyAdapter, returning random values for each variable.
+//
+// Usage:
+//   adapter := Adapter { Retrieve: DummyRetriever{3}.RetrieveFunction() }
+type DummyRetriever struct {
 	// Size is the number of values that the retrieval returns per metric
 	Size int
 }
 
 // RetrieveFunction returns a Retrieve function.
-func (r *Retriever) RetrieveFunction() Retrieve {
+func (r DummyRetriever) RetrieveFunction() Retrieve {
 
 	return func(agreement model.Agreement,
 		vars []model.Variable,

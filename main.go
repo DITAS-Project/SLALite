@@ -18,8 +18,9 @@ package main
 import (
 	"SLALite/assessment"
 	"SLALite/assessment/monitor"
-	"SLALite/assessment/monitor/dummyadapter"
+	"SLALite/assessment/monitor/genericadapter"
 	"SLALite/assessment/notifier"
+	"SLALite/assessment/notifier/lognotifier"
 	"SLALite/model"
 	"SLALite/repositories/memrepository"
 	"SLALite/repositories/mongodb"
@@ -75,10 +76,14 @@ func main() {
 	}
 
 	validater := model.NewDefaultValidator(config.GetBool(utils.ExternalIDsPropertyName), true)
+	adapter := genericadapter.New(
+		genericadapter.DummyRetriever{Size: 3},
+		genericadapter.Identity)
+	notifier := lognotifier.LogNotifier{}
 	repo, _ = validation.New(repo, validater)
 	if repo != nil {
 		a, _ := NewApp(config, repo, validater)
-		go createValidationThread(repo, dummyadapter.New(1), nil, checkPeriod)
+		go createValidationThread(repo, adapter, notifier, checkPeriod)
 		a.Run()
 	}
 }

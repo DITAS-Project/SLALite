@@ -99,10 +99,10 @@ func testAverageWrongInput(t *testing.T, v model.Variable, values []model.Metric
 }
 
 func TestGenericAdapter(t *testing.T) {
-	retriever := Retriever{3}
+	retriever := DummyRetriever{3}
 	retrieve := retriever.RetrieveFunction()
 
-	ga := GenericAdapter{
+	ga := Adapter{
 		Retrieve: retrieve,
 		Process:  Aggregate,
 	}
