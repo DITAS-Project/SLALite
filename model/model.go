@@ -192,7 +192,14 @@ type Agreement struct {
 type Assessment struct {
 	FirstExecution time.Time `json:"first_execution"`
 	LastExecution  time.Time `json:"last_execution"`
+	// LastValues may be nil. Use Assessment.SetLastValue to create if needed.
+	LastValues LastValues `json:"last_values,omitempty"`
 }
+
+// LastValues contain last values of variables in guarantee terms
+//
+// swagger:model
+type LastValues map[string]MetricValue
 
 // Details is the struct that represents the "contract" signed by the client
 // swagger:model
@@ -325,6 +332,14 @@ func (a *Agreement) Validate(val Validator, mode ValidationMode) []error {
 // Validate validates the consistency of an Assessment entity
 func (as *Assessment) Validate(val Validator, mode ValidationMode) []error {
 	return val.ValidateAssessment(as, mode)
+}
+
+// SetLastValue is a helper function to set the last value of a variable
+func (as *Assessment) SetLastValue(variable string, value MetricValue) {
+	if as.LastValues == nil {
+		as.LastValues = LastValues{}
+	}
+	as.LastValues[variable] = value
 }
 
 // Validate validates the consistency of a Details entity

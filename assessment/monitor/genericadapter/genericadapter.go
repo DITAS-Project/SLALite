@@ -111,7 +111,7 @@ func (ga *GenericAdapter) GetValues(gt model.Guarantee,
 	for v := range unprocessed {
 		valuesmap[v] = ga.Process(v, unprocessed[v])
 	}
-	result := Mount(valuesmap, map[string]model.MetricValue{}, 0.1)
+	result := Mount(valuesmap, a.Assessment.LastValues, 0.1)
 	return result
 }
 

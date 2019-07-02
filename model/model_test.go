@@ -309,6 +309,32 @@ func TestVariableOmitted(t *testing.T) {
 	}
 }
 
+func TestSerializeLastValues(t *testing.T) {
+	a, _ := ReadAgreement("testdata/agreement.json")
+
+	marshalled, err := json.Marshal(a)
+	if err != nil {
+		/* should not happen */
+		t.Fatalf("Error marshalling agreement")
+	}
+	str := string(marshalled)
+	if strings.Contains(str, "\"last_values\"") {
+		t.Errorf("Lastvalues section is not omitted. Marshalled agreement is %s", str)
+	}
+
+	a.Assessment.SetLastValue("execution_time", MetricValue{
+		Key:      "execution_time",
+		Value:    0.575,
+		DateTime: time.Now(),
+	})
+	marshalled, err = json.Marshal(a)
+	str = string(marshalled)
+	if !strings.Contains(str, "\"last_values\"") {
+		t.Errorf("Lastvalues section is omitted. Marshalled agreement is %s", str)
+	}
+	fmt.Printf("%s", str)
+}
+
 func TestViolation(t *testing.T) {
 	var v = Violation{}
 	checkNumber(t, &v, 6)

@@ -111,6 +111,9 @@ func initCtx(valuesmap map[model.Variable][]model.MetricValue,
 	lastvalues map[string]model.MetricValue,
 	maxdelta float64) mountCtx {
 
+	if lastvalues == nil {
+		lastvalues = model.LastValues{}
+	}
 	index := make(map[model.Variable]int)
 	lens := make(map[model.Variable]int)
 	max := 0
