@@ -58,7 +58,7 @@ func (ma *monitoringAdapter) Initialize(a *model.Agreement) monitor.MonitoringAd
 	return &result
 }
 
-func (ma *monitoringAdapter) GetValues(gt model.Guarantee, vars []string) assessment_model.GuaranteeData {
+func (ma *monitoringAdapter) GetValues(gt model.Guarantee, vars []string, now time.Time) assessment_model.GuaranteeData {
 	result := make(assessment_model.GuaranteeData, ma.size)
 	for i := 0; i < ma.size; i++ {
 		val := make(assessment_model.ExpressionData)

@@ -322,11 +322,18 @@ func TestSerializeLastValues(t *testing.T) {
 		t.Errorf("Lastvalues section is not omitted. Marshalled agreement is %s", str)
 	}
 
-	a.Assessment.SetLastValue("execution_time", MetricValue{
-		Key:      "execution_time",
-		Value:    0.575,
-		DateTime: time.Now(),
-	})
+	ag := AssessmentGuarantee{
+		FirstExecution: time.Now(),
+		LastExecution:  time.Now(),
+		LastValues: LastValues{
+			"execution_time": MetricValue{
+				Key:      "execution_time",
+				Value:    0.575,
+				DateTime: time.Now(),
+			},
+		},
+	}
+	a.Assessment.SetGuarantee("gt1", ag)
 	marshalled, err = json.Marshal(a)
 	str = string(marshalled)
 	if !strings.Contains(str, "\"last_values\"") {

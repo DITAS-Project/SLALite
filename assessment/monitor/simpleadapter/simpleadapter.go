@@ -33,6 +33,7 @@ import (
 	assessment_model "SLALite/assessment/model"
 	"SLALite/assessment/monitor"
 	"SLALite/model"
+	"time"
 )
 
 // ArrayMonitoringAdapter implements MonitoringAdapter
@@ -58,6 +59,6 @@ func (ma *ArrayMonitoringAdapter) Initialize(a *model.Agreement) monitor.Monitor
 }
 
 // GetValues implements monitor.MonitoringAdapter.GetValues
-func (ma *ArrayMonitoringAdapter) GetValues(gt model.Guarantee, vars []string) assessment_model.GuaranteeData {
+func (ma *ArrayMonitoringAdapter) GetValues(gt model.Guarantee, vars []string, now time.Time) assessment_model.GuaranteeData {
 	return ma.values
 }

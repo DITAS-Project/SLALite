@@ -19,6 +19,7 @@ package model
 
 import (
 	"SLALite/model"
+	"time"
 )
 
 // ExpressionData represents the set of values needed to evaluate an expression at a single time
@@ -38,8 +39,9 @@ type EvaluationGtResult struct {
 
 // Result is the result of the agreement assessment
 type Result struct {
-	Violated   map[string]EvaluationGtResult // terms that were violated
-	LastValues map[string]ExpressionData     // last value of variables in the term
+	Violated      map[string]EvaluationGtResult // terms that were violated
+	LastValues    map[string]ExpressionData     // last value of variables in the term
+	LastExecution map[string]time.Time          // last execution of a guarantee
 }
 
 // GetViolations return the violations contained in a Result

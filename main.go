@@ -77,7 +77,7 @@ func main() {
 
 	validater := model.NewDefaultValidator(config.GetBool(utils.ExternalIDsPropertyName), true)
 	adapter := genericadapter.New(
-		genericadapter.DummyRetriever{Size: 3},
+		genericadapter.DummyRetriever{Size: 3}.Retrieve(),
 		genericadapter.Identity)
 	notifier := lognotifier.LogNotifier{}
 	repo, _ = validation.New(repo, validater)

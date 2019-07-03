@@ -30,6 +30,7 @@ Usage:
 package genericadapter
 
 import (
+	"SLALite/assessment"
 	amodel "SLALite/assessment/model"
 	"SLALite/assessment/monitor"
 	"SLALite/model"
@@ -58,25 +59,16 @@ type Adapter struct {
 //
 // It receives the list of variables to be able to retrieve all of them at once if possible.
 type Retrieve func(agreement model.Agreement,
-	v []model.Variable,
-	from, to time.Time) map[model.Variable][]model.MetricValue
-
-// Retriever is the interface of structs that define a RetrieveFunction() function
-// that return a Retrieve() to be used in the generic Adapter.
-//
-// You can pass a Retriever to New() to facilitate the creation of a generic Adapter.
-type Retriever interface {
-	RetrieveFunction() Retrieve
-}
+	items []monitor.RetrievalItem) map[model.Variable][]model.MetricValue
 
 // Process is the type of the function that performs additional custom processing on
 // retrieved data.
 type Process func(v model.Variable, values []model.MetricValue) []model.MetricValue
 
 // New is a helper function to build an Adapter from a Retriever and the Process function.
-func New(retriever Retriever, process Process) monitor.MonitoringAdapter {
+func New(retrieve Retrieve, process Process) monitor.MonitoringAdapter {
 	return &Adapter{
-		Retrieve: retriever.RetrieveFunction(),
+		Retrieve: retrieve,
 		Process:  process,
 	}
 }
@@ -106,53 +98,36 @@ func (ga *Adapter) Initialize(a *model.Agreement) monitor.MonitoringAdapter {
 
 // GetValues implements Monitoring.GetValues().
 func (ga *Adapter) GetValues(gt model.Guarantee,
-	varnames []string) amodel.GuaranteeData {
+	varnames []string,
+	now time.Time) amodel.GuaranteeData {
 
 	a := ga.agreement
-	now := time.Now()
 
-	var from time.Time
-	if a.Assessment.LastExecution.IsZero() {
-		from = a.Details.Creation
-	} else {
-		from = a.Assessment.LastExecution
-	}
-
-	vars := buildVarsFromVarnames(a, varnames)
-
-	unprocessed := ga.Retrieve(*a, vars, from, now)
+	items := assessment.BuildRetrievalItems(a, gt, varnames, now)
+	unprocessed := ga.Retrieve(*a, items)
 
 	/* process each of the series*/
 	valuesmap := map[model.Variable][]model.MetricValue{}
 	for v := range unprocessed {
 		valuesmap[v] = ga.Process(v, unprocessed[v])
 	}
-	result := Mount(valuesmap, a.Assessment.LastValues, 0.1)
+	result := Mount(valuesmap, lastvalues(a, gt), 0.1)
 	return result
 }
 
-/*
-GetFromForVariable returns the interval start for the query to monitoring.
-
-If the variable is aggregated, it depends on the aggregation window.
-If not, returns defaultFrom (which should be the last time the guarantee term
-was evaluated)
-*/
-func GetFromForVariable(v model.Variable, defaultFrom, to time.Time) time.Time {
-	if v.Aggregation != nil && v.Aggregation.Window != 0 {
-		return to.Add(-time.Duration(v.Aggregation.Window) * time.Second)
+func lastvalues(a *model.Agreement, gt model.Guarantee) model.LastValues {
+	empty := model.LastValues{}
+	if a.Assessment.Guarantees == nil {
+		return empty
 	}
-	return defaultFrom
-}
-
-func buildVarsFromVarnames(a *model.Agreement, names []string) []model.Variable {
-	vars := make([]model.Variable, 0, len(names))
-	for _, name := range names {
-		v, _ := a.Details.GetVariable(name)
-
-		vars = append(vars, v)
+	ag, ok := a.Assessment.Guarantees[gt.Name]
+	if !ok {
+		return empty
 	}
-	return vars
+	if ag.LastValues == nil {
+		return empty
+	}
+	return ag.LastValues
 }
 
 // DummyRetriever is a simple struct that generates a RetrieveFunction that works similar
@@ -165,17 +140,18 @@ type DummyRetriever struct {
 	Size int
 }
 
-// RetrieveFunction returns a Retrieve function.
-func (r DummyRetriever) RetrieveFunction() Retrieve {
+// Retrieve returns a Retrieve function.
+func (r DummyRetriever) Retrieve() Retrieve {
 
 	return func(agreement model.Agreement,
-		vars []model.Variable,
-		from, to time.Time) map[model.Variable][]model.MetricValue {
+		items []monitor.RetrievalItem) map[model.Variable][]model.MetricValue {
 
 		result := map[model.Variable][]model.MetricValue{}
-		for _, v := range vars {
+		for _, item := range items {
+			v := item.Var
+			actualFrom := item.From
+			to := item.To
 			result[v] = make([]model.MetricValue, 0, r.Size)
-			actualFrom := GetFromForVariable(v, from, to)
 			step := time.Duration(int(to.Sub(actualFrom)) / (r.Size + 1))
 
 			for i := 0; i < r.Size; i++ {

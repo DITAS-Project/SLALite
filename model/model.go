@@ -192,8 +192,17 @@ type Agreement struct {
 type Assessment struct {
 	FirstExecution time.Time `json:"first_execution"`
 	LastExecution  time.Time `json:"last_execution"`
-	// LastValues may be nil. Use Assessment.SetLastValue to create if needed.
-	LastValues LastValues `json:"last_values,omitempty"`
+	// Guarantees may be nil. Use Assessment.SetGuarantee to create if needed.
+	Guarantees map[string]AssessmentGuarantee `json:"guarantees,omitempty"`
+}
+
+// AssessmentGuarantee contain the assessment information for a guarantee term
+//
+// swagger:model
+type AssessmentGuarantee struct {
+	FirstExecution time.Time  `json:"first_execution"`
+	LastExecution  time.Time  `json:"last_execution"`
+	LastValues     LastValues `json:"last_values,omitempty"`
 }
 
 // LastValues contain last values of variables in guarantee terms
@@ -237,10 +246,18 @@ type Aggregation struct {
 // swagger:model
 type Guarantee struct {
 	Name       string       `json:"name"`
+	Scope      Scope        `json:"scope,omitempty"`
 	Constraint string       `json:"constraint"`
-	Warning    string       `json:"warning"`
-	Penalties  []PenaltyDef `json:"penalties"`
+	Schedule   Schedule     `json:"schedule,omitempty"`
+	Warning    string       `json:"warning,omitempty"`
+	Penalties  []PenaltyDef `json:"penalties,omitempty"`
 }
+
+// Scope is the resources a guarantee term applies on
+type Scope string
+
+// Schedule is the frequency a guarantee term is evaluated
+type Schedule string
 
 // PenaltyDef is the struct that represents a penalty in case of an SLO violation
 // swagger:model
@@ -334,12 +351,28 @@ func (as *Assessment) Validate(val Validator, mode ValidationMode) []error {
 	return val.ValidateAssessment(as, mode)
 }
 
-// SetLastValue is a helper function to set the last value of a variable
-func (as *Assessment) SetLastValue(variable string, value MetricValue) {
-	if as.LastValues == nil {
-		as.LastValues = LastValues{}
+// SetGuarantee is a helper function to set the assessment info of a guarantee term
+func (as *Assessment) SetGuarantee(name string, value AssessmentGuarantee) {
+	if as.Guarantees == nil {
+		as.Guarantees = make(map[string]AssessmentGuarantee)
 	}
-	as.LastValues[variable] = value
+	as.Guarantees[name] = value
+}
+
+// GetGuarantee is a helper to return the assessment info of a guarantee term.
+//
+// If empty, it returns a zero AssessmentGuarantee
+func (as *Assessment) GetGuarantee(name string) AssessmentGuarantee {
+	zero := AssessmentGuarantee{
+		LastValues: LastValues{},
+	}
+	if as.Guarantees == nil {
+		return zero
+	}
+	if _, ok := as.Guarantees[name]; !ok {
+		return zero
+	}
+	return as.Guarantees[name]
 }
 
 // Validate validates the consistency of a Details entity
