@@ -74,10 +74,6 @@ type Timeline struct {
 // Ex:
 //     t.T(2)
 //     t.T(-1)
-func (t *Timeline) T_(second time.Duration) time.Time {
-	return t.T0.Add(time.Second * second)
-}
-
 func (t *Timeline) T(second float64) time.Time {
 	ms := int(1000 * second)
 	d := time.Duration(ms) * time.Millisecond

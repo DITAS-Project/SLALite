@@ -21,7 +21,7 @@ import (
 	assessment_model "SLALite/assessment/model"
 	"SLALite/model"
 
-	"github.com/labstack/gommon/log"
+	log "github.com/sirupsen/logrus"
 )
 
 // LogNotifier logs violations

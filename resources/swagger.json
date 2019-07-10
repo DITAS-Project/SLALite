@@ -493,6 +493,31 @@
           "format": "date-time",
           "x-go-name": "FirstExecution"
         },
+        "guarantees": {
+          "description": "Guarantees may be nil. Use Assessment.SetGuarantee to create if needed.",
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/AssessmentGuarantee"
+          },
+          "x-go-name": "Guarantees"
+        },
+        "last_execution": {
+          "type": "string",
+          "format": "date-time",
+          "x-go-name": "LastExecution"
+        }
+      },
+      "x-go-package": "SLALite/model"
+    },
+    "AssessmentGuarantee": {
+      "description": "AssessmentGuarantee contain the assessment information for a guarantee term",
+      "type": "object",
+      "properties": {
+        "first_execution": {
+          "type": "string",
+          "format": "date-time",
+          "x-go-name": "FirstExecution"
+        },
         "last_execution": {
           "type": "string",
           "format": "date-time",
@@ -596,6 +621,12 @@
             "$ref": "#/definitions/PenaltyDef"
           },
           "x-go-name": "Penalties"
+        },
+        "schedule": {
+          "$ref": "#/definitions/Schedule"
+        },
+        "scope": {
+          "$ref": "#/definitions/Scope"
         },
         "warning": {
           "type": "string",
@@ -713,6 +744,16 @@
       "items": {
         "$ref": "#/definitions/Provider"
       },
+      "x-go-package": "SLALite/model"
+    },
+    "Schedule": {
+      "description": "Schedule is the frequency a guarantee term is evaluated",
+      "type": "string",
+      "x-go-package": "SLALite/model"
+    },
+    "Scope": {
+      "description": "Scope is the resources a guarantee term applies on",
+      "type": "string",
       "x-go-package": "SLALite/model"
     },
     "State": {
