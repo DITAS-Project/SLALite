@@ -115,26 +115,30 @@ example, to override the check period, set the env var `SLA_CHECKPERIOD`.
 
 SLALite offers a usual REST API, with an endpoint on /agreements
 
-Add an agreement:
+Add an agreement (agreement below is stopped):
 
-    curl -k -X POST -d @resources/samples/agreement.json https://localhost:8090/agreements
+    curl -k -X POST -d @resources/samples/agreement.json http://localhost:8090/agreements
+
+Change agreement state:
+
+    curl -k http://localhost:8090/agreements/a02 -X PUT -d'{"state":"started"}'
 
 Get agreements:
 
-    curl -k https://localhost:8090/agreements
-    curl -k https://localhost:8090/agreements/a02
+    curl -k http://localhost:8090/agreements
+    curl -k http://localhost:8090/agreements/a02
 
 Add a template:
 
-    curl -k -X POST -d @resources/samples/template.json https://localhost:8090/templates
+    curl -k -X POST -d @resources/samples/template.json http://localhost:8090/templates
 
 Get templates:
 
-    curl -k https://localhost:8090/templates
-    curl -k https://localhost:8090/templates/t01
+    curl -k http://localhost:8090/templates
+    curl -k http://localhost:8090/templates/t01
 
 Create agreement from template:
 
-    curl -k -X POST -d @resources/samples/create-agreement.json https://localhost:8090/create-agreement
+    curl -k -X POST -d @resources/samples/create-agreement.json http://localhost:8090/create-agreement
 
     {"template_id":"t01","agreement_id":"9be511e8-347f-4a40-b784-e80789e4c65b","parameters":{"M":1,"N":100,"agreementname":"An agreement name","client":{"id":"client01","name":"A name of a client"},"provider":{"id":"provider01","name":"A name of a provider"}}}

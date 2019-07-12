@@ -78,6 +78,9 @@ type State string
 // TextType is the type of possible types a Details type
 type TextType string
 
+// AggregationType is the type of supported variable aggregations
+type AggregationType string
+
 const (
 	// STARTED is the state of an agreement that can be evaluated
 	STARTED State = "started"
@@ -95,6 +98,13 @@ const (
 
 	// TEMPLATE is the text type of a Template text
 	TEMPLATE TextType = "template"
+)
+
+const (
+	// NONE is used when the variable is not aggregated
+	NONE AggregationType = "none"
+	// AVERAGE is used to calculate average of a variable
+	AVERAGE AggregationType = "average"
 )
 
 // States is the list of possible states of an agreement/template
@@ -182,7 +192,23 @@ type Agreement struct {
 type Assessment struct {
 	FirstExecution time.Time `json:"first_execution"`
 	LastExecution  time.Time `json:"last_execution"`
+	// Guarantees may be nil. Use Assessment.SetGuarantee to create if needed.
+	Guarantees map[string]AssessmentGuarantee `json:"guarantees,omitempty"`
 }
+
+// AssessmentGuarantee contain the assessment information for a guarantee term
+//
+// swagger:model
+type AssessmentGuarantee struct {
+	FirstExecution time.Time  `json:"first_execution"`
+	LastExecution  time.Time  `json:"last_execution"`
+	LastValues     LastValues `json:"last_values,omitempty"`
+}
+
+// LastValues contain last values of variables in guarantee terms
+//
+// swagger:model
+type LastValues map[string]MetricValue
 
 // Details is the struct that represents the "contract" signed by the client
 // swagger:model
@@ -194,17 +220,44 @@ type Details struct {
 	Client     Client      `json:"client"`
 	Creation   time.Time   `json:"creation"`
 	Expiration *time.Time  `json:"expiration,omitempty"`
+	Variables  []Variable  `json:"variables,omitempty"`
 	Guarantees []Guarantee `json:"guarantees"`
+}
+
+// Variable gives additional information about a metric used in a Guarantee constraint
+// swagger:model
+type Variable struct {
+	Name        string       `json:"name"`
+	Metric      string       `json:"metric"`
+	Aggregation *Aggregation `json:"aggregation,omitempty"`
+}
+
+// Aggregation gives aggregation information of a variable.
+// If defined and value is not NONE, the metric must be aggregated
+// in the specified window in seconds.
+// I.e. (average, 3600) means that the average over a period of one hour is calculated.
+// swagger:model
+type Aggregation struct {
+	Type   AggregationType `json:"type"`
+	Window int             `json:"window"`
 }
 
 // Guarantee is the struct that represents an SLO
 // swagger:model
 type Guarantee struct {
 	Name       string       `json:"name"`
+	Scope      Scope        `json:"scope,omitempty"`
 	Constraint string       `json:"constraint"`
-	Warning    string       `json:"warning"`
-	Penalties  []PenaltyDef `json:"penalties"`
+	Schedule   Schedule     `json:"schedule,omitempty"`
+	Warning    string       `json:"warning,omitempty"`
+	Penalties  []PenaltyDef `json:"penalties,omitempty"`
 }
+
+// Scope is the resources a guarantee term applies on
+type Scope string
+
+// Schedule is the frequency a guarantee term is evaluated
+type Schedule string
 
 // PenaltyDef is the struct that represents a penalty in case of an SLO violation
 // swagger:model
@@ -298,9 +351,46 @@ func (as *Assessment) Validate(val Validator, mode ValidationMode) []error {
 	return val.ValidateAssessment(as, mode)
 }
 
+// SetGuarantee is a helper function to set the assessment info of a guarantee term
+func (as *Assessment) SetGuarantee(name string, value AssessmentGuarantee) {
+	if as.Guarantees == nil {
+		as.Guarantees = make(map[string]AssessmentGuarantee)
+	}
+	as.Guarantees[name] = value
+}
+
+// GetGuarantee is a helper to return the assessment info of a guarantee term.
+//
+// If empty, it returns a zero AssessmentGuarantee
+func (as *Assessment) GetGuarantee(name string) AssessmentGuarantee {
+	zero := AssessmentGuarantee{
+		LastValues: LastValues{},
+	}
+	if as.Guarantees == nil {
+		return zero
+	}
+	if _, ok := as.Guarantees[name]; !ok {
+		return zero
+	}
+	return as.Guarantees[name]
+}
+
 // Validate validates the consistency of a Details entity
 func (t *Details) Validate(val Validator, mode ValidationMode) []error {
 	return val.ValidateDetails(t, mode)
+}
+
+// GetVariable returns the variable with name "varname".
+//
+// If not found, it returns a default value for the variable
+// (i.e., Name and Metric equal to varname).
+func (t *Details) GetVariable(varname string) (result Variable, ok bool) {
+	for _, val := range t.Variables {
+		if varname == val.Name {
+			return val, true
+		}
+	}
+	return Variable{Name: varname, Metric: varname}, false
 }
 
 // Validate validates the consistency of a Guarantee entity

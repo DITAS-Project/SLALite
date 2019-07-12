@@ -13,6 +13,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
 package dummyadapter
 
 import (
@@ -41,7 +42,7 @@ func TestDummyAdapter(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Invalid expression %s", gt.Constraint)
 	}
-	values := ma.GetValues(gt, exp.Vars())
+	values := ma.GetValues(gt, exp.Vars(), time.Now())
 	if values == nil {
 		t.Fatalf("GetValues(). Expected: []map[string]monitor.MetricValue. Actual: nil")
 	}

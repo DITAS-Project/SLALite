@@ -13,6 +13,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
 package assessment
 
 import (
@@ -43,7 +44,7 @@ var repo = utils.CreateTestRepository()
 func (n ValidationNotifier) NotifyViolations(agreement *model.Agreement, result *assessment_model.Result) {
 	violations, ok := n.Expected[agreement.Id]
 	if ok {
-		checkAssessmentResult(n.T, agreement, *result, model.STARTED, violations)
+		checkAssessmentResult(n.T, agreement, *result, model.STARTED, violations, nil)
 		updated, _ := repo.GetAgreement(agreement.Id)
 		if updated != nil {
 			checkTimes(n.T, agreement, updated.Assessment.FirstExecution, updated.Assessment.LastExecution)
@@ -109,41 +110,68 @@ func TestAssessAgreement(t *testing.T) {
 	ma := simpleadapter.New(values)
 
 	expected := map[string]int{}
+	expectedLast := map[string]model.LastValues{}
 
 	a2.State = model.STOPPED
 	result := AssessAgreement(&a2, ma, t0)
-	checkAssessmentResult(t, &a2, result, model.STOPPED, expected)
+	checkAssessmentResult(t, &a2, result, model.STOPPED, expected, expectedLast)
 
 	a2.State = model.TERMINATED
 	result = AssessAgreement(&a2, ma, t0)
-	checkAssessmentResult(t, &a2, result, model.TERMINATED, expected)
+	checkAssessmentResult(t, &a2, result, model.TERMINATED, expected, expectedLast)
 
 	a2.State = model.STARTED
 	expected["TestGuarantee"] = 1
+	expectedLast = map[string]model.LastValues{
+		"TestGuarantee": model.LastValues{
+			"m": values[1]["m"],
+		},
+	}
 	result = AssessAgreement(&a2, ma, t0)
-	checkAssessmentResult(t, &a2, result, model.STARTED, expected)
+	checkAssessmentResult(t, &a2, result, model.STARTED, expected, expectedLast)
 	checkTimes(t, &a2, t0, t0)
 
 	t1 := t_(1)
 	result = AssessAgreement(&a2, ma, t1)
 	checkTimes(t, &a2, t0, t1)
 
+	// check assessment without values
+	values = assessment_model.GuaranteeData{}
+	ma = simpleadapter.New(values)
+	result = AssessAgreement(&a2, ma, t0)
 }
 
-func checkAssessmentResult(t *testing.T, a *model.Agreement, result assessment_model.Result, expectedState model.State, expectedViolatedGts map[string]int) {
+func checkAssessmentResult(t *testing.T, a *model.Agreement,
+	result assessment_model.Result, expectedState model.State,
+	expectedViolatedGts map[string]int,
+	expectedLast map[string]model.LastValues) {
+
 	if a.State != expectedState {
 		t.Errorf("Agreement in unexpected state. Expected: %v. Actual: %v", expectedState, a.State)
 	}
-	if len(result) != len(expectedViolatedGts) {
-		t.Errorf("Unexpected violated GTs for agreement %s. Expected: %v. Actual:%v", a.Id, len(expectedViolatedGts), len(result))
+	if len(result.Violated) != len(expectedViolatedGts) {
+		t.Errorf("Unexpected violated GTs for agreement %s. Expected: %v. Actual:%v",
+			a.Id, len(expectedViolatedGts), len(result.Violated))
 	}
 	for gt, numViolations := range expectedViolatedGts {
-		gtr, ok := result[gt]
+		gtr, ok := result.Violated[gt]
 		if !ok {
 			t.Errorf("Expected violation or guarantee %s but not found", gt)
 		} else {
 			if len(gtr.Violations) != numViolations {
 				t.Errorf("Violation number differ for guarantee %s. Expected: %v. Actual %v", gt, numViolations, len(gtr.Violations))
+			}
+		}
+	}
+	if expectedLast != nil {
+
+		for gtname := range expectedLast {
+			for _, actual := range a.Assessment.GetGuarantee(gtname).LastValues {
+				expected := expectedLast[gtname][actual.Key]
+				if expected != actual {
+					t.Errorf("Unexpected Assessment.LastValues[%s]. Expected: %v; Actual: %v. Assessment=%v",
+						gtname, expected, actual, a.Assessment)
+				}
 			}
 		}
 	}
@@ -170,8 +198,8 @@ func TestAssessExpiredAgreement(t *testing.T) {
 	if a2.State != model.TERMINATED {
 		t.Errorf("Agreement in unexpected state. Expected: terminated. Actual: %v", a2.State)
 	}
-	if len(result) != 0 {
-		t.Errorf("Unexpected violated GTs. Expected: 0. Actual:%v", len(result))
+	if len(result.Violated) != 0 {
+		t.Errorf("Unexpected violated GTs. Expected: 0. Actual:%v", len(result.Violated))
 	}
 }
 
@@ -181,12 +209,12 @@ func TestEvaluateAgreement(t *testing.T) {
 		{"m": model.MetricValue{Key: "m", Value: -1, DateTime: t_(1)}},
 	}
 	ma := simpleadapter.New(values)
-	invalid, err := EvaluateAgreement(&a1, ma)
+	invalid, err := EvaluateAgreement(&a1, ma, time.Now())
 	if err != nil {
 		t.Errorf("Unexpected error: %v", err)
 	}
 	gt := &a1.Details.Guarantees[0]
-	gtev := invalid[gt.Name]
+	gtev := invalid.Violated[gt.Name]
 	fmt.Printf("%v\n", gtev)
 	if len(gtev.Metrics) != 1 {
 		t.Errorf("Error in number of violated metrics. Expected: 1. Actual: %v. %v", gtev.Metrics, invalid)
@@ -216,7 +244,7 @@ func TestEvaluateAgreementWithWrongValues(t *testing.T) {
 		{"n": model.MetricValue{Key: "n", Value: 1, DateTime: t_(0)}},
 	}
 	ma := simpleadapter.New(values)
-	_, err := EvaluateAgreement(&a1, ma)
+	_, err := EvaluateAgreement(&a1, ma, time.Now())
 	if err == nil {
 		t.Errorf("Expected error evaluating agreement")
 	}
@@ -228,7 +256,7 @@ func TestEvaluateGuarantee(t *testing.T) {
 		{"m": model.MetricValue{Key: "m", Value: -1, DateTime: t_(1)}},
 	}
 	ma := simpleadapter.New(values)
-	invalid, err := EvaluateGuarantee(&a1, a1.Details.Guarantees[0], ma)
+	invalid, last, err := EvaluateGuarantee(&a1, a1.Details.Guarantees[0], ma, time.Now())
 	if err != nil {
 		t.Errorf("Unexpected error: %v", err)
 	}
@@ -240,12 +268,15 @@ func TestEvaluateGuarantee(t *testing.T) {
 	if invalidvalue != -1 {
 		t.Errorf("Wrong invalid metric. Expected: %d. Actual: %v", -1, invalidvalue)
 	}
+	if last["m"] != values[1]["m"] {
+		t.Errorf("Unexpected lastvalues. Expected: %v; Actual: %v", values[1], last)
+	}
 }
 
 func TestEvaluateGuaranteeWithWrongExpression(t *testing.T) {
 	ma := simpleadapter.New(nil)
 	a := createAgreement("a01", p1, c2, "Agreement 01", "wrong expression >= 0")
-	_, err := EvaluateGuarantee(&a, a.Details.Guarantees[0], ma)
+	_, _, err := EvaluateGuarantee(&a, a.Details.Guarantees[0], ma, time.Now())
 	if err == nil {
 		t.Errorf("Expected error evaluating guarantee")
 	}
@@ -256,7 +287,7 @@ func TestEvaluateGuaranteeWithWrongValues(t *testing.T) {
 		{"n": model.MetricValue{Key: "n", Value: 1, DateTime: t_(0)}},
 	}
 	ma := simpleadapter.New(values)
-	_, err := EvaluateGuarantee(&a1, a1.Details.Guarantees[0], ma)
+	_, _, err := EvaluateGuarantee(&a1, a1.Details.Guarantees[0], ma, time.Now())
 	if err == nil {
 		t.Errorf("Expected error evaluating guarantee")
 	}

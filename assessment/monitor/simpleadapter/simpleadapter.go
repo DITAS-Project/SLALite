@@ -13,18 +13,37 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
+/*
+Package simpleadapter provides an example of MonitoringAdapter
+that returns the same data passed on construction
+
+Usage:
+	ma := simpleadapter.New()
+	ma = ma.Initialize(&agreement)
+	for _, gt := range gts {
+		for values := range ma.GetValues(gt, ...) {
+			...
+		}
+	}
+*/
 package simpleadapter
 
 import (
 	assessment_model "SLALite/assessment/model"
+	"SLALite/assessment/monitor"
 	"SLALite/model"
+	"time"
 )
 
+// ArrayMonitoringAdapter implements MonitoringAdapter
 type ArrayMonitoringAdapter struct {
 	agreement *model.Agreement
 	values    assessment_model.GuaranteeData
 }
 
+// New constructs an ArrayMonitoringAdapter that returns the parameter "values" on
+// GetValues() method
 func New(values assessment_model.GuaranteeData) *ArrayMonitoringAdapter {
 	return &ArrayMonitoringAdapter{
 		agreement: nil,
@@ -32,10 +51,14 @@ func New(values assessment_model.GuaranteeData) *ArrayMonitoringAdapter {
 	}
 }
 
-func (ma *ArrayMonitoringAdapter) Initialize(a *model.Agreement) {
-	ma.agreement = a
+// Initialize implements monitor.MonitoringAdapter.Initialize
+func (ma *ArrayMonitoringAdapter) Initialize(a *model.Agreement) monitor.MonitoringAdapter {
+	result := *ma
+	result.agreement = a
+	return &result
 }
 
-func (ma *ArrayMonitoringAdapter) GetValues(gt model.Guarantee, vars []string) assessment_model.GuaranteeData {
+// GetValues implements monitor.MonitoringAdapter.GetValues
+func (ma *ArrayMonitoringAdapter) GetValues(gt model.Guarantee, vars []string, now time.Time) assessment_model.GuaranteeData {
 	return ma.values
 }
