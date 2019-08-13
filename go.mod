@@ -1,0 +1,42 @@
+module SLALite
+
+go 1.12
+
+require (
+	github.com/DITAS-Project/blueprint-go v0.0.0-20180719091809-e85b245a4acc
+	github.com/Knetic/govaluate v3.0.0+incompatible
+	github.com/PuerkitoBio/purell v1.1.0
+	github.com/PuerkitoBio/urlesc v0.0.0-20170810143723-de5bf2ad4578
+	github.com/coreos/bbolt v1.3.0
+	github.com/fsnotify/fsnotify v1.4.7
+	github.com/globalsign/mgo v0.0.0-20180615134936-113d3961e731
+	github.com/go-openapi/jsonpointer v0.0.0-20180322222829-3a0015ad55fa
+	github.com/go-openapi/jsonreference v0.0.0-20180322222742-3fb327e6747d
+	github.com/go-openapi/spec v0.0.0-20180710175419-bce47c9386f9
+	github.com/go-openapi/swag v0.0.0-20180703152219-2b0bd4f193d0
+	github.com/gorilla/context v1.1.1
+	github.com/gorilla/mux v1.6.2
+	github.com/hashicorp/hcl v0.0.0-20180404174102-ef8a98b0bbce
+	github.com/labstack/gommon v0.0.0-20180613044413-d6898124de91
+	github.com/magiconair/properties v1.8.0
+	github.com/mailru/easyjson v0.0.0-20180717111219-efc7eb8984d6
+	github.com/mattn/go-colorable v0.0.9
+	github.com/mattn/go-isatty v0.0.3
+	github.com/mitchellh/mapstructure v0.0.0-20180715050151-f15292f7a699
+	github.com/olivere/elastic v6.1.25+incompatible
+	github.com/pelletier/go-toml v1.2.0
+	github.com/pkg/errors v0.8.0
+	github.com/sirupsen/logrus v1.0.5
+	github.com/spf13/afero v1.1.1
+	github.com/spf13/cast v1.2.0
+	github.com/spf13/jwalterweatherman v0.0.0-20180109140146-7c0cea34c8ec
+	github.com/spf13/pflag v1.0.1
+	github.com/spf13/viper v1.0.2
+	github.com/valyala/bytebufferpool v1.0.0
+	github.com/valyala/fasttemplate v0.0.0-20170224212429-dcecefd839c4
+	golang.org/x/crypto v0.0.0-20180718160520-a2144134853f
+	golang.org/x/net v0.0.0-20180719180050-a680a1efc54d
+	golang.org/x/sys v0.0.0-20180715085529-ac767d655b30
+	golang.org/x/text v0.3.0
+	gopkg.in/yaml.v2 v2.2.1
+)
