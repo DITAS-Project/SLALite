@@ -18,7 +18,7 @@ limitations under the License.
 package assessment
 
 import (
-	assessment_model "SLALite/assessment/model"
+	amodel "SLALite/assessment/model"
 	"SLALite/assessment/monitor"
 	"SLALite/assessment/notifier"
 	"SLALite/model"
@@ -40,10 +40,9 @@ func AssessActiveAgreements(repo model.IRepository, ma monitor.MonitoringAdapter
 	} else {
 		log.Printf("AssessActiveAgreements(). %d agreements to evaluate", len(agreements))
 		for _, agreement := range agreements {
-			ma.Initialize(&agreement)
 			result := AssessAgreement(&agreement, ma, time.Now())
 			repo.UpdateAgreement(&agreement)
-			if not != nil && len(result.GetViolations()) > 0 {
+			if not != nil && len(result.Violated) > 0 {
 				not.NotifyViolations(&agreement, &result)
 			}
 		}
@@ -63,8 +62,8 @@ func AssessActiveAgreements(repo model.IRepository, ma monitor.MonitoringAdapter
 // The function results are not persisted. The output must be persisted/handled accordingly.
 // E.g.: agreement and violations must be persisted to DB. Violations must be notified to
 // observers
-func AssessAgreement(a *model.Agreement, ma monitor.MonitoringAdapter, now time.Time) assessment_model.Result {
-	var result assessment_model.Result
+func AssessAgreement(a *model.Agreement, ma monitor.MonitoringAdapter, now time.Time) amodel.Result {
+	var result amodel.Result
 	var err error
 
 	log.Debugf("AssessAgreement(%s)", a.Id)
@@ -74,17 +73,37 @@ func AssessAgreement(a *model.Agreement, ma monitor.MonitoringAdapter, now time.
 	}
 
 	if a.State == model.STARTED {
-		result, err = EvaluateAgreement(a, ma)
+		result, err = EvaluateAgreement(a, ma, now)
 		if err != nil {
 			log.Warn("Error evaluating agreement " + a.Id + ": " + err.Error())
-			return nil
+			return result
 		}
-		if a.Assessment.FirstExecution.IsZero() {
-			a.Assessment.FirstExecution = now
-		}
-		a.Assessment.LastExecution = now
+		updateAssessment(a, result, now)
 	}
 	return result
+}
+
+func updateAssessment(a *model.Agreement, result amodel.Result, now time.Time) {
+	if a.Assessment.FirstExecution.IsZero() {
+		a.Assessment.FirstExecution = now
+	}
+	a.Assessment.LastExecution = now
+
+	for gtname, last := range result.LastValues {
+		updateAssessmentGuarantee(a, gtname, last, now)
+	}
+}
+
+func updateAssessmentGuarantee(a *model.Agreement, gtname string, last amodel.ExpressionData, now time.Time) {
+	ag := a.Assessment.GetGuarantee(gtname)
+	ag.LastExecution = now
+	if ag.FirstExecution.IsZero() {
+		ag.FirstExecution = now
+	}
+	for _, v := range last {
+		ag.LastValues[v.Key] = v
+	}
+	a.Assessment.SetGuarantee(gtname, ag)
 }
 
 // EvaluateAgreement evaluates the guarantee terms of an agreement. The metric values
@@ -92,35 +111,37 @@ func AssessAgreement(a *model.Agreement, ma monitor.MonitoringAdapter, now time.
 // The MonitoringAdapter must feed the process correctly
 // (e.g. if the constraint of a guarantee term is of the type "A>B && C>D", the
 // MonitoringAdapter must supply pairs of values).
-func EvaluateAgreement(a *model.Agreement, ma monitor.MonitoringAdapter) (assessment_model.Result, error) {
-	ma.Initialize(a)
+func EvaluateAgreement(a *model.Agreement, ma monitor.MonitoringAdapter, now time.Time) (amodel.Result, error) {
+	ma = ma.Initialize(a)
 
-	logger := log.WithField("agreement", a.Id)
-	log.Debug("Evaluating agreement")
-	result := make(assessment_model.Result)
+	log.Debugf("EvaluateAgreement(%s)", a.Id)
+	result := amodel.Result{
+		Violated:      map[string]amodel.EvaluationGtResult{},
+		LastValues:    map[string]amodel.ExpressionData{},
+		LastExecution: map[string]time.Time{},
+	}
 	gts := a.Details.Guarantees
 
 	for _, gt := range gts {
-		logger = logger.WithField("guarantee", gt.Constraint)
-		logger.Debug("Evaluating expression")
-		failed, err := EvaluateGuarantee(a, gt, ma)
+		/*
+		 * TODO Evaluate if gt has to be evaluated according to schedule
+		 */
+		failed, lastvalues, err := EvaluateGuarantee(a, gt, ma, now)
 		if err != nil {
 			log.Warn("Error evaluating expression " + gt.Constraint + ": " + err.Error())
-			return nil, err
+			return amodel.Result{}, err
 		}
 		if len(failed) > 0 {
 			violations := EvaluateGtViolations(a, gt, failed)
-			gtResult := assessment_model.EvaluationGtResult{
+			gtResult := amodel.EvaluationGtResult{
 				Metrics:    failed,
 				Violations: violations,
 			}
-			result[gt.Name] = gtResult
-			logger.Debugf("Found %d violations", len(failed))
-		} else {
-			logger.Debugf("No violations found")
+			result.Violated[gt.Name] = gtResult
 		}
+		result.LastValues[gt.Name] = lastvalues
+		result.LastExecution[gt.Name] = now
 	}
-
 	return result, nil
 }
 
@@ -128,31 +149,39 @@ func EvaluateAgreement(a *model.Agreement, ma monitor.MonitoringAdapter) (assess
 // (see EvaluateAgreement)
 //
 // Returns the metrics that failed the GT constraint.
-func EvaluateGuarantee(a *model.Agreement, gt model.Guarantee, ma monitor.MonitoringAdapter) (assessment_model.GuaranteeData, error) {
+func EvaluateGuarantee(a *model.Agreement,
+	gt model.Guarantee,
+	ma monitor.MonitoringAdapter,
+	now time.Time) (
+	failed []amodel.ExpressionData, last amodel.ExpressionData, err error) {
+
 	log.Debugf("EvaluateGuarantee(%s, %s)", a.Id, gt.Name)
-	failed := make(assessment_model.GuaranteeData, 0, 1)
+	failed = make(amodel.GuaranteeData, 0, 1)
 
 	expression, err := govaluate.NewEvaluableExpression(gt.Constraint)
 	if err != nil {
 		log.Warnf("Error parsing expression '%s'", gt.Constraint)
-		return nil, err
+		return nil, nil, err
 	}
-	values := ma.GetValues(gt, expression.Vars())
+	values := ma.GetValues(gt, expression.Vars(), now)
 	for _, value := range values {
 		aux, err := evaluateExpression(expression, value)
 		if err != nil {
 			log.Warn("Error evaluating expression " + gt.Constraint + ": " + err.Error())
-			return nil, err
+			return nil, nil, err
 		}
 		if aux != nil {
 			failed = append(failed, aux)
 		}
 	}
-	return failed, nil
+	if len(values) > 0 {
+		last = values[len(values)-1]
+	}
+	return failed, last, nil
 }
 
 // EvaluateGtViolations creates violations for the detected violated metrics in EvaluateGuarantee
-func EvaluateGtViolations(a *model.Agreement, gt model.Guarantee, violated assessment_model.GuaranteeData) []model.Violation {
+func EvaluateGtViolations(a *model.Agreement, gt model.Guarantee, violated amodel.GuaranteeData) []model.Violation {
 	gtv := make([]model.Violation, 0, len(violated))
 	for _, tuple := range violated {
 		// build values map and find newer metric
@@ -181,17 +210,65 @@ func EvaluateGtViolations(a *model.Agreement, gt model.Guarantee, violated asses
 //
 // The result is: the values if the expression is false (i.e., the failing values) ,
 // or nil if expression was true
-func evaluateExpression(expression *govaluate.EvaluableExpression, values assessment_model.ExpressionData) (assessment_model.ExpressionData, error) {
+func evaluateExpression(expression *govaluate.EvaluableExpression, values amodel.ExpressionData) (amodel.ExpressionData, error) {
 
-	log.Debugf("Evaluating expression '%v' with values %v", expression, values)
 	evalues := make(map[string]interface{})
 	for key, value := range values {
 		evalues[key] = value.Value
 	}
 	result, err := expression.Evaluate(evalues)
+	log.Debugf("Evaluating expression '%v'=%v with values %v", expression, result, values)
 
 	if err == nil && !result.(bool) {
 		return values, nil
 	}
 	return nil, err
+}
+
+// BuildRetrievalItems returns the RetrievalItems to be passed to an EarlyRetriever.
+func BuildRetrievalItems(a *model.Agreement,
+	gt model.Guarantee,
+	varnames []string,
+	to time.Time) []monitor.RetrievalItem {
+
+	result := make([]monitor.RetrievalItem, 0, len(varnames))
+
+	defaultFrom := getDefaultFrom(a, gt)
+	for _, name := range varnames {
+		v, _ := a.Details.GetVariable(name)
+		from := getFromForVariable(v, defaultFrom, to)
+		item := monitor.RetrievalItem{
+			Guarantee: gt,
+			Var:       v,
+			From:      from,
+			To:        to,
+		}
+		result = append(result, item)
+	}
+	return result
+}
+
+func getDefaultFrom(a *model.Agreement, gt model.Guarantee) time.Time {
+	var defaultFrom = a.Assessment.GetGuarantee(gt.Name).LastExecution
+	if defaultFrom.IsZero() {
+		defaultFrom = a.Assessment.LastExecution
+	}
+	if defaultFrom.IsZero() {
+		defaultFrom = a.Details.Creation
+	}
+	return defaultFrom
+}
+
+/*
+GetFromForVariable returns the interval start for the query to monitoring.
+
+If the variable is aggregated, it depends on the aggregation window.
+If not, returns defaultFrom (which should be the last time the guarantee term
+was evaluated)
+*/
+func getFromForVariable(v model.Variable, defaultFrom, to time.Time) time.Time {
+	if v.Aggregation != nil && v.Aggregation.Window != 0 {
+		return to.Add(-time.Duration(v.Aggregation.Window) * time.Second)
+	}
+	return defaultFrom
 }

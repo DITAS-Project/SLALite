@@ -17,6 +17,8 @@ package model
 
 import (
 	"encoding/json"
+	"errors"
+	"fmt"
 	"os"
 	"reflect"
 	"strings"
@@ -30,6 +32,7 @@ func TestMain(m *testing.M) {
 
 var pr = Provider{Id: "id", Name: "name"}
 var cl = Client{Id: "id", Name: "name"}
+var val = NewDefaultValidator(false, true)
 
 func TestProviders(t *testing.T) {
 	p := Provider{Id: "id", Name: "name"}
@@ -47,6 +50,13 @@ func TestProviders(t *testing.T) {
 
 	p = Provider{Id: "", Name: ""}
 	checkNumber(t, &p, 2)
+}
+
+func TestClient(t *testing.T) {
+	checkNumber(t, &cl, 0)
+	if cl.GetId() != cl.Id {
+		t.Errorf("Provider.Id and Provider.GetId() do not match")
+	}
 }
 
 func TestAssessment(t *testing.T) {
@@ -139,6 +149,30 @@ func TestAgreement(t *testing.T) {
 	checkNumber(t, &a, 1)
 }
 
+func TestTemplate(test *testing.T) {
+	t, err := ReadTemplate("testdata/template.json")
+	if err != nil {
+		test.Error(err)
+	}
+	checkNumber(test, &t, 0)
+
+	t.Id = "does-not-match-details-id"
+	checkNumber(test, &t, 1)
+
+	t.Id = ""
+	t.Details.Id = ""
+	checkNumber(test, &t, 2) // one error per empty id
+
+	t.Id = "id"
+	t.Details.Id = "id"
+	t.Name = ""
+	checkNumber(test, &t, 1)
+
+	t.Name = "name"
+	t.Details.Type = AGREEMENT
+	checkNumber(test, &t, 1)
+}
+
 func TestStates(t *testing.T) {
 	a := Agreement{State: STOPPED}
 	if !a.IsStopped() {
@@ -181,6 +215,32 @@ func TestIsValidTransition(t *testing.T) {
 			t.Errorf("IsValidTransition from %s to %s. Expected: %v. Actual: %v",
 				a.State, transition.new, valid, !valid)
 		}
+	}
+}
+
+func TestGetVariable(t *testing.T) {
+	a, _ := ReadAgreement("testdata/agreement.json")
+	// No variable section. Should return default value
+	name := "execution_time"
+
+	actual, _ := a.Details.GetVariable(name)
+	expected := Variable{Name: name, Metric: name}
+	if actual != expected {
+		t.Errorf("GetVariable(). Expected: %v; Actual: %v", expected, actual)
+	}
+
+	a, _ = ReadAgreement("testdata/agreement2.json")
+	actual, _ = a.Details.GetVariable(name)
+	expected = Variable{
+		Name:        name,
+		Metric:      "exec_time",
+		Aggregation: &Aggregation{Type: AVERAGE, Window: 3600},
+	}
+	if actual.Name != expected.Name || actual.Metric != expected.Metric {
+		t.Errorf("GetVariable(). Expected: %v; Actual: %v", expected, actual)
+	}
+	if *actual.Aggregation != *expected.Aggregation {
+		t.Errorf("GetVariable(). Expected: %v; Actual: %v", *expected.Aggregation, *actual.Aggregation)
 	}
 }
 
@@ -235,9 +295,59 @@ func TestAgreementSerialization(t *testing.T) {
 
 }
 
+func TestVariableOmitted(t *testing.T) {
+	a, _ := ReadAgreement("testdata/agreement.json")
+
+	marshalled, err := json.Marshal(a)
+	if err != nil {
+		/* should not happen */
+		t.Fatalf("Error marshalling agreement")
+	}
+	str := string(marshalled)
+	if strings.Contains(str, "\"variables\"") {
+		t.Errorf("Variables section is not omitted. Marshalled agreement is %s", str)
+	}
+}
+
+func TestSerializeLastValues(t *testing.T) {
+	a, _ := ReadAgreement("testdata/agreement.json")
+
+	marshalled, err := json.Marshal(a)
+	if err != nil {
+		/* should not happen */
+		t.Fatalf("Error marshalling agreement")
+	}
+	str := string(marshalled)
+	if strings.Contains(str, "\"last_values\"") {
+		t.Errorf("Lastvalues section is not omitted. Marshalled agreement is %s", str)
+	}
+
+	ag := AssessmentGuarantee{
+		FirstExecution: time.Now(),
+		LastExecution:  time.Now(),
+		LastValues: LastValues{
+			"execution_time": MetricValue{
+				Key:      "execution_time",
+				Value:    0.575,
+				DateTime: time.Now(),
+			},
+		},
+	}
+	a.Assessment.SetGuarantee("gt1", ag)
+	marshalled, err = json.Marshal(a)
+	str = string(marshalled)
+	if !strings.Contains(str, "\"last_values\"") {
+		t.Errorf("Lastvalues section is omitted. Marshalled agreement is %s", str)
+	}
+	fmt.Printf("%s", str)
+}
+
 func TestViolation(t *testing.T) {
 	var v = Violation{}
 	checkNumber(t, &v, 6)
+	if v.GetId() != v.Id {
+		t.Errorf("Violation.Id and Violation.GetId() do not match")
+	}
 }
 
 func TestViolationSerialization(t *testing.T) {
@@ -257,9 +367,38 @@ func TestViolationSerialization(t *testing.T) {
 	checkNumber(t, &v, 0)
 }
 
-func checkNumber(t *testing.T, v Validable, expected int) {
+type valError string
 
-	if errs := v.Validate(); len(errs) != expected {
-		t.Errorf("Error validating %s%v. Errors = %v", reflect.TypeOf(v), v, errs)
+func (e valError) Error() string {
+	return string(e)
+}
+func (e valError) IsErrValidation() bool {
+	return true
+}
+
+func TestValidationError(t *testing.T) {
+	var e error
+	if e = valError("error"); !IsErrValidation(e) {
+		t.Errorf("Error %v should be a validation error", e)
+	}
+	if e = errors.New("error"); IsErrValidation(e) {
+		t.Errorf("Error %v should not be a validation error", e)
+	}
+}
+
+func TestMetricValue(t *testing.T) {
+	m := MetricValue{
+		DateTime: time.Now(),
+		Key:      "m1",
+		Value:    100,
+	}
+	if s := fmt.Sprintf("%s", m); s == "" {
+		t.Errorf("MetricValue.String() should not be an empty string")
+	}
+}
+
+func checkNumber(t *testing.T, v Validable, expected int) {
+	if errs := v.Validate(val, CREATE); len(errs) != expected {
+		t.Errorf("Error validating %s%v. Errors = %v; Expected: %d", reflect.TypeOf(v), v, errs, expected)
 	}
 }

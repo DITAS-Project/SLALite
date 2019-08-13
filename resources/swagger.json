@@ -196,6 +196,43 @@
         }
       }
     },
+    "/create-agreement": {
+      "post": {
+        "description": "Creates an agreement from a template; templateId is the templateID to base the\nagreement from; agreementID is an output field, containing the ID of the created\nand stored agreement; parameters must contain a property for each placeholder to\nbe substituted in the template.",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "operationId": "createAgreementFromTemplate",
+        "parameters": [
+          {
+            "description": "Parameters to create an agreement from a template",
+            "name": "createAgreement",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/CreateAgreement"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The response contains the ID of the created agreement",
+            "schema": {
+              "$ref": "#/definitions/CreateAgreement"
+            }
+          },
+          "400": {
+            "description": "Not all template placeholders were substituted"
+          },
+          "404": {
+            "description": "Not found the TemplateID to create the agreement from"
+          }
+        }
+      }
+    },
     "/providers": {
       "get": {
         "description": "Returns all registered providers",
@@ -297,9 +334,108 @@
           }
         }
       }
+    },
+    "/templates": {
+      "get": {
+        "description": "Returns all registered templates",
+        "produces": [
+          "application/json"
+        ],
+        "operationId": "getAllTemplates",
+        "responses": {
+          "200": {
+            "description": "The complete list of registered templates",
+            "schema": {
+              "type": "object",
+              "additionalProperties": {
+                "$ref": "#/definitions/Templates"
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "description": "Creates a template with the information passed in the request body",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "operationId": "createTemplate",
+        "parameters": [
+          {
+            "description": "The template to create",
+            "name": "template",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/Template"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The new template that has been created",
+            "schema": {
+              "$ref": "#/definitions/Template"
+            }
+          }
+        }
+      }
+    },
+    "/templates/{id}": {
+      "get": {
+        "description": "Returns a template given its ID",
+        "produces": [
+          "application/json"
+        ],
+        "operationId": "getTemplate",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "The identifier of the template",
+            "name": "id",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The template with the ID",
+            "schema": {
+              "$ref": "#/definitions/Template"
+            }
+          },
+          "404": {
+            "description": "Template not found"
+          }
+        }
+      }
     }
   },
   "definitions": {
+    "Aggregation": {
+      "description": "If defined and value is not NONE, the metric must be aggregated\nin the specified window in seconds.\nI.e. (average, 3600) means that the average over a period of one hour is calculated.",
+      "type": "object",
+      "title": "Aggregation gives aggregation information of a variable.",
+      "properties": {
+        "type": {
+          "$ref": "#/definitions/AggregationType"
+        },
+        "window": {
+          "type": "integer",
+          "format": "int64",
+          "x-go-name": "Window"
+        }
+      },
+      "x-go-package": "SLALite/model"
+    },
+    "AggregationType": {
+      "description": "AggregationType is the type of supported variable aggregations",
+      "type": "string",
+      "x-go-package": "SLALite/model"
+    },
     "Agreement": {
       "description": "The Text is ReadOnly in normal conditions, with the exception of a renegotiation.\nThe Assessment cannot be modified externally.\nThe Signature is the Text digitally signed by the Client (not used yet)",
       "type": "object",
@@ -357,6 +493,14 @@
           "format": "date-time",
           "x-go-name": "FirstExecution"
         },
+        "guarantees": {
+          "description": "Guarantees may be nil. Use Assessment.SetGuarantee to create if needed.",
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/AssessmentGuarantee"
+          },
+          "x-go-name": "Guarantees"
+        },
         "last_execution": {
           "type": "string",
           "format": "date-time",
@@ -365,9 +509,51 @@
       },
       "x-go-package": "SLALite/model"
     },
+    "AssessmentGuarantee": {
+      "description": "AssessmentGuarantee contain the assessment information for a guarantee term",
+      "type": "object",
+      "properties": {
+        "first_execution": {
+          "type": "string",
+          "format": "date-time",
+          "x-go-name": "FirstExecution"
+        },
+        "last_execution": {
+          "type": "string",
+          "format": "date-time",
+          "x-go-name": "LastExecution"
+        },
+        "last_values": {
+          "$ref": "#/definitions/LastValues"
+        }
+      },
+      "x-go-package": "SLALite/model"
+    },
     "Client": {
       "title": "Client is the entity that represents a client.",
       "$ref": "#/definitions/Party"
+    },
+    "CreateAgreement": {
+      "type": "object",
+      "title": "CreateAgreement is the resource used to create an agreement from a template.",
+      "properties": {
+        "agreement_id": {
+          "type": "string",
+          "x-go-name": "AgreementID"
+        },
+        "parameters": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object"
+          },
+          "x-go-name": "Parameters"
+        },
+        "template_id": {
+          "type": "string",
+          "x-go-name": "TemplateID"
+        }
+      },
+      "x-go-package": "SLALite/model"
     },
     "Details": {
       "description": "Details is the struct that represents the \"contract\" signed by the client",
@@ -406,6 +592,13 @@
         },
         "type": {
           "$ref": "#/definitions/TextType"
+        },
+        "variables": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Variable"
+          },
+          "x-go-name": "Variables"
         }
       },
       "x-go-package": "SLALite/model"
@@ -429,6 +622,12 @@
           },
           "x-go-name": "Penalties"
         },
+        "schedule": {
+          "$ref": "#/definitions/Schedule"
+        },
+        "scope": {
+          "$ref": "#/definitions/Scope"
+        },
         "warning": {
           "type": "string",
           "x-go-name": "Warning"
@@ -443,6 +642,14 @@
         "GetId": {
           "type": "string"
         }
+      },
+      "x-go-package": "SLALite/model"
+    },
+    "LastValues": {
+      "description": "LastValues contain last values of variables in guarantee terms",
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/definitions/MetricValue"
       },
       "x-go-package": "SLALite/model"
     },
@@ -539,9 +746,53 @@
       },
       "x-go-package": "SLALite/model"
     },
+    "Schedule": {
+      "description": "Schedule is the frequency a guarantee term is evaluated",
+      "type": "string",
+      "x-go-package": "SLALite/model"
+    },
+    "Scope": {
+      "description": "Scope is the resources a guarantee term applies on",
+      "type": "string",
+      "x-go-package": "SLALite/model"
+    },
     "State": {
       "description": "State is the type of possible states of an agreement",
       "type": "string",
+      "x-go-package": "SLALite/model"
+    },
+    "Template": {
+      "description": "The Details field of the template contains placeholders that are substituted\nwhen generating an agreement from a template (see generator package).\nThe Constraints fields contains constraints that a variable used in a guarantee\nmust satisfy. F.e., if the guarantee expression is \"cpu_usage \u003c {{M}}\", one could\nspecify in Constraints that \"M\" : \"M \u003e= 0 \u0026\u0026 M \u003c= 100\".Template\n\nThe Id and Name are relative to the template itself, and should not match\nthe fields in Details.",
+      "type": "object",
+      "title": "Template is the entity that serves as base to create new agreements",
+      "properties": {
+        "constraints": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "x-go-name": "Constraints"
+        },
+        "details": {
+          "$ref": "#/definitions/Details"
+        },
+        "id": {
+          "type": "string",
+          "x-go-name": "Id"
+        },
+        "name": {
+          "type": "string",
+          "x-go-name": "Name"
+        }
+      },
+      "x-go-package": "SLALite/model"
+    },
+    "Templates": {
+      "description": "Templates is the type of an slice of Template",
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/Template"
+      },
       "x-go-package": "SLALite/model"
     },
     "TextType": {
@@ -552,12 +803,22 @@
     "Validable": {
       "description": "Validable identifies entities that can be validated",
       "type": "object",
+      "x-go-package": "SLALite/model"
+    },
+    "Variable": {
+      "description": "Variable gives additional information about a metric used in a Guarantee constraint",
+      "type": "object",
       "properties": {
-        "Validate": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
+        "aggregation": {
+          "$ref": "#/definitions/Aggregation"
+        },
+        "metric": {
+          "type": "string",
+          "x-go-name": "Metric"
+        },
+        "name": {
+          "type": "string",
+          "x-go-name": "Name"
         }
       },
       "x-go-package": "SLALite/model"

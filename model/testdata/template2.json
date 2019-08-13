@@ -1,0 +1,23 @@
+{
+    "id": "t02",
+    "name": "Template 02",
+    "state": "started",
+    "details":{
+        "id": "t02",
+        "type": "template",
+        "name": "{{.agreementname}}",
+        "provider": { "id": "{{.provider.Id}}", "name": "{{.provider.Name}}" },
+        "client": { "id": "{{.client.Id}}", "name": "{{.client.Name}}" },
+        "creation": "2018-01-16T17:09:45.0Z",
+        "expiration": "2019-01-17T17:09:45.0Z",
+        "guarantees": [
+            {
+                "name": "TestGuarantee",
+                "constraint": "m < {{.M}} && n < {{.N}}"
+            }
+        ],
+        "variables": {
+            "m": { "function": "avg", "period": "10s"}
+        }
+    }
+}
