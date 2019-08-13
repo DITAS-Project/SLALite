@@ -18,7 +18,7 @@ ARG DATE
 RUN CGO_ENABLED=0 GOOS=linux go build -a -o SLALite -ldflags="-X main.version=${VERSION} -X main.date=${DATE}" .
 
 ###
-FROM golang:alpine
+FROM alpine:latest
 WORKDIR /opt/slalite
 COPY --from=builder /go/src/SLALite/SLALite .
 
