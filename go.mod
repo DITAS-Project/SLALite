@@ -14,6 +14,8 @@ require (
 	github.com/go-openapi/jsonreference v0.0.0-20180322222742-3fb327e6747d
 	github.com/go-openapi/spec v0.0.0-20180710175419-bce47c9386f9
 	github.com/go-openapi/swag v0.0.0-20180703152219-2b0bd4f193d0
+	github.com/go-resty/resty/v2 v2.0.0
+	github.com/google/uuid v1.1.1
 	github.com/gorilla/context v1.1.1
 	github.com/gorilla/mux v1.6.2
 	github.com/hashicorp/hcl v0.0.0-20180404174102-ef8a98b0bbce
@@ -34,9 +36,9 @@ require (
 	github.com/spf13/viper v1.0.2
 	github.com/valyala/bytebufferpool v1.0.0
 	github.com/valyala/fasttemplate v0.0.0-20170224212429-dcecefd839c4
-	golang.org/x/crypto v0.0.0-20180718160520-a2144134853f
-	golang.org/x/net v0.0.0-20180719180050-a680a1efc54d
-	golang.org/x/sys v0.0.0-20180715085529-ac767d655b30
+	golang.org/x/crypto v0.0.0-20190308221718-c2843e01d9a2
+	golang.org/x/net v0.0.0-20190628185345-da137c7871d7
+	golang.org/x/sys v0.0.0-20190215142949-d0b11bdaac8a
 	golang.org/x/text v0.3.0
 	gopkg.in/yaml.v2 v2.2.1
 )

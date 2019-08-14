@@ -18,9 +18,7 @@ package main
 import (
 	"SLALite/assessment"
 	"SLALite/assessment/monitor"
-	"SLALite/assessment/monitor/genericadapter"
 	"SLALite/assessment/notifier"
-	"SLALite/assessment/notifier/lognotifier"
 	"SLALite/ditas"
 	"SLALite/model"
 	"SLALite/repositories/memrepository"
@@ -80,9 +78,11 @@ func main() {
 	repo, _ = validation.New(repo, validater)
 	if repo != nil {
 		a, _ := NewApp(config, repo, validater)
-		adapter, notifier := ditas.Configure(repo)
-		go createValidationThread(repo, adapter, notifier, checkPeriod)
-		a.Run()
+		adapter, notifier, err := ditas.Configure(repo)
+		if err == nil {
+			go createValidationThread(repo, adapter, notifier, checkPeriod)
+			a.Run()
+		}
 	}
 }
 

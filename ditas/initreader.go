@@ -20,16 +20,15 @@ package ditas
 
 import (
 	"SLALite/assessment/monitor"
+	"SLALite/assessment/monitor/genericadapter"
 	"SLALite/assessment/notifier"
 	"SLALite/model"
-	"errors"
 	"fmt"
 	"io/ioutil"
-	"net/http"
-	"net/url"
 	"strings"
 
 	"github.com/DITAS-Project/blueprint-go"
+	"github.com/go-resty/resty/v2"
 	"github.com/spf13/viper"
 
 	log "github.com/sirupsen/logrus"
@@ -37,7 +36,7 @@ import (
 
 const (
 	// BlueprintLocation is the location where the DITAS blueprint must be found
-	BlueprintLocation = "/opt/blueprint"
+	BlueprintLocation = "/etc/ditas"
 
 	// BlueprintName is the name of the DITAS blueprint file to read to compose SLAs
 	BlueprintName = "blueprint.json"
@@ -49,9 +48,9 @@ const (
 
 	DS4MUrlDefault = "http://vdm:8080"
 
-	VDCIdPropery          = "vdcId"
-	ElasticSearchProperty = "elasticsearch.url"
-	DS4MUrlProperty       = "ds4m.url"
+	VDCIdPropery             = "vdcId"
+	DataAnalyticsUrlProperty = "data.analytics.url"
+	DS4MUrlProperty          = "ds4m.url"
 )
 
 type MethodInfo struct {
@@ -288,43 +287,19 @@ func sendBlueprintToVDM(logger *log.Entry, ds4mUrl string) error {
 		logger.WithError(err).Error("Error reading")
 		return err
 	}
-
 	rawJSONStr := string(rawJSON)
-	data := url.Values{
-		"ConcreteBlueprint": []string{rawJSONStr},
+	data := map[string]string{
+		"ConcreteBlueprint": rawJSONStr,
 	}
-	logger.Debug("Sending blueprint to DS4M")
-	response, err := http.PostForm(ds4mUrl+"/AddVDC", data)
-
+	_, err = resty.New().R().SetFormData(data).Post(ds4mUrl + "/AddVDC")
 	if err != nil {
 		logger.WithError(err).Error("Error received from DS4M service")
 		return err
 	}
-
-	if response.StatusCode != 200 {
-		logger.Errorf("Received error status code %d", response.StatusCode)
-		body := make([]byte, response.ContentLength)
-		if response.ContentLength > 0 {
-			read, err := response.Body.Read(body)
-
-			if err != nil {
-				logger.WithError(err).Error("Error reading response body")
-				return err
-			}
-
-			if int64(read) < response.ContentLength {
-				msg := fmt.Sprintf("Read %d bytes while expecting %d in response body", read, response.ContentLength)
-				return errors.New(msg)
-			}
-		}
-		msg := fmt.Sprintf("Status error %d sending violations: %s", response.StatusCode, string(body))
-		return errors.New(msg)
-	}
 	return nil
-
 }
 
-func Configure(repo model.IRepository) (monitor.MonitoringAdapter, notifier.ViolationNotifier) {
+func Configure(repo model.IRepository) (monitor.MonitoringAdapter, notifier.ViolationNotifier, error) {
 	config := viper.New()
 
 	config.SetDefault(DS4MUrlProperty, DS4MUrlDefault)
@@ -334,32 +309,32 @@ func Configure(repo model.IRepository) (monitor.MonitoringAdapter, notifier.Viol
 	config.ReadInConfig()
 
 	bp, err := blueprint.ReadBlueprint(BlueprintPath)
+	if err != nil {
+		log.WithError(err).Error("Error reading blueprint")
+		return nil, nil, err
+	}
 
-	if err == nil {
+	logger := log.WithField("blueprint", *bp.InternalStructure.Overview.Name)
 
-		logger := log.WithField("blueprint", *bp.InternalStructure.Overview.Name)
+	logger.Debug("Creating blueptint at VDM")
 
-		logger.Debug("Creating blueptint at VDM")
+	err = sendBlueprintToVDM(logger, config.GetString(DS4MUrlProperty))
 
-		err = sendBlueprintToVDM(logger, config.GetString(DS4MUrlProperty))
+	if err != nil {
+		logger.WithError(err).Error("Error registering blueprint in VDM. Violation notification will have problems")
+	}
 
-		if err != nil {
-			logger.WithError(err).Error("Error registering blueprint in VDM. Violation notification will have problems")
-		}
+	agreements, _ := CreateAgreements(bp)
 
-		agreements, ops := CreateAgreements(bp)
-
-		if agreements != nil {
-			for _, agreement := range agreements {
-				_, err := repo.CreateAgreement(&agreement)
-				if err != nil {
-					log.Errorf("Error creating agreement %s: %s", agreement.Id, err.Error())
-				}
+	if agreements != nil {
+		for _, agreement := range agreements {
+			_, err := repo.CreateAgreement(&agreement)
+			if err != nil {
+				log.Errorf("Error creating agreement %s: %s", agreement.Id, err.Error())
 			}
 		}
-
-		return NewAdapter(config.GetString(ElasticSearchProperty), ops), NewNotifier(config.GetString(VDCIdPropery), config.GetString(DS4MUrlProperty))
 	}
-	log.Errorf("Error reading blueprint: %s", err.Error())
-	return nil, nil
+	da := NewDataAnalyticsAdapter(viper.GetString(DataAnalyticsUrlProperty))
+	adapter := genericadapter.New(da.Retrieve, da.Process)
+	return adapter, NewNotifier(config.GetString(VDCIdPropery), config.GetString(DS4MUrlProperty)), nil
 }

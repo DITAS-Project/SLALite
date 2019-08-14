@@ -21,13 +21,12 @@ package ditas
 import (
 	"SLALite/assessment"
 	assessment_model "SLALite/assessment/model"
+	"SLALite/assessment/monitor/simpleadapter"
 	"SLALite/model"
 	"flag"
 	"os"
 	"testing"
 	"time"
-
-	"github.com/Knetic/govaluate"
 
 	blueprint "github.com/DITAS-Project/blueprint-go"
 )
@@ -40,17 +39,6 @@ var (
 	integrationNotifier = flag.Bool("notifier", false, "run DS4M integration tests")
 	integrationElastic  = flag.Bool("elastic", false, "run ElasticSearch integration tests")
 )
-
-type TestMonitoring struct {
-	Metrics assessment_model.ExpressionData
-}
-
-func (t *TestMonitoring) Initialize(a *model.Agreement) {
-}
-
-func (t *TestMonitoring) GetValues(gt model.Guarantee, vars []string) assessment_model.GuaranteeData {
-	return assessment_model.GuaranteeData{t.Metrics}
-}
 
 var t0 = time.Now()
 var testNotifier = DitasNotifier{
@@ -74,24 +62,35 @@ func TestReader(t *testing.T) {
 		t.Fatalf("Did not get any SLA from the blueprint")
 	}
 
-	for _, sla := range slas {
-		_, ok := methodsInfo[sla.Id]
-		if !ok {
-			t.Fatalf("Can't find method information for SLA %s", sla.Id)
+	if len(slas) > 1 {
+		t.Fatalf("Expected one SLA but found %d", len(slas))
+	}
+
+	sla := slas[0]
+
+	_, ok := methodsInfo[sla.Id]
+	if !ok {
+		t.Fatalf("Can't find method information for SLA %s", sla.Id)
+	}
+
+	if len(sla.Details.Guarantees) != 4 {
+		t.Fatalf("Wrong number of guarantees for SLA %s: expected 4 but found %d", sla.Id, len(sla.Details.Guarantees))
+	}
+
+	for _, guarantee := range sla.Details.Guarantees {
+		var expected string
+		switch guarantee.Name {
+		case "serviceAvailable":
+			expected = "availability >= 90.000000"
+		case "fastProcess":
+			expected = "responseTime <= 2.000000"
+		case "freshData":
+			expected = "timeliness <= 99.000000"
+		case "EnoughData":
+			expected = "volume >= 1200.000000"
 		}
-
-		if !(len(sla.Details.Guarantees) > 0) {
-			t.Fatalf("Guarantees were not generated for SLA %s", sla.Id)
-		}
-
-		for _, guarantee := range sla.Details.Guarantees {
-			if guarantee.Name == "" {
-				t.Fatalf("Empty guarantee name for SLA %s", sla.Id)
-			}
-
-			if guarantee.Constraint == "" {
-				t.Fatalf("Empty constraint for guarantee %s of SLA %s", guarantee.Name, sla.Id)
-			}
+		if guarantee.Constraint != expected {
+			t.Fatalf("Invalid guarantee %s found in SLA %s: Expected %s but found %s", guarantee.Name, sla.Id, expected, guarantee.Constraint)
 		}
 	}
 }
@@ -116,11 +115,11 @@ func TestNotifier(t *testing.T) {
 		"timeliness":   model.MetricValue{Key: "timeliness", Value: 0.5, DateTime: t_(0)},
 	}
 
-	adapter := TestMonitoring{
-		Metrics: m1,
-	}
+	adapter := simpleadapter.New(assessment_model.GuaranteeData{
+		m1,
+	})
 
-	result := assessment.AssessAgreement(&slas[0], &adapter, time.Now())
+	result := assessment.AssessAgreement(&slas[0], adapter, time.Now())
 	testNotifier.NotifyViolations(&slas[0], &result)
 
 	notViolations := testNotifier.Violations
@@ -165,56 +164,6 @@ func TestNotifier(t *testing.T) {
 		t.Errorf("Unexpected number of violations: %d. Expected %d", len(notViolations), 1)
 	}
 
-}
-
-func TestElastic(t *testing.T) {
-	if *integrationElastic {
-		t.Log("Testing elasticsearch integration")
-		bp, err := blueprint.ReadBlueprint("resources/concrete_blueprint_doctor.json")
-
-		if err != nil {
-			t.Fatalf("Error reading blueprint: %s", err.Error())
-		}
-
-		slas, methods := CreateAgreements(bp)
-
-		sla := slas[0]
-
-		monitor := NewAdapter("http://localhost:9200", methods)
-
-		monitor.Initialize(&sla)
-
-		for _, guarantee := range sla.Details.Guarantees {
-			constraint := guarantee.Constraint
-			exp, err := govaluate.NewEvaluableExpression(constraint)
-			if err != nil {
-				t.Fatalf("Invalid constraint %s found: %s", constraint, err.Error())
-			}
-			vars := exp.Vars()
-			values := monitor.GetValues(guarantee, vars)
-
-			if len(values) == 0 {
-				t.Errorf("Can't find values for constraint %s", constraint)
-			}
-
-			for _, metrics := range values {
-				if len(metrics) == 0 {
-					t.Errorf("Found empty metrics map for constraint %s", constraint)
-				}
-				for key, value := range metrics {
-					if !contains(key, vars) {
-						t.Fatalf("Found metric not requested %s", key)
-					}
-					if value.Key != key {
-						t.Fatalf("Found not matching key in map. Expected: %s, found: %s", key, value.Key)
-					}
-				}
-			}
-		}
-
-	} else {
-		t.Log("Skipping elasticsearch integration test")
-	}
 }
 
 func contains(key string, values []string) bool {

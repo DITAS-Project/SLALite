@@ -24,11 +24,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"net/http"
-	"net/url"
 	"strconv"
 
 	"github.com/Knetic/govaluate"
+	"github.com/go-resty/resty/v2"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -41,13 +40,15 @@ type DitasViolation struct {
 type DitasNotifier struct {
 	VDCId      string
 	NotifyUrl  string
+	Client     *resty.Client
 	Violations []DitasViolation
 }
 
 func NewNotifier(vdcId, url string) *DitasNotifier {
 	return &DitasNotifier{
 		VDCId:     vdcId,
-		NotifyUrl: url,
+		NotifyUrl: url + "/NotifyViolation",
+		Client:    resty.New(),
 	}
 }
 
@@ -79,10 +80,10 @@ func evaluate(comparator string, thresholdIf interface{}, valueIf interface{}) (
 	return false, errors.New("Comparator not supported: " + comparator)
 }
 
-func (n *DitasNotifier) filterValues(methodId string, result *assessment_model.Result) {
+func (n *DitasNotifier) filterValues(methodId string, result *assessment_model.Result) []DitasViolation {
 	violations := make([]DitasViolation, 0)
 	violationMap := make(map[string][]model.MetricValue)
-	for _, grResults := range *result {
+	for _, grResults := range result.Violated {
 		for _, violation := range grResults.Violations {
 			valueMap := make(map[string]model.MetricValue)
 
@@ -130,43 +131,26 @@ func (n *DitasNotifier) filterValues(methodId string, result *assessment_model.R
 			Metrics: v,
 		})
 	}
-	n.Violations = violations
+	return violations
 }
 
 func (n *DitasNotifier) NotifyViolations(agreement *model.Agreement, result *assessment_model.Result) {
 	logger := log.WithField("agreement", agreement.Id)
 	logger.Debugf("Notifying %d violations", len(result.GetViolations()))
-	n.filterValues(agreement.Id, result)
 	if n.NotifyUrl != "" {
-		logger.Debugf("Got %d violations after filtering", len(n.Violations))
+		n.Violations = n.filterValues(agreement.Id, result)
 		rawJSON, err := json.Marshal(n.Violations)
-		if err == nil {
-			rawJSONStr := string(rawJSON)
-			data := url.Values{
-				"violations": []string{rawJSONStr},
-			}
-			log.Infof("Sending violations:\n %s\n", rawJSONStr)
-			response, err := http.PostForm(n.NotifyUrl+"/NotifyViolation", data)
-			//response, err := http.Post("http://ds4m/notifyViolation", "application/json", bytes.NewBuffer(rawJson))
-			if err != nil {
-				log.WithError(err).Error("Error sending violations")
-			} else {
-				if response.StatusCode != 200 {
-					body := make([]byte, response.ContentLength)
-					if response.ContentLength > 0 {
-						read, err := response.Body.Read(body)
-
-						if err != nil {
-							log.WithError(err).Error("Error reading response body")
-						}
-
-						if int64(read) < response.ContentLength {
-							log.Errorf("Read %d bytes while expecting %d in response body", read, response.ContentLength)
-						}
-					}
-					log.Errorf("Status error %d sending violations: %s", response.StatusCode, string(body))
-				}
-			}
+		if err != nil {
+			logger.WithError(err).Errorf("Error marshaling violations of agreement %s", agreement.Id)
+			return
+		}
+		data := map[string]string{
+			"violations": string(rawJSON),
+		}
+		logger.Debugf("Got %d violations after filtering", len(n.Violations))
+		_, err = n.Client.R().SetFormData(data).Post(n.NotifyUrl)
+		if err != nil {
+			log.WithError(err).Errorf("Error notifying violations of SLA %s", agreement.Id)
 		}
 	}
 }
