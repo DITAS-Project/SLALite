@@ -334,7 +334,7 @@ func Configure(repo model.IRepository) (monitor.MonitoringAdapter, notifier.Viol
 			}
 		}
 	}
-	da := NewDataAnalyticsAdapter(viper.GetString(DataAnalyticsUrlProperty))
+	da := NewDataAnalyticsAdapter(viper.GetString(DataAnalyticsUrlProperty), viper.GetString(VDCIdPropery))
 	adapter := genericadapter.New(da.Retrieve, da.Process)
 	return adapter, NewNotifier(config.GetString(VDCIdPropery), config.GetString(DS4MUrlProperty)), nil
 }

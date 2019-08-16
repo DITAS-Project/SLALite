@@ -21,14 +21,19 @@ package ditas
 import (
 	"SLALite/assessment"
 	assessment_model "SLALite/assessment/model"
+	"SLALite/assessment/monitor"
 	"SLALite/assessment/monitor/simpleadapter"
 	"SLALite/model"
 	"flag"
+	"fmt"
+	"math/rand"
+	"net/http"
 	"os"
 	"testing"
 	"time"
 
 	blueprint "github.com/DITAS-Project/blueprint-go"
+	"github.com/jarcoal/httpmock"
 )
 
 const (
@@ -91,6 +96,119 @@ func TestReader(t *testing.T) {
 		}
 		if guarantee.Constraint != expected {
 			t.Fatalf("Invalid guarantee %s found in SLA %s: Expected %s but found %s", guarantee.Name, sla.Id, expected, guarantee.Constraint)
+		}
+	}
+}
+
+func getRamdomTestData(sla model.Agreement, ranges map[string]struct {
+	Min float64
+	Max float64
+}, from time.Time) (map[string][]model.MetricValue, time.Time, error) {
+	result := make(map[string][]model.MetricValue)
+	currentTime := from
+	for _, variable := range sla.Details.Variables {
+		values := make([]model.MetricValue, 10)
+		currentRange, ok := ranges[variable.Metric]
+		if !ok {
+			return result, currentTime, fmt.Errorf("Can't find range for variable %s", variable.Metric)
+		}
+		if currentRange.Min > currentRange.Max {
+			return result, currentTime, fmt.Errorf("Invalid range for variable %s: Min %f is greater than max %f", variable.Metric, currentRange.Min, currentRange.Max)
+		}
+		max := currentRange.Max - currentRange.Min
+		for i := range values {
+			currentTime := currentTime.Add(time.Minute * time.Duration(1))
+			values[i] = model.MetricValue{
+				Key:      variable.Metric,
+				Value:    currentRange.Min + (rand.Float64() * max),
+				DateTime: currentTime,
+			}
+		}
+	}
+	return result, currentTime, nil
+}
+
+func getMonitoringItems(sla model.Agreement, from time.Time, to time.Time) []monitor.RetrievalItem {
+	vars := sla.Details.Variables
+	result := make([]monitor.RetrievalItem, len(vars))
+	for i, variable := range vars {
+		result[i] = monitor.RetrievalItem{
+			From: from,
+			To:   to,
+			Var:  variable,
+		}
+	}
+	return result
+}
+
+func TestDitasMonitoringAdapter(t *testing.T) {
+	vdcID := "vdc1"
+	bp, err := blueprint.ReadBlueprint("resources/concrete_blueprint_doctor.json")
+	if err != nil {
+		t.Fatalf("Error reading blueprint: %s", err.Error())
+	}
+
+	slas, _ := CreateAgreements(bp)
+	slas[0].State = model.STARTED
+
+	dataAnalyticsURL := "http://localhost:8080/data-analytics"
+
+	da := NewDataAnalyticsAdapter(dataAnalyticsURL, vdcID)
+
+	httpmock.Activate()
+	defer httpmock.DeactivateAndReset()
+
+	testData := map[string]struct {
+		Min float64
+		Max float64
+	}{
+		"availability": {0.0, 100.0},
+		"responseTime": {0.1, 10},
+		"timeliness":   {0.0, 100.0},
+		"volume":       {1000.0, 10000.0},
+	}
+	from := time.Now()
+	data, to, err := getRamdomTestData(slas[0], testData, from)
+	if err != nil {
+		t.Fatalf("Error getting random data: %s", err.Error())
+	}
+
+	httpmock.RegisterResponder("GET", dataAnalyticsURL+"/infra1", func(req *http.Request) (*http.Response, error) {
+		query := req.URL.Query()
+		metric := query.Get("name")
+		if metric == "" {
+			return httpmock.NewStringResponse(http.StatusBadRequest, "Can't find metric name in request"), nil
+		}
+		operation := query.Get("operationID")
+		if operation == "" {
+			return httpmock.NewStringResponse(http.StatusBadRequest, "Can't find operation identifier in request"), nil
+		}
+		metricData, ok := data[metric]
+		if !ok {
+			return httpmock.NewStringResponse(http.StatusNotFound, fmt.Sprintf("Can't find data for metric %s", metric)), nil
+		}
+		result := make([]DataAnalyticsMetric, len(metricData))
+		for i := range result {
+			value := metricData[i]
+			result[i] = DataAnalyticsMetric{
+				OperationID: operation,
+				Name:        metric,
+				Value:       value.Value.(float64),
+				Unit:        "",
+				Timestamp:   value.DateTime.Format(time.RFC3339),
+			}
+		}
+		return httpmock.NewJsonResponse(http.StatusOK, result)
+	})
+
+	responseValues := da.Retrieve(slas[0], getMonitoringItems(slas[0], from, to))
+	for variable, values := range responseValues {
+		varSourceData, ok := data[variable.Metric]
+		if !ok {
+			t.Fatalf("Can't find original data for returned metric %s", variable.Metric)
+		}
+		if len(values) != len(varSourceData) {
+			t.Fatalf("There are %d returned metrics for variable %s while it was expected to be %d", len(values), variable.Metric, len(varSourceData))
 		}
 	}
 }

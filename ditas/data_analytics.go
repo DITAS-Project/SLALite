@@ -28,24 +28,30 @@ import (
 )
 
 type DataAnalyticsMetric struct {
-	OperationID string `json:"operationID"`
-	Name        string `json:"name"`
-	Value       int    `json:"value"`
-	Unit        string `json:"unit"`
-	Timestamp   string `json:"timestamp"`
-	Appendix    string `json:"appendix"`
+	OperationID string  `json:"operationID"`
+	Name        string  `json:"name"`
+	Value       float64 `json:"value"`
+	Unit        string  `json:"unit"`
+	Timestamp   string  `json:"timestamp"`
+	Appendix    string  `json:"appendix"`
 }
 
 type DataAnalyticsAdapter struct {
 	Client           *resty.Client
 	AnalyticsBaseUrl string
+	VdcID            string
 }
 
-func NewDataAnalyticsAdapter(analyticsBaseUrl string) *DataAnalyticsAdapter {
+func NewDataAnalyticsAdapter(analyticsBaseUrl, vdcID string) *DataAnalyticsAdapter {
 	return &DataAnalyticsAdapter{
 		Client:           resty.New(),
-		AnalyticsBaseUrl: analyticsBaseUrl,
+		AnalyticsBaseUrl: analyticsBaseUrl + "/{infraId}",
+		VdcID:            vdcID,
 	}
+}
+
+func (d DataAnalyticsAdapter) getRunningInfra() (string, error) {
+	return "infra1", nil
 }
 
 // Initialize the monitoring retrieval for one evaluation of the agreement
@@ -54,6 +60,11 @@ func NewDataAnalyticsAdapter(analyticsBaseUrl string) *DataAnalyticsAdapter {
 func (d DataAnalyticsAdapter) Retrieve(agreement model.Agreement,
 	items []monitor.RetrievalItem) map[model.Variable][]model.MetricValue {
 	result := make(map[model.Variable][]model.MetricValue)
+	infraID, err := d.getRunningInfra()
+	if err != nil {
+		log.WithError(err).Errorf("Error getting infrastructure for VDC %s", d.VdcID)
+		return result
+	}
 	for _, item := range items {
 		metrics := make([]DataAnalyticsMetric, 0)
 		res, err := d.Client.R().SetQueryParams(map[string]string{
@@ -61,6 +72,8 @@ func (d DataAnalyticsAdapter) Retrieve(agreement model.Agreement,
 			"name":        item.Var.Metric,
 			"startTime":   item.From.Format(time.RFC3339),
 			"endTime":     item.To.Format(time.RFC3339),
+		}).SetPathParams(map[string]string{
+			"infraId": infraID,
 		}).SetResult(&metrics).Get(d.AnalyticsBaseUrl)
 		if err != nil {
 			log.WithError(err).Errorf("Error getting values for metric %s", item.Var.Metric)
