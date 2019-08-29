@@ -31,23 +31,26 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-type DitasViolation struct {
+// Violation contains information about the violation of an SLA, including the metrics that made it fail
+type Violation struct {
 	VDCId   string              `json:"vdcId"`
 	Method  string              `json:"methodId"`
 	Metrics []model.MetricValue `json:"metrics"`
 }
 
-type DitasNotifier struct {
+// Notifier is the default Ditas Notifier that will inform the DS4M of violations
+type Notifier struct {
 	VDCId      string
-	NotifyUrl  string
+	NotifyURL  string
 	Client     *resty.Client
-	Violations []DitasViolation
+	Violations []Violation
 }
 
-func NewNotifier(vdcId, url string) *DitasNotifier {
-	return &DitasNotifier{
-		VDCId:     vdcId,
-		NotifyUrl: url + "/NotifyViolation",
+// NewNotifier creates a new Ditas notifier that will use the VDC identifier and DS4M URL provided as parameters
+func NewNotifier(vdcID, url string) *Notifier {
+	return &Notifier{
+		VDCId:     vdcID,
+		NotifyURL: url + "/NotifyViolation",
 		Client:    resty.New(),
 	}
 }
@@ -80,17 +83,26 @@ func evaluate(comparator string, thresholdIf interface{}, valueIf interface{}) (
 	return false, errors.New("Comparator not supported: " + comparator)
 }
 
-func (n *DitasNotifier) filterValues(methodId string, result *assessment_model.Result) []DitasViolation {
-	violations := make([]DitasViolation, 0)
+// filterValues will filter those metric values that don't meet its threshold in the guarantee
+// and may be the responsibles for the failure of the evaluation and so, of the violation.
+func (n *Notifier) filterValues(methodID string, result *assessment_model.Result) []Violation {
+	violations := make([]Violation, 0)
 	violationMap := make(map[string][]model.MetricValue)
+
+	// Iterate over the guarantees that were violated
 	for _, grResults := range result.Violated {
+
+		// Iterate over the violations found of that guarantee
 		for _, violation := range grResults.Violations {
+
+			// Make a map of each metric. We only have one average value per metric so that's fine.
 			valueMap := make(map[string]model.MetricValue)
 
 			for _, metricValue := range violation.Values {
 				valueMap[metricValue.Key] = metricValue
 			}
 
+			// Make a govaluate expression from the guarantee to re-evaluate it
 			expression, err := govaluate.NewEvaluableExpression(violation.Constraint)
 			if err == nil {
 				violationInformation, ok := violationMap[violation.AgreementId]
@@ -98,6 +110,7 @@ func (n *DitasNotifier) filterValues(methodId string, result *assessment_model.R
 					violationInformation = make([]model.MetricValue, 0)
 				}
 				tokens := expression.Tokens()
+				// Go over tokens to find expressions of type <variable> <operator> <value> i.e. availability >= 90
 				for i, token := range tokens {
 					if token.Kind == govaluate.VARIABLE && (i < len(tokens)-2) && (tokens[i+1].Kind == govaluate.COMPARATOR && tokens[i+2].Kind == govaluate.NUMERIC) {
 						variable := token.Value.(string)
@@ -105,8 +118,10 @@ func (n *DitasNotifier) filterValues(methodId string, result *assessment_model.R
 						threshold := tokens[i+2].Value
 						value, found := valueMap[variable]
 						if found {
+							// Evaluate the comparison to see if it violates the threshold that was defined
 							assessed, err := evaluate(comparator, threshold, value.Value)
 							if err == nil && !assessed {
+								// If so, add it to the list of values that will be sent
 								violationInformation = append(violationInformation, value)
 							} else {
 								if err != nil {
@@ -124,8 +139,10 @@ func (n *DitasNotifier) filterValues(methodId string, result *assessment_model.R
 			}
 		}
 	}
+
+	// Transform the map to a list to send to DS4M
 	for k, v := range violationMap {
-		violations = append(violations, DitasViolation{
+		violations = append(violations, Violation{
 			Method:  k,
 			VDCId:   n.VDCId,
 			Metrics: v,
@@ -134,10 +151,11 @@ func (n *DitasNotifier) filterValues(methodId string, result *assessment_model.R
 	return violations
 }
 
-func (n *DitasNotifier) NotifyViolations(agreement *model.Agreement, result *assessment_model.Result) {
+// NotifyViolations calls the DS4M if there is any violation in the results provided by the assessment process
+func (n *Notifier) NotifyViolations(agreement *model.Agreement, result *assessment_model.Result) {
 	logger := log.WithField("agreement", agreement.Id)
 	logger.Debugf("Notifying %d violations", len(result.GetViolations()))
-	if n.NotifyUrl != "" {
+	if n.NotifyURL != "" {
 		n.Violations = n.filterValues(agreement.Id, result)
 		rawJSON, err := json.Marshal(n.Violations)
 		if err != nil {
@@ -148,7 +166,7 @@ func (n *DitasNotifier) NotifyViolations(agreement *model.Agreement, result *ass
 			"violations": string(rawJSON),
 		}
 		logger.Debugf("Got %d violations after filtering", len(n.Violations))
-		_, err = n.Client.R().SetFormData(data).Post(n.NotifyUrl)
+		_, err = n.Client.R().SetFormData(data).Post(n.NotifyURL)
 		if err != nil {
 			log.WithError(err).Errorf("Error notifying violations of SLA %s", agreement.Id)
 		}

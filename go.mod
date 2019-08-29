@@ -37,4 +37,5 @@ require (
 	github.com/stretchr/testify v1.3.0 // indirect
 	gopkg.in/airbrake/gobrake.v2 v2.0.9 // indirect
 	gopkg.in/gemnasium/logrus-airbrake-hook.v2 v2.1.2 // indirect
+	gopkg.in/resty.v1 v1.12.0
 )

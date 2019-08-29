@@ -22,9 +22,9 @@ import (
 	"SLALite/assessment"
 	assessment_model "SLALite/assessment/model"
 	"SLALite/assessment/monitor"
+	"SLALite/assessment/monitor/genericadapter"
 	"SLALite/assessment/monitor/simpleadapter"
 	"SLALite/model"
-	"flag"
 	"fmt"
 	"math/rand"
 	"net/http"
@@ -37,18 +37,11 @@ import (
 )
 
 const (
-	DS4MUrl = "http://31.171.247.162:50003/NotifyViolation"
-)
-
-var (
-	integrationNotifier = flag.Bool("notifier", false, "run DS4M integration tests")
-	integrationElastic  = flag.Bool("elastic", false, "run ElasticSearch integration tests")
+	DS4MUrl          = "http://ds4m"
+	dataAnalyticsURL = "http://data-analytics/data-analytics"
 )
 
 var t0 = time.Now()
-var testNotifier = DitasNotifier{
-	VDCId: "VDC_2",
-}
 
 func TestMain(m *testing.M) {
 	os.Exit(m.Run())
@@ -124,6 +117,7 @@ func getRamdomTestData(sla model.Agreement, ranges map[string]struct {
 				DateTime: currentTime,
 			}
 		}
+		result[variable.Metric] = values
 	}
 	return result, currentTime, nil
 }
@@ -141,38 +135,7 @@ func getMonitoringItems(sla model.Agreement, from time.Time, to time.Time) []mon
 	return result
 }
 
-func TestDitasMonitoringAdapter(t *testing.T) {
-	vdcID := "vdc1"
-	bp, err := blueprint.ReadBlueprint("resources/concrete_blueprint_doctor.json")
-	if err != nil {
-		t.Fatalf("Error reading blueprint: %s", err.Error())
-	}
-
-	slas, _ := CreateAgreements(bp)
-	slas[0].State = model.STARTED
-
-	dataAnalyticsURL := "http://localhost:8080/data-analytics"
-
-	da := NewDataAnalyticsAdapter(dataAnalyticsURL, vdcID)
-
-	httpmock.Activate()
-	defer httpmock.DeactivateAndReset()
-
-	testData := map[string]struct {
-		Min float64
-		Max float64
-	}{
-		"availability": {0.0, 100.0},
-		"responseTime": {0.1, 10},
-		"timeliness":   {0.0, 100.0},
-		"volume":       {1000.0, 10000.0},
-	}
-	from := time.Now()
-	data, to, err := getRamdomTestData(slas[0], testData, from)
-	if err != nil {
-		t.Fatalf("Error getting random data: %s", err.Error())
-	}
-
+func mockDataRetrieval(data map[string][]model.MetricValue) {
 	httpmock.RegisterResponder("GET", dataAnalyticsURL+"/infra1", func(req *http.Request) (*http.Response, error) {
 		query := req.URL.Query()
 		metric := query.Get("name")
@@ -200,8 +163,45 @@ func TestDitasMonitoringAdapter(t *testing.T) {
 		}
 		return httpmock.NewJsonResponse(http.StatusOK, result)
 	})
+}
 
-	responseValues := da.Retrieve(slas[0], getMonitoringItems(slas[0], from, to))
+func TestDitasMonitoringAdapter(t *testing.T) {
+	vdcID := "vdc1"
+	bp, err := blueprint.ReadBlueprint("resources/concrete_blueprint_doctor.json")
+	if err != nil {
+		t.Fatalf("Error reading blueprint: %s", err.Error())
+	}
+
+	slas, _ := CreateAgreements(bp)
+	sla := slas[0]
+	sla.State = model.STARTED
+
+	da := NewDataAnalyticsAdapter(dataAnalyticsURL, vdcID)
+
+	httpmock.ActivateNonDefault(da.Client.GetClient())
+	defer httpmock.DeactivateAndReset()
+
+	testData := map[string]struct {
+		Min float64
+		Max float64
+	}{
+		"availability": {0.0, 100.0},
+		"responseTime": {0.1, 10},
+		"timeliness":   {0.0, 100.0},
+		"volume":       {1000.0, 10000.0},
+	}
+	from := time.Now()
+	data, to, err := getRamdomTestData(sla, testData, from)
+	if err != nil {
+		t.Fatalf("Error getting random data: %s", err.Error())
+	}
+
+	mockDataRetrieval(data)
+
+	responseValues := da.Retrieve(sla, getMonitoringItems(sla, from, to))
+	if len(data) != len(responseValues) {
+		t.Fatalf("Retrieved %d variables but expected %d", len(responseValues), len(data))
+	}
 	for variable, values := range responseValues {
 		varSourceData, ok := data[variable.Metric]
 		if !ok {
@@ -211,18 +211,41 @@ func TestDitasMonitoringAdapter(t *testing.T) {
 			t.Fatalf("There are %d returned metrics for variable %s while it was expected to be %d", len(values), variable.Metric, len(varSourceData))
 		}
 	}
+
+	adapter := genericadapter.New(da.Retrieve, da.Process).Initialize(&sla)
+	for _, guarantee := range sla.Details.Guarantees {
+		var vars []string
+		switch guarantee.Name {
+		case "serviceAvailable":
+			vars = []string{"availability"}
+		case "fastProcess":
+			vars = []string{"responseTime"}
+		case "freshData":
+			vars = []string{"timeliness"}
+		case "EnoughData":
+			vars = []string{"volume"}
+		}
+		vals := adapter.GetValues(guarantee, vars, to)
+		if len(vals) != 1 {
+			t.Fatalf("Expected a single aggregated value for guarantee %s but found %d values instead", guarantee.Name, len(vals))
+		}
+
+	}
+
 }
 
 func TestNotifier(t *testing.T) {
-	if *integrationNotifier {
-		testNotifier.NotifyUrl = DS4MUrl
-	}
 	bp, err := blueprint.ReadBlueprint("resources/concrete_blueprint_doctor.json")
 	if err != nil {
 		t.Fatalf("Error reading blueprint: %s", err.Error())
 	}
 
-	testNotifier.VDCId = *bp.InternalStructure.Overview.Name
+	testNotifier := NewNotifier("VDC_2", DS4MUrl)
+
+	httpmock.ActivateNonDefault(testNotifier.Client.GetClient())
+	defer httpmock.DeactivateAndReset()
+
+	httpmock.RegisterResponder("POST", DS4MUrl+"/NotifyViolation", httpmock.NewStringResponder(http.StatusOK, ""))
 
 	slas, _ := CreateAgreements(bp)
 	slas[0].State = model.STARTED
@@ -230,7 +253,8 @@ func TestNotifier(t *testing.T) {
 	var m1 = assessment_model.ExpressionData{
 		"availability": model.MetricValue{Key: "availability", Value: 90, DateTime: t_(0)},
 		"responseTime": model.MetricValue{Key: "responseTime", Value: 1.5, DateTime: t_(0)},
-		"timeliness":   model.MetricValue{Key: "timeliness", Value: 0.5, DateTime: t_(0)},
+		"timeliness":   model.MetricValue{Key: "timeliness", Value: 102.0, DateTime: t_(0)},
+		"volume":       model.MetricValue{Key: "volume", Value: 1100.0, DateTime: t_(0)},
 	}
 
 	adapter := simpleadapter.New(assessment_model.GuaranteeData{
@@ -256,8 +280,8 @@ func TestNotifier(t *testing.T) {
 		}
 
 		expectedMetrics := make(map[string]bool)
-		expectedMetrics["availability"] = false
-		expectedMetrics["responseTime"] = false
+		expectedMetrics["volume"] = false
+		expectedMetrics["timeliness"] = false
 
 		for _, metric := range violation.Metrics {
 			found, ok := expectedMetrics[metric.Key]
