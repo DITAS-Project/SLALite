@@ -10,8 +10,8 @@ ssh -i /opt/keypairs/ditas-testbed-keypair.pem cloudsigma@31.171.247.162 << 'END
 # || true - "docker stop" failt with exit status 1 if image doen't exists, what makes the Pipeline fail. the "|| true" forces the command to exit with 0.
 sudo docker stop --time 20 slalite || true
 sudo docker rm --force slalite || true
-sudo docker pull ditas/slalite:latest
+sudo docker pull ditas/slalite:staging
 
 # SET THE PORT MAPPING
-sudo docker run -p 50016:8090 -d --name slalite ditas/slalite:latest
+sudo docker run -p 50016:8090 -d --name slalite ditas/slalite:staging
 ENDSSH

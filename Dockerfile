@@ -1,16 +1,14 @@
 ###
-FROM golang:alpine as builder
+FROM golang:1.13-alpine as builder
 
-RUN apk add --no-cache git curl
+RUN apk update
+RUN apk add git
 
-RUN curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
+RUN mkdir $GOPATH/src/SLALite
+COPY . $GOPATH/src/SLALite
+WORKDIR $GOPATH/src/SLALite
 
-
-WORKDIR /go/src/SLALite
-
-COPY . .
-RUN rm -rf vendor
-RUN dep ensure
+ENV GO111MODULE=on
 
 ARG VERSION
 ARG DATE 
