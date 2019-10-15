@@ -167,6 +167,7 @@ func mockDataRetrieval(data map[string][]model.MetricValue) {
 
 func TestDitasMonitoringAdapter(t *testing.T) {
 	vdcID := "vdc1"
+	infraID := "infra1"
 	bp, err := blueprint.ReadBlueprint("resources/concrete_blueprint_doctor.json")
 	if err != nil {
 		t.Fatalf("Error reading blueprint: %s", err.Error())
@@ -176,7 +177,7 @@ func TestDitasMonitoringAdapter(t *testing.T) {
 	sla := slas[0]
 	sla.State = model.STARTED
 
-	da := NewDataAnalyticsAdapter(dataAnalyticsURL, vdcID)
+	da := NewDataAnalyticsAdapter(dataAnalyticsURL, vdcID, infraID)
 
 	httpmock.ActivateNonDefault(da.Client.GetClient())
 	defer httpmock.DeactivateAndReset()

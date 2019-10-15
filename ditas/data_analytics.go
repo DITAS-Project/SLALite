@@ -40,18 +40,16 @@ type DataAnalyticsAdapter struct {
 	Client           *resty.Client
 	AnalyticsBaseUrl string
 	VdcID            string
+	InfraID          string
 }
 
-func NewDataAnalyticsAdapter(analyticsBaseUrl, vdcID string) *DataAnalyticsAdapter {
+func NewDataAnalyticsAdapter(analyticsBaseUrl, vdcID, infraID string) *DataAnalyticsAdapter {
 	return &DataAnalyticsAdapter{
 		Client:           resty.New(),
 		AnalyticsBaseUrl: analyticsBaseUrl + "/{infraId}",
 		VdcID:            vdcID,
+		InfraID:          infraID,
 	}
-}
-
-func (d DataAnalyticsAdapter) getRunningInfra() (string, error) {
-	return "infra1", nil
 }
 
 // Initialize the monitoring retrieval for one evaluation of the agreement
@@ -60,11 +58,7 @@ func (d DataAnalyticsAdapter) getRunningInfra() (string, error) {
 func (d DataAnalyticsAdapter) Retrieve(agreement model.Agreement,
 	items []monitor.RetrievalItem) map[model.Variable][]model.MetricValue {
 	result := make(map[model.Variable][]model.MetricValue)
-	infraID, err := d.getRunningInfra()
-	if err != nil {
-		log.WithError(err).Errorf("Error getting infrastructure for VDC %s", d.VdcID)
-		return result
-	}
+
 	for _, item := range items {
 		metrics := make([]DataAnalyticsMetric, 0)
 		res, err := d.Client.R().SetQueryParams(map[string]string{
@@ -73,7 +67,7 @@ func (d DataAnalyticsAdapter) Retrieve(agreement model.Agreement,
 			"startTime":   item.From.Format(time.RFC3339),
 			"endTime":     item.To.Format(time.RFC3339),
 		}).SetPathParams(map[string]string{
-			"infraId": infraID,
+			"infraId": d.InfraID,
 		}).SetResult(&metrics).Get(d.AnalyticsBaseUrl)
 		if err != nil {
 			log.WithError(err).Errorf("Error getting values for metric %s", item.Var.Metric)

@@ -53,6 +53,9 @@ const (
 	// VDCIdPropery is the name of the property holding the VDC Id value in the configuration file
 	VDCIdPropery = "vdcId"
 
+	// InfrastructureIDProperty is the name of the property holding the infrastructure identifier in which this instance of the SLA manager is running
+	InfrastructureIDProperty = "infrastructureId"
+
 	// DataAnalyticsURLProperty is the name of the property holding the URL to the data analytics REST service
 	DataAnalyticsURLProperty = "data.analytics.url"
 
@@ -76,9 +79,9 @@ type constraintExpression struct {
 // If there's a maximum and minimum it will create an expression x € [min, max]
 // If there's just a maximum or minimum it will create x >= min or x <= max
 // If it's a fixed value it will create x == value
-func readProperty(property blueprint.MetricPropertyType, name string) string {
+func readProperty(property blueprint.Property, name string) string {
 	if property.Value != nil {
-		return fmt.Sprintf("%s == %f", name, *property.Value)
+		return fmt.Sprintf("%s == %f", name, property.Value)
 	}
 
 	if property.Maximum != nil && property.Minimum != nil {
@@ -101,7 +104,7 @@ func readProperty(property blueprint.MetricPropertyType, name string) string {
 // availability >= 90 && responseTime <= 1
 //
 // It will also return a list of variables associated to this constraint
-func readProperties(properties map[string]blueprint.MetricPropertyType) constraintExpression {
+func readProperties(properties map[string]blueprint.Property) constraintExpression {
 	var result strings.Builder
 	vars := make([]string, len(properties))
 	i := 0
@@ -123,7 +126,7 @@ func readProperties(properties map[string]blueprint.MetricPropertyType) constrai
 
 // getExpressions associates to every expression in DATA_MANAGEMENT.method.dataUtility an expression
 // which ANDs of all its properties and index it by the rule id
-func getExpressions(goals []blueprint.ConstraintType) map[string]constraintExpression {
+func getExpressions(goals []blueprint.DataUtility) map[string]constraintExpression {
 	result := make(map[string]constraintExpression)
 	for _, goal := range goals {
 		if goal.ID != nil {
@@ -247,7 +250,8 @@ func getGuarantees(method blueprint.AbstractPropertiesMethodType, expressions ma
 // CreateAgreements creates one SLA per method found in the blueprint by:
 // 1. Getting the individual constraints defined in DATA_MANAGEMENT[method_id].attributes.dataUtility
 // 2. Creating guarantees with the goal tree defined in ABSTRACT_PROPERTIES[method_id].goalTrees.dataUtility
-func CreateAgreements(bp *blueprint.BlueprintType) (model.Agreements, map[string]blueprint.ExtendedOps) {
+func CreateAgreements(bp *blueprint.Blueprint) (model.Agreements, map[string]blueprint.ExtendedOps) {
+	blueprintID := bp.ID
 	blueprintName := bp.InternalStructure.Overview.Name
 
 	methodInfo := blueprint.AssembleOperationsMap(*bp)
@@ -258,26 +262,26 @@ func CreateAgreements(bp *blueprint.BlueprintType) (model.Agreements, map[string
 	methods := bp.DataManagement
 	if methods != nil && len(methods) > 0 {
 		for _, method := range methods {
-			if method.MethodId != nil {
+			if method.MethodID != "" {
 				agreement := model.Agreement{
-					Id:   *method.MethodId,
-					Name: *method.MethodId,
+					Id:   method.MethodID,
+					Name: method.MethodID,
 					Details: model.Details{
-						Name: *method.MethodId,
+						Name: method.MethodID,
 						Provider: model.Provider{
-							Id:   *blueprintName,
-							Name: *blueprintName,
+							Id:   blueprintID,
+							Name: blueprintName,
 						},
 						Client: model.Client{
-							Id:   *blueprintName,
-							Name: *blueprintName,
+							Id:   blueprintID,
+							Name: blueprintName,
 						},
-						Id:        *method.MethodId,
+						Id:        method.MethodID,
 						Variables: make([]model.Variable, 0),
 					},
 					State: model.STARTED,
 				}
-				agreement.Id = *method.MethodId
+				agreement.Id = method.MethodID
 
 				if method.Attributes.DataUtility != nil {
 					attExpressions := getExpressions(method.Attributes.DataUtility)
@@ -290,12 +294,12 @@ func CreateAgreements(bp *blueprint.BlueprintType) (model.Agreements, map[string
 							})
 						}
 					}
-					expressions[*method.MethodId] = attExpressions
+					expressions[method.MethodID] = attExpressions
 				}
 
 				agreements[agreement.Id] = &agreement
 			} else {
-				log.Errorf("INVALID BLUEPRINT %s: Found method without name", *blueprintName)
+				log.Errorf("INVALID BLUEPRINT %s: Found method without name", blueprintName)
 			}
 		}
 
@@ -307,14 +311,14 @@ func CreateAgreements(bp *blueprint.BlueprintType) (model.Agreements, map[string
 				if foundExp && foundAg {
 					agreement.Details.Guarantees = getGuarantees(method, exp)
 				} else {
-					log.Errorf("INVALID BLUEPRINT %s: Method %s goals or tree not found", *blueprintName, *method.MethodId)
+					log.Errorf("INVALID BLUEPRINT %s: Method %s goals or tree not found", blueprintName, *method.MethodId)
 				}
 			}
 		} else {
-			log.Errorf("INVALID BLUEPRINT %s: Abstract properties section not found", *blueprintName)
+			log.Errorf("INVALID BLUEPRINT %s: Abstract properties section not found", blueprintName)
 		}
 	} else {
-		log.Errorf("INVALID BLUEPRINT %s: Can't find any method in data management section", *blueprintName)
+		log.Errorf("INVALID BLUEPRINT %s: Can't find any method in data management section", blueprintName)
 	}
 
 	var results = make(model.Agreements, 0)
@@ -361,7 +365,7 @@ func Configure(repo model.IRepository) (monitor.MonitoringAdapter, notifier.Viol
 		return nil, nil, err
 	}
 
-	logger := log.WithField("blueprint", *bp.InternalStructure.Overview.Name)
+	logger := log.WithField("blueprint", bp.InternalStructure.Overview.Name)
 
 	logger.Debug("Creating blueptint at VDM")
 
@@ -381,7 +385,7 @@ func Configure(repo model.IRepository) (monitor.MonitoringAdapter, notifier.Viol
 			}
 		}
 	}
-	da := NewDataAnalyticsAdapter(viper.GetString(DataAnalyticsURLProperty), viper.GetString(VDCIdPropery))
+	da := NewDataAnalyticsAdapter(config.GetString(DataAnalyticsURLProperty), config.GetString(VDCIdPropery), config.GetString(InfrastructureIDProperty))
 	adapter := genericadapter.New(da.Retrieve, da.Process)
 	return adapter, NewNotifier(config.GetString(VDCIdPropery), config.GetString(DS4MUrlProperty)), nil
 }
