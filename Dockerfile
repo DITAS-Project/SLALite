@@ -27,5 +27,5 @@ RUN chown -R slalite:slalite /etc/slalite && chmod 700 /etc/slalite
 EXPOSE 8090
 #ENTRYPOINT ["./run_slalite.sh"]
 USER slalite
-ENTRYPOINT ["/opt/slalite/SLALite"]
+ENTRYPOINT ["/opt/slalite/SLALite", "-f", "/etc/ditas/slalite.properties"]
 

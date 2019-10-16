@@ -359,6 +359,8 @@ func Configure(repo model.IRepository) (monitor.MonitoringAdapter, notifier.Viol
 	config.SetConfigName(ConfigFileName)
 	config.ReadInConfig()
 
+	log.Infof("Read DITAS configuration file %s", config.ConfigFileUsed())
+
 	bp, err := blueprint.ReadBlueprint(BlueprintPath)
 	if err != nil {
 		log.WithError(err).Error("Error reading blueprint")
