@@ -21,7 +21,6 @@ package ditas
 import (
 	assessment_model "SLALite/assessment/model"
 	"SLALite/model"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"strconv"
@@ -50,7 +49,7 @@ type Notifier struct {
 func NewNotifier(vdcID, url string) *Notifier {
 	return &Notifier{
 		VDCId:     vdcID,
-		NotifyURL: url + "/NotifyViolation",
+		NotifyURL: url + "/v2/NotifyViolation",
 		Client:    resty.New(),
 	}
 }
@@ -157,16 +156,8 @@ func (n *Notifier) NotifyViolations(agreement *model.Agreement, result *assessme
 	logger.Debugf("Notifying %d violations", len(result.GetViolations()))
 	if n.NotifyURL != "" {
 		n.Violations = n.filterValues(agreement.Id, result)
-		rawJSON, err := json.Marshal(n.Violations)
-		if err != nil {
-			logger.WithError(err).Errorf("Error marshaling violations of agreement %s", agreement.Id)
-			return
-		}
-		data := map[string]string{
-			"violations": string(rawJSON),
-		}
 		logger.Debugf("Got %d violations after filtering", len(n.Violations))
-		_, err = n.Client.R().SetFormData(data).Post(n.NotifyURL)
+		_, err := n.Client.R().SetBody(n.Violations).Post(n.NotifyURL)
 		if err != nil {
 			log.WithError(err).Errorf("Error notifying violations of SLA %s", agreement.Id)
 		}

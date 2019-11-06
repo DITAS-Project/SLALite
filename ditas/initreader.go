@@ -47,9 +47,6 @@ const (
 	// BlueprintPath is the path to the DITAS blueprint
 	BlueprintPath = BlueprintLocation + "/" + BlueprintName
 
-	// DS4MUrlDefault is the default location of the DS4M
-	DS4MUrlDefault = "http://vdm:8080"
-
 	// VDCIdPropery is the name of the property holding the VDC Id value in the configuration file
 	VDCIdPropery = "vdcId"
 
@@ -59,8 +56,13 @@ const (
 	// DataAnalyticsURLProperty is the name of the property holding the URL to the data analytics REST service
 	DataAnalyticsURLProperty = "data.analytics.url"
 
-	// DS4MUrlProperty is the name of the property holding the URL to the DS4M service
-	DS4MUrlProperty = "ds4m.url"
+	// DS4MPortProperty is the name of the property holding the port of the DS4M in the VDM service
+	DS4MPortProperty = "ds4m.port"
+
+	// DS4MDefaultPortValue is the default port in which the DS4M listens at the VDM
+	DS4MDefaultPortValue = 30003
+
+	DS4MVDCIDHeaderName = "VDCID"
 )
 
 type methodInfo struct {
@@ -330,17 +332,13 @@ func CreateAgreements(bp *blueprint.Blueprint) (model.Agreements, map[string]blu
 	return results, methodInfo
 }
 
-func sendBlueprintToVDM(logger *log.Entry, ds4mURL string) error {
+func sendBlueprintToVDM(logger *log.Entry, ds4mURL, vdcID string) error {
 	rawJSON, err := ioutil.ReadFile(BlueprintPath)
 	if err != nil {
 		logger.WithError(err).Error("Error reading")
 		return err
 	}
-	rawJSONStr := string(rawJSON)
-	data := map[string]string{
-		"ConcreteBlueprint": rawJSONStr,
-	}
-	_, err = resty.New().R().SetFormData(data).Post(ds4mURL + "/AddVDC")
+	_, err = resty.New().R().SetHeader("VDCID", vdcID).SetBody(rawJSON).Post(ds4mURL + "/v2/AddVDC")
 	if err != nil {
 		logger.WithError(err).Error("Error received from DS4M service")
 		return err
@@ -353,7 +351,7 @@ func sendBlueprintToVDM(logger *log.Entry, ds4mURL string) error {
 func Configure(repo model.IRepository) (monitor.MonitoringAdapter, notifier.ViolationNotifier, error) {
 	config := viper.New()
 
-	config.SetDefault(DS4MUrlProperty, DS4MUrlDefault)
+	config.SetDefault(DS4MPortProperty, DS4MDefaultPortValue)
 
 	config.AddConfigPath(BlueprintLocation)
 	config.SetConfigName(ConfigFileName)
@@ -371,7 +369,9 @@ func Configure(repo model.IRepository) (monitor.MonitoringAdapter, notifier.Viol
 
 	logger.Debug("Creating blueptint at VDM")
 
-	err = sendBlueprintToVDM(logger, config.GetString(DS4MUrlProperty))
+	vdcID := config.GetString(VDCIdPropery)
+	vdmURL := fmt.Sprintf("http://vdm:%d", config.GetInt(DS4MPortProperty))
+	err = sendBlueprintToVDM(logger, vdmURL, vdcID)
 
 	if err != nil {
 		logger.WithError(err).Error("Error registering blueprint in VDM. Violation notification will have problems")
@@ -389,5 +389,5 @@ func Configure(repo model.IRepository) (monitor.MonitoringAdapter, notifier.Viol
 	}
 	da := NewDataAnalyticsAdapter(config.GetString(DataAnalyticsURLProperty), config.GetString(VDCIdPropery), config.GetString(InfrastructureIDProperty))
 	adapter := genericadapter.New(da.Retrieve, da.Process)
-	return adapter, NewNotifier(config.GetString(VDCIdPropery), config.GetString(DS4MUrlProperty)), nil
+	return adapter, NewNotifier(vdcID, vdmURL), nil
 }
