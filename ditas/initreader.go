@@ -25,6 +25,7 @@ import (
 	"SLALite/model"
 	"fmt"
 	"io/ioutil"
+	"strconv"
 	"strings"
 
 	"github.com/DITAS-Project/blueprint-go"
@@ -59,10 +60,19 @@ const (
 	// DS4MPortProperty is the name of the property holding the port of the DS4M in the VDM service
 	DS4MPortProperty = "ds4m.port"
 
+	TestingEnabledProperty  = "testing.enabled"
+	TestingMethodIDProperty = "testing.method"
+	TestingMetricsProperty  = "testing.metrics"
+
+	TestingMetricNameKey  = "name"
+	TestingMetricValueKey = "value"
+
 	// DS4MDefaultPortValue is the default port in which the DS4M listens at the VDM
 	DS4MDefaultPortValue = 30003
 
 	DS4MVDCIDHeaderName = "VDCID"
+
+	TestingEnabledDefaultValue = false
 )
 
 type methodInfo struct {
@@ -352,6 +362,7 @@ func Configure(repo model.IRepository) (monitor.MonitoringAdapter, notifier.Viol
 	config := viper.New()
 
 	config.SetDefault(DS4MPortProperty, DS4MDefaultPortValue)
+	config.SetDefault(TestingEnabledProperty, TestingEnabledDefaultValue)
 
 	config.AddConfigPath(BlueprintLocation)
 	config.SetConfigName(ConfigFileName)
@@ -387,7 +398,25 @@ func Configure(repo model.IRepository) (monitor.MonitoringAdapter, notifier.Viol
 			}
 		}
 	}
-	da := NewDataAnalyticsAdapter(config.GetString(DataAnalyticsURLProperty), config.GetString(VDCIdPropery), config.GetString(InfrastructureIDProperty))
+
+	testingConfig := TestingConfiguration{
+		Enabled:  config.GetBool(TestingEnabledProperty),
+		MethodID: config.GetString(TestingMethodIDProperty),
+		Metrics:  make(map[string]float64),
+	}
+
+	metrics := config.GetStringMapString(TestingMetricsProperty)
+	if metrics != nil {
+		for metricName, metricValue := range metrics {
+			floatValue, err := strconv.ParseFloat(metricValue, 64)
+			if err != nil {
+				logger.WithError(err).Errorf("Error converting testing metric value of %s", metricName)
+			}
+			testingConfig.Metrics[metricName] = floatValue
+		}
+	}
+
+	da := NewDataAnalyticsAdapter(config.GetString(DataAnalyticsURLProperty), config.GetString(VDCIdPropery), config.GetString(InfrastructureIDProperty), testingConfig)
 	adapter := genericadapter.New(da.Retrieve, da.Process)
 	return adapter, NewNotifier(vdcID, vdmURL), nil
 }

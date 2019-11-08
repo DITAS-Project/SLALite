@@ -30,6 +30,10 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+const (
+	DS4MNotifyPath = "/v2/NotifyViolation"
+)
+
 // Violation contains information about the violation of an SLA, including the metrics that made it fail
 type Violation struct {
 	VDCId   string              `json:"vdcId"`
@@ -49,7 +53,7 @@ type Notifier struct {
 func NewNotifier(vdcID, url string) *Notifier {
 	return &Notifier{
 		VDCId:     vdcID,
-		NotifyURL: url + "/v2/NotifyViolation",
+		NotifyURL: url + DS4MNotifyPath,
 		Client:    resty.New(),
 	}
 }

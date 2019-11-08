@@ -27,6 +27,11 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+type TestingConfiguration struct {
+	Enabled  bool
+	MethodID string
+	Metrics  map[string]float64
+}
 type DataAnalyticsMetric struct {
 	OperationID string  `json:"operationID"`
 	Name        string  `json:"name"`
@@ -37,18 +42,20 @@ type DataAnalyticsMetric struct {
 }
 
 type DataAnalyticsAdapter struct {
-	Client           *resty.Client
-	AnalyticsBaseUrl string
-	VdcID            string
-	InfraID          string
+	Client               *resty.Client
+	AnalyticsBaseUrl     string
+	VdcID                string
+	InfraID              string
+	TestingConfiguration TestingConfiguration
 }
 
-func NewDataAnalyticsAdapter(analyticsBaseUrl, vdcID, infraID string) *DataAnalyticsAdapter {
+func NewDataAnalyticsAdapter(analyticsBaseUrl, vdcID, infraID string, testingConfig TestingConfiguration) *DataAnalyticsAdapter {
 	return &DataAnalyticsAdapter{
-		Client:           resty.New(),
-		AnalyticsBaseUrl: analyticsBaseUrl + "/{infraId}",
-		VdcID:            vdcID,
-		InfraID:          infraID,
+		Client:               resty.New(),
+		AnalyticsBaseUrl:     analyticsBaseUrl + "/{infraId}",
+		VdcID:                vdcID,
+		InfraID:              infraID,
+		TestingConfiguration: testingConfig,
 	}
 }
 
@@ -60,36 +67,46 @@ func (d DataAnalyticsAdapter) Retrieve(agreement model.Agreement,
 	result := make(map[model.Variable][]model.MetricValue)
 
 	for _, item := range items {
-		metrics := make([]DataAnalyticsMetric, 0)
-		res, err := d.Client.R().SetQueryParams(map[string]string{
-			"operationID": agreement.Id,
-			"name":        item.Var.Metric,
-			"startTime":   item.From.Format(time.RFC3339),
-			"endTime":     item.To.Format(time.RFC3339),
-		}).SetPathParams(map[string]string{
-			"infraId": d.InfraID,
-		}).SetResult(&metrics).Get(d.AnalyticsBaseUrl)
-		if err != nil {
-			log.WithError(err).Errorf("Error getting values for metric %s", item.Var.Metric)
+		if metricValue, ok := d.TestingConfiguration.Metrics[item.Var.Metric]; d.TestingConfiguration.Enabled && agreement.Id == d.TestingConfiguration.MethodID && ok {
+			result[item.Var] = []model.MetricValue{
+				model.MetricValue{
+					Key:      item.Var.Metric,
+					Value:    metricValue,
+					DateTime: time.Now(),
+				},
+			}
 		} else {
-			if !res.IsError() {
-				currentMetrics, ok := result[item.Var]
-				if !ok {
-					currentMetrics = make([]model.MetricValue, 0, len(metrics))
-				}
-				for _, metric := range metrics {
-					metricTime, err := time.Parse(time.RFC3339, metric.Timestamp)
-					if err != nil {
-						log.WithError(err).Errorf("Error parsing timestamp %s for metric %s", metric.Timestamp, item.Var.Metric)
-					} else {
-						currentMetrics = append(currentMetrics, model.MetricValue{
-							Key:      item.Var.Metric,
-							Value:    metric.Value,
-							DateTime: metricTime,
-						})
+			metrics := make([]DataAnalyticsMetric, 0)
+			res, err := d.Client.R().SetQueryParams(map[string]string{
+				"operationID": agreement.Id,
+				"name":        item.Var.Metric,
+				"startTime":   item.From.Format(time.RFC3339),
+				"endTime":     item.To.Format(time.RFC3339),
+			}).SetPathParams(map[string]string{
+				"infraId": d.InfraID,
+			}).SetResult(&metrics).Get(d.AnalyticsBaseUrl)
+			if err != nil {
+				log.WithError(err).Errorf("Error getting values for metric %s", item.Var.Metric)
+			} else {
+				if !res.IsError() {
+					currentMetrics, ok := result[item.Var]
+					if !ok {
+						currentMetrics = make([]model.MetricValue, 0, len(metrics))
 					}
+					for _, metric := range metrics {
+						metricTime, err := time.Parse(time.RFC3339, metric.Timestamp)
+						if err != nil {
+							log.WithError(err).Errorf("Error parsing timestamp %s for metric %s", metric.Timestamp, item.Var.Metric)
+						} else {
+							currentMetrics = append(currentMetrics, model.MetricValue{
+								Key:      item.Var.Metric,
+								Value:    metric.Value,
+								DateTime: metricTime,
+							})
+						}
+					}
+					result[item.Var] = currentMetrics
 				}
-				result[item.Var] = currentMetrics
 			}
 		}
 	}

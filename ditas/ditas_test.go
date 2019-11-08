@@ -177,7 +177,9 @@ func TestDitasMonitoringAdapter(t *testing.T) {
 	sla := slas[0]
 	sla.State = model.STARTED
 
-	da := NewDataAnalyticsAdapter(dataAnalyticsURL, vdcID, infraID)
+	da := NewDataAnalyticsAdapter(dataAnalyticsURL, vdcID, infraID, TestingConfiguration{
+		Enabled: false,
+	})
 
 	httpmock.ActivateNonDefault(da.Client.GetClient())
 	defer httpmock.DeactivateAndReset()
@@ -246,7 +248,7 @@ func TestNotifier(t *testing.T) {
 	httpmock.ActivateNonDefault(testNotifier.Client.GetClient())
 	defer httpmock.DeactivateAndReset()
 
-	httpmock.RegisterResponder("POST", DS4MUrl+"/NotifyViolation", httpmock.NewStringResponder(http.StatusOK, ""))
+	httpmock.RegisterResponder("POST", DS4MUrl+DS4MNotifyPath, httpmock.NewStringResponder(http.StatusOK, ""))
 
 	slas, _ := CreateAgreements(bp)
 	slas[0].State = model.STARTED
