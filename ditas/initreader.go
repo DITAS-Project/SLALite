@@ -23,10 +23,12 @@ import (
 	"SLALite/assessment/monitor/genericadapter"
 	"SLALite/assessment/notifier"
 	"SLALite/model"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/DITAS-Project/blueprint-go"
 	"github.com/go-resty/resty/v2"
@@ -73,6 +75,9 @@ const (
 	DS4MVDCIDHeaderName = "VDCID"
 
 	TestingEnabledDefaultValue = false
+
+	VDMRetryTimeoutProperty     = "ds4m.timeout"
+	VDMRetryTimeoutDefaultValue = 60
 )
 
 type methodInfo struct {
@@ -342,16 +347,27 @@ func CreateAgreements(bp *blueprint.Blueprint) (model.Agreements, map[string]blu
 	return results, methodInfo
 }
 
-func sendBlueprintToVDM(logger *log.Entry, ds4mURL, vdcID string) error {
+func sendBlueprintToVDM(logger *log.Entry, ds4mURL, vdcID string, timeout int64) error {
 	rawJSON, err := ioutil.ReadFile(BlueprintPath)
 	if err != nil {
 		logger.WithError(err).Error("Error reading")
 		return err
 	}
-	_, err = resty.New().R().SetHeader("VDCID", vdcID).SetBody(rawJSON).Post(ds4mURL + "/v2/AddVDC")
-	if err != nil {
-		logger.WithError(err).Error("Error received from DS4M service")
-		return err
+
+	start := time.Now()
+	limit := start.Add(time.Second * time.Duration(timeout))
+	success := false
+	for ; limit.After(start) && !success; time.Sleep(time.Second * 10) {
+		start = time.Now()
+		_, err = resty.New().R().SetHeader("VDCID", vdcID).SetBody(rawJSON).Post(ds4mURL + "/v2/AddVDC")
+		if err != nil {
+			logger.WithError(err).Error("Error received from DS4M service. Will retry again in 10 seconds")
+		} else {
+			success = true
+		}
+	}
+	if !success {
+		return errors.New("Timeout waiting for VDM to be ready")
 	}
 	return nil
 }
@@ -363,6 +379,7 @@ func Configure(repo model.IRepository) (monitor.MonitoringAdapter, notifier.Viol
 
 	config.SetDefault(DS4MPortProperty, DS4MDefaultPortValue)
 	config.SetDefault(TestingEnabledProperty, TestingEnabledDefaultValue)
+	config.SetDefault(VDMRetryTimeoutProperty, VDMRetryTimeoutDefaultValue)
 
 	config.AddConfigPath(BlueprintLocation)
 	config.SetConfigName(ConfigFileName)
@@ -382,7 +399,7 @@ func Configure(repo model.IRepository) (monitor.MonitoringAdapter, notifier.Viol
 
 	vdcID := config.GetString(VDCIdPropery)
 	vdmURL := fmt.Sprintf("http://vdm:%d", config.GetInt(DS4MPortProperty))
-	err = sendBlueprintToVDM(logger, vdmURL, vdcID)
+	err = sendBlueprintToVDM(logger, vdmURL, vdcID, viper.GetInt64(VDMRetryTimeoutProperty))
 
 	if err != nil {
 		logger.WithError(err).Error("Error registering blueprint in VDM. Violation notification will have problems")
