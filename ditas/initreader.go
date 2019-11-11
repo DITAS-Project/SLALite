@@ -399,7 +399,7 @@ func Configure(repo model.IRepository) (monitor.MonitoringAdapter, notifier.Viol
 
 	vdcID := config.GetString(VDCIdPropery)
 	vdmURL := fmt.Sprintf("http://vdm:%d", config.GetInt(DS4MPortProperty))
-	err = sendBlueprintToVDM(logger, vdmURL, vdcID, viper.GetInt64(VDMRetryTimeoutProperty))
+	err = sendBlueprintToVDM(logger, vdmURL, vdcID, config.GetInt64(VDMRetryTimeoutProperty))
 
 	if err != nil {
 		logger.WithError(err).Error("Error registering blueprint in VDM. Violation notification will have problems")
