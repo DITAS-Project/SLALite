@@ -55,7 +55,7 @@ const (
 	InfrastructureIDProperty = "infrastructureId"
 
 	// DataAnalyticsURLProperty is the name of the property holding the URL to the data analytics REST service
-	DataAnalyticsURLProperty = "data.analytics.url"
+	DataAnalyticsURLProperty = "data_analytics.url"
 
 	// DS4MPortProperty is the name of the property holding the port of the DS4M in the VDM service
 	DS4MPortProperty = "ds4m.port"
