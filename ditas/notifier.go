@@ -43,18 +43,21 @@ type Violation struct {
 
 // Notifier is the default Ditas Notifier that will inform the DS4M of violations
 type Notifier struct {
-	VDCId      string
-	NotifyURL  string
-	Client     *resty.Client
-	Violations []Violation
+	VDCId                    string
+	NotifyURL                string
+	Client                   *resty.Client
+	Violations               []Violation
+	TestingConfiguration     TestingConfiguration
+	TestingNotificationsSent int
 }
 
 // NewNotifier creates a new Ditas notifier that will use the VDC identifier and DS4M URL provided as parameters
-func NewNotifier(vdcID, url string) *Notifier {
+func NewNotifier(vdcID, url string, testingConfig TestingConfiguration) *Notifier {
 	return &Notifier{
-		VDCId:     vdcID,
-		NotifyURL: url + DS4MNotifyPath,
-		Client:    resty.New(),
+		VDCId:                vdcID,
+		NotifyURL:            url + DS4MNotifyPath,
+		Client:               resty.New(),
+		TestingConfiguration: testingConfig,
 	}
 }
 
@@ -161,9 +164,18 @@ func (n *Notifier) NotifyViolations(agreement *model.Agreement, result *assessme
 	if n.NotifyURL != "" {
 		n.Violations = n.filterValues(agreement.Id, result)
 		logger.Debugf("Got %d violations after filtering", len(n.Violations))
-		_, err := n.Client.R().SetBody(n.Violations).Post(n.NotifyURL)
-		if err != nil {
-			log.WithError(err).Errorf("Error notifying violations of SLA %s", agreement.Id)
+		isTesting := n.TestingConfiguration.Enabled && n.TestingConfiguration.MethodID == agreement.Id && n.TestingNotificationsSent < n.TestingConfiguration.NumViolations
+		if n.TestingConfiguration.Enabled == false || isTesting {
+			logger.Debug("Sending violation to VDM")
+			_, err := n.Client.R().SetBody(n.Violations).Post(n.NotifyURL)
+			if err != nil {
+				log.WithError(err).Errorf("Error notifying violations of SLA %s", agreement.Id)
+			}
+			if isTesting {
+				n.TestingNotificationsSent++
+			}
+		} else {
+			logger.Debug("Skipping violation notification due to testing configuration: %v", n.TestingConfiguration)
 		}
 	}
 }

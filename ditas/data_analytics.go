@@ -43,22 +43,20 @@ type DataAnalyticsMetric struct {
 }
 
 type DataAnalyticsAdapter struct {
-	Client                *resty.Client
-	AnalyticsBaseUrl      string
-	VdcID                 string
-	InfraID               string
-	TestingConfiguration  TestingConfiguration
-	TestingViolationsSent int
+	Client               *resty.Client
+	AnalyticsBaseUrl     string
+	VdcID                string
+	InfraID              string
+	TestingConfiguration TestingConfiguration
 }
 
 func NewDataAnalyticsAdapter(analyticsBaseUrl, vdcID, infraID string, testingConfig TestingConfiguration) *DataAnalyticsAdapter {
 	return &DataAnalyticsAdapter{
-		Client:                resty.New(),
-		AnalyticsBaseUrl:      analyticsBaseUrl + "/{infraId}",
-		VdcID:                 vdcID,
-		InfraID:               infraID,
-		TestingConfiguration:  testingConfig,
-		TestingViolationsSent: 0,
+		Client:               resty.New(),
+		AnalyticsBaseUrl:     analyticsBaseUrl + "/{infraId}",
+		VdcID:                vdcID,
+		InfraID:              infraID,
+		TestingConfiguration: testingConfig,
 	}
 }
 
@@ -69,7 +67,7 @@ func (d DataAnalyticsAdapter) Retrieve(agreement model.Agreement,
 	items []monitor.RetrievalItem) map[model.Variable][]model.MetricValue {
 	result := make(map[model.Variable][]model.MetricValue)
 
-	useTesting := d.TestingConfiguration.Enabled && agreement.Id == d.TestingConfiguration.MethodID && d.TestingViolationsSent < d.TestingConfiguration.NumViolations
+	useTesting := d.TestingConfiguration.Enabled && agreement.Id == d.TestingConfiguration.MethodID
 	for _, item := range items {
 		if metricValue, ok := d.TestingConfiguration.Metrics[item.Var.Metric]; ok && useTesting {
 			result[item.Var] = []model.MetricValue{
@@ -115,14 +113,10 @@ func (d DataAnalyticsAdapter) Retrieve(agreement model.Agreement,
 		}
 	}
 
-	if useTesting {
-		d.TestingConfiguration.NumViolations++
-	}
-
 	return result
 }
 
-func (d DataAnalyticsAdapter) Process(v model.Variable, values []model.MetricValue) []model.MetricValue {
+func (d *DataAnalyticsAdapter) Process(v model.Variable, values []model.MetricValue) []model.MetricValue {
 	sum := 0.0
 	for _, value := range values {
 		sum += value.Value.(float64)

@@ -359,11 +359,12 @@ func sendBlueprintToVDM(logger *log.Entry, ds4mURL, vdcID string, timeout int64)
 	start := time.Now()
 	limit := start.Add(time.Second * time.Duration(timeout))
 	success := false
-	for ; limit.After(start) && !success; time.Sleep(time.Second * 10) {
-		start = time.Now()
+	for limit.After(start) && !success {
 		_, err = resty.New().R().SetHeader("VDCID", vdcID).SetBody(rawJSON).Post(ds4mURL + "/v2/AddVDC")
 		if err != nil {
 			logger.WithError(err).Error("Error received from DS4M service. Will retry again in 10 seconds")
+			time.Sleep(time.Second * 10)
+			start = time.Now()
 		} else {
 			success = true
 		}
@@ -439,5 +440,5 @@ func Configure(repo model.IRepository) (monitor.MonitoringAdapter, notifier.Viol
 
 	da := NewDataAnalyticsAdapter(config.GetString(DataAnalyticsURLProperty), config.GetString(VDCIdPropery), config.GetString(InfrastructureIDProperty), testingConfig)
 	adapter := genericadapter.New(da.Retrieve, da.Process)
-	return adapter, NewNotifier(vdcID, vdmURL), nil
+	return adapter, NewNotifier(vdcID, vdmURL, testingConfig), nil
 }

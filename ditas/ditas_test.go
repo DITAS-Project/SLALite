@@ -243,7 +243,9 @@ func TestNotifier(t *testing.T) {
 		t.Fatalf("Error reading blueprint: %s", err.Error())
 	}
 
-	testNotifier := NewNotifier("VDC_2", DS4MUrl)
+	testNotifier := NewNotifier("VDC_2", DS4MUrl, TestingConfiguration{
+		Enabled: false,
+	})
 
 	httpmock.ActivateNonDefault(testNotifier.Client.GetClient())
 	defer httpmock.DeactivateAndReset()
