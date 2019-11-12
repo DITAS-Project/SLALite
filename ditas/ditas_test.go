@@ -179,7 +179,7 @@ func TestDitasMonitoringAdapter(t *testing.T) {
 
 	da := NewDataAnalyticsAdapter(dataAnalyticsURL, vdcID, infraID, TestingConfiguration{
 		Enabled: false,
-	})
+	}, false)
 
 	httpmock.ActivateNonDefault(da.Client.GetClient())
 	defer httpmock.DeactivateAndReset()
@@ -245,7 +245,7 @@ func TestNotifier(t *testing.T) {
 
 	testNotifier := NewNotifier("VDC_2", DS4MUrl, TestingConfiguration{
 		Enabled: false,
-	})
+	}, false)
 
 	httpmock.ActivateNonDefault(testNotifier.Client.GetClient())
 	defer httpmock.DeactivateAndReset()

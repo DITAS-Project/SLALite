@@ -70,6 +70,8 @@ const (
 	TestingMetricNameKey  = "name"
 	TestingMetricValueKey = "value"
 
+	DebugHTTPCallsProperty = "debug.trace_http"
+
 	// DS4MDefaultPortValue is the default port in which the DS4M listens at the VDM
 	DS4MDefaultPortValue = 30003
 
@@ -80,6 +82,8 @@ const (
 
 	VDMRetryTimeoutProperty     = "ds4m.timeout"
 	VDMRetryTimeoutDefaultValue = 60
+
+	DebugHTTPCallsDefaultValue = false
 )
 
 type methodInfo struct {
@@ -384,6 +388,7 @@ func Configure(repo model.IRepository) (monitor.MonitoringAdapter, notifier.Viol
 	config.SetDefault(TestingEnabledProperty, TestingEnabledDefaultValue)
 	config.SetDefault(VDMRetryTimeoutProperty, VDMRetryTimeoutDefaultValue)
 	config.SetDefault(TestingNumViolationsProperty, TestingNumViolationsDefaultValue)
+	config.SetDefault(DebugHTTPCallsProperty, DebugHTTPCallsDefaultValue)
 
 	config.AddConfigPath(BlueprintLocation)
 	config.SetConfigName(ConfigFileName)
@@ -437,8 +442,8 @@ func Configure(repo model.IRepository) (monitor.MonitoringAdapter, notifier.Viol
 			testingConfig.Metrics[metricName] = floatValue
 		}
 	}
-
-	da := NewDataAnalyticsAdapter(config.GetString(DataAnalyticsURLProperty), config.GetString(VDCIdPropery), config.GetString(InfrastructureIDProperty), testingConfig)
+	debugHTTP := config.GetBool(DebugHTTPCallsProperty)
+	da := NewDataAnalyticsAdapter(config.GetString(DataAnalyticsURLProperty), config.GetString(VDCIdPropery), config.GetString(InfrastructureIDProperty), testingConfig, debugHTTP)
 	adapter := genericadapter.New(da.Retrieve, da.Process)
-	return adapter, NewNotifier(vdcID, vdmURL, testingConfig), nil
+	return adapter, NewNotifier(vdcID, vdmURL, testingConfig, debugHTTP), nil
 }
