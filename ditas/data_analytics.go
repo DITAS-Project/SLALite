@@ -28,9 +28,10 @@ import (
 )
 
 type TestingConfiguration struct {
-	Enabled  bool
-	MethodID string
-	Metrics  map[string]float64
+	Enabled       bool
+	MethodID      string
+	NumViolations int
+	Metrics       map[string]float64
 }
 type DataAnalyticsMetric struct {
 	OperationID string  `json:"operationID"`
@@ -42,20 +43,22 @@ type DataAnalyticsMetric struct {
 }
 
 type DataAnalyticsAdapter struct {
-	Client               *resty.Client
-	AnalyticsBaseUrl     string
-	VdcID                string
-	InfraID              string
-	TestingConfiguration TestingConfiguration
+	Client                *resty.Client
+	AnalyticsBaseUrl      string
+	VdcID                 string
+	InfraID               string
+	TestingConfiguration  TestingConfiguration
+	TestingViolationsSent int
 }
 
 func NewDataAnalyticsAdapter(analyticsBaseUrl, vdcID, infraID string, testingConfig TestingConfiguration) *DataAnalyticsAdapter {
 	return &DataAnalyticsAdapter{
-		Client:               resty.New(),
-		AnalyticsBaseUrl:     analyticsBaseUrl + "/{infraId}",
-		VdcID:                vdcID,
-		InfraID:              infraID,
-		TestingConfiguration: testingConfig,
+		Client:                resty.New(),
+		AnalyticsBaseUrl:      analyticsBaseUrl + "/{infraId}",
+		VdcID:                 vdcID,
+		InfraID:               infraID,
+		TestingConfiguration:  testingConfig,
+		TestingViolationsSent: 0,
 	}
 }
 
@@ -66,8 +69,9 @@ func (d DataAnalyticsAdapter) Retrieve(agreement model.Agreement,
 	items []monitor.RetrievalItem) map[model.Variable][]model.MetricValue {
 	result := make(map[model.Variable][]model.MetricValue)
 
+	useTesting := d.TestingConfiguration.Enabled && agreement.Id == d.TestingConfiguration.MethodID && d.TestingViolationsSent < d.TestingConfiguration.NumViolations
 	for _, item := range items {
-		if metricValue, ok := d.TestingConfiguration.Metrics[item.Var.Metric]; d.TestingConfiguration.Enabled && agreement.Id == d.TestingConfiguration.MethodID && ok {
+		if metricValue, ok := d.TestingConfiguration.Metrics[item.Var.Metric]; ok && useTesting {
 			result[item.Var] = []model.MetricValue{
 				model.MetricValue{
 					Key:      item.Var.Metric,
@@ -109,6 +113,10 @@ func (d DataAnalyticsAdapter) Retrieve(agreement model.Agreement,
 				}
 			}
 		}
+	}
+
+	if useTesting {
+		d.TestingConfiguration.NumViolations++
 	}
 
 	return result

@@ -62,9 +62,10 @@ const (
 	// DS4MPortProperty is the name of the property holding the port of the DS4M in the VDM service
 	DS4MPortProperty = "ds4m.port"
 
-	TestingEnabledProperty  = "testing.enabled"
-	TestingMethodIDProperty = "testing.method"
-	TestingMetricsProperty  = "testing.metrics"
+	TestingEnabledProperty       = "testing.enabled"
+	TestingMethodIDProperty      = "testing.method"
+	TestingNumViolationsProperty = "testing.num_violations"
+	TestingMetricsProperty       = "testing.metrics"
 
 	TestingMetricNameKey  = "name"
 	TestingMetricValueKey = "value"
@@ -74,7 +75,8 @@ const (
 
 	DS4MVDCIDHeaderName = "VDCID"
 
-	TestingEnabledDefaultValue = false
+	TestingEnabledDefaultValue       = false
+	TestingNumViolationsDefaultValue = 1
 
 	VDMRetryTimeoutProperty     = "ds4m.timeout"
 	VDMRetryTimeoutDefaultValue = 60
@@ -380,6 +382,7 @@ func Configure(repo model.IRepository) (monitor.MonitoringAdapter, notifier.Viol
 	config.SetDefault(DS4MPortProperty, DS4MDefaultPortValue)
 	config.SetDefault(TestingEnabledProperty, TestingEnabledDefaultValue)
 	config.SetDefault(VDMRetryTimeoutProperty, VDMRetryTimeoutDefaultValue)
+	config.SetDefault(TestingNumViolationsProperty, TestingNumViolationsDefaultValue)
 
 	config.AddConfigPath(BlueprintLocation)
 	config.SetConfigName(ConfigFileName)
@@ -417,9 +420,10 @@ func Configure(repo model.IRepository) (monitor.MonitoringAdapter, notifier.Viol
 	}
 
 	testingConfig := TestingConfiguration{
-		Enabled:  config.GetBool(TestingEnabledProperty),
-		MethodID: config.GetString(TestingMethodIDProperty),
-		Metrics:  make(map[string]float64),
+		Enabled:       config.GetBool(TestingEnabledProperty),
+		MethodID:      config.GetString(TestingMethodIDProperty),
+		NumViolations: config.GetInt(TestingNumViolationsProperty),
+		Metrics:       make(map[string]float64),
 	}
 
 	metrics := config.GetStringMapString(TestingMetricsProperty)

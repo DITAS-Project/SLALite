@@ -23,7 +23,7 @@ const (
 	ConfigPrefix string = "sla"
 
 	// DefaultCheckPeriod is the default number of seconds of the periodic assessment execution
-	DefaultCheckPeriod time.Duration = 5
+	DefaultCheckPeriod time.Duration = 60
 
 	// DefaultRepositoryType is the name of the default repository
 	DefaultRepositoryType string = "memory"
