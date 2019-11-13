@@ -21,6 +21,7 @@ package ditas
 import (
 	"SLALite/assessment/monitor"
 	"SLALite/model"
+	"strings"
 	"time"
 
 	"github.com/go-resty/resty/v2"
@@ -70,7 +71,9 @@ func (d DataAnalyticsAdapter) Retrieve(agreement model.Agreement,
 
 	useTesting := d.TestingConfiguration.Enabled && agreement.Id == d.TestingConfiguration.MethodID
 	for _, item := range items {
-		if metricValue, ok := d.TestingConfiguration.Metrics[item.Var.Metric]; ok && useTesting {
+		// Due to bug https://github.com/spf13/viper/issues/411 which transforms keys to lowercase, we need to check against the lowercase representation of the metric
+		lowerMetric := strings.ToLower(item.Var.Metric)
+		if metricValue, ok := d.TestingConfiguration.Metrics[lowerMetric]; ok && useTesting {
 			result[item.Var] = []model.MetricValue{
 				model.MetricValue{
 					Key:      item.Var.Metric,
