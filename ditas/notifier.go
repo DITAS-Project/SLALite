@@ -21,33 +21,44 @@ package ditas
 import (
 	assessment_model "SLALite/assessment/model"
 	"SLALite/model"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"net/http"
-	"net/url"
 	"strconv"
 
 	"github.com/Knetic/govaluate"
+	"github.com/go-resty/resty/v2"
 	log "github.com/sirupsen/logrus"
 )
 
-type DitasViolation struct {
+const (
+	DS4MNotifyPath = "/v2/NotifyViolation"
+)
+
+// Violation contains information about the violation of an SLA, including the metrics that made it fail
+type Violation struct {
 	VDCId   string              `json:"vdcId"`
 	Method  string              `json:"methodId"`
 	Metrics []model.MetricValue `json:"metrics"`
 }
 
-type DitasNotifier struct {
-	VDCId      string
-	NotifyUrl  string
-	Violations []DitasViolation
+// Notifier is the default Ditas Notifier that will inform the DS4M of violations
+type Notifier struct {
+	VDCId                    string
+	NotifyURL                string
+	Client                   *resty.Client
+	Violations               []Violation
+	TestingConfiguration     TestingConfiguration
+	TestingNotificationsSent int
 }
 
-func NewNotifier(vdcId, url string) *DitasNotifier {
-	return &DitasNotifier{
-		VDCId:     vdcId,
-		NotifyUrl: url,
+// NewNotifier creates a new Ditas notifier that will use the VDC identifier and DS4M URL provided as parameters
+func NewNotifier(vdcID, url string, testingConfig TestingConfiguration, debugHTTP bool) *Notifier {
+	client := resty.New().SetDebug(debugHTTP)
+	return &Notifier{
+		VDCId:                vdcID,
+		NotifyURL:            url + DS4MNotifyPath,
+		Client:               client,
+		TestingConfiguration: testingConfig,
 	}
 }
 
@@ -79,17 +90,26 @@ func evaluate(comparator string, thresholdIf interface{}, valueIf interface{}) (
 	return false, errors.New("Comparator not supported: " + comparator)
 }
 
-func (n *DitasNotifier) filterValues(methodId string, result *assessment_model.Result) {
-	violations := make([]DitasViolation, 0)
+// filterValues will filter those metric values that don't meet its threshold in the guarantee
+// and may be the responsibles for the failure of the evaluation and so, of the violation.
+func (n *Notifier) filterValues(methodID string, result *assessment_model.Result) []Violation {
+	violations := make([]Violation, 0)
 	violationMap := make(map[string][]model.MetricValue)
-	for _, grResults := range *result {
+
+	// Iterate over the guarantees that were violated
+	for _, grResults := range result.Violated {
+
+		// Iterate over the violations found of that guarantee
 		for _, violation := range grResults.Violations {
+
+			// Make a map of each metric. We only have one average value per metric so that's fine.
 			valueMap := make(map[string]model.MetricValue)
 
 			for _, metricValue := range violation.Values {
 				valueMap[metricValue.Key] = metricValue
 			}
 
+			// Make a govaluate expression from the guarantee to re-evaluate it
 			expression, err := govaluate.NewEvaluableExpression(violation.Constraint)
 			if err == nil {
 				violationInformation, ok := violationMap[violation.AgreementId]
@@ -97,6 +117,7 @@ func (n *DitasNotifier) filterValues(methodId string, result *assessment_model.R
 					violationInformation = make([]model.MetricValue, 0)
 				}
 				tokens := expression.Tokens()
+				// Go over tokens to find expressions of type <variable> <operator> <value> i.e. availability >= 90
 				for i, token := range tokens {
 					if token.Kind == govaluate.VARIABLE && (i < len(tokens)-2) && (tokens[i+1].Kind == govaluate.COMPARATOR && tokens[i+2].Kind == govaluate.NUMERIC) {
 						variable := token.Value.(string)
@@ -104,8 +125,10 @@ func (n *DitasNotifier) filterValues(methodId string, result *assessment_model.R
 						threshold := tokens[i+2].Value
 						value, found := valueMap[variable]
 						if found {
+							// Evaluate the comparison to see if it violates the threshold that was defined
 							assessed, err := evaluate(comparator, threshold, value.Value)
 							if err == nil && !assessed {
+								// If so, add it to the list of values that will be sent
 								violationInformation = append(violationInformation, value)
 							} else {
 								if err != nil {
@@ -123,50 +146,37 @@ func (n *DitasNotifier) filterValues(methodId string, result *assessment_model.R
 			}
 		}
 	}
+
+	// Transform the map to a list to send to DS4M
 	for k, v := range violationMap {
-		violations = append(violations, DitasViolation{
+		violations = append(violations, Violation{
 			Method:  k,
 			VDCId:   n.VDCId,
 			Metrics: v,
 		})
 	}
-	n.Violations = violations
+	return violations
 }
 
-func (n *DitasNotifier) NotifyViolations(agreement *model.Agreement, result *assessment_model.Result) {
+// NotifyViolations calls the DS4M if there is any violation in the results provided by the assessment process
+func (n *Notifier) NotifyViolations(agreement *model.Agreement, result *assessment_model.Result) {
 	logger := log.WithField("agreement", agreement.Id)
 	logger.Debugf("Notifying %d violations", len(result.GetViolations()))
-	n.filterValues(agreement.Id, result)
-	if n.NotifyUrl != "" {
+	if n.NotifyURL != "" {
+		n.Violations = n.filterValues(agreement.Id, result)
 		logger.Debugf("Got %d violations after filtering", len(n.Violations))
-		rawJSON, err := json.Marshal(n.Violations)
-		if err == nil {
-			rawJSONStr := string(rawJSON)
-			data := url.Values{
-				"violations": []string{rawJSONStr},
-			}
-			log.Infof("Sending violations:\n %s\n", rawJSONStr)
-			response, err := http.PostForm(n.NotifyUrl+"/NotifyViolation", data)
-			//response, err := http.Post("http://ds4m/notifyViolation", "application/json", bytes.NewBuffer(rawJson))
+		isTesting := n.TestingConfiguration.Enabled && n.TestingConfiguration.MethodID == agreement.Id && n.TestingNotificationsSent < n.TestingConfiguration.NumViolations
+		if n.TestingConfiguration.Enabled == false || isTesting {
+			logger.Debug("Sending violation to VDM")
+			_, err := n.Client.R().SetBody(n.Violations).Post(n.NotifyURL)
 			if err != nil {
-				log.WithError(err).Error("Error sending violations")
-			} else {
-				if response.StatusCode != 200 {
-					body := make([]byte, response.ContentLength)
-					if response.ContentLength > 0 {
-						read, err := response.Body.Read(body)
-
-						if err != nil {
-							log.WithError(err).Error("Error reading response body")
-						}
-
-						if int64(read) < response.ContentLength {
-							log.Errorf("Read %d bytes while expecting %d in response body", read, response.ContentLength)
-						}
-					}
-					log.Errorf("Status error %d sending violations: %s", response.StatusCode, string(body))
-				}
+				log.WithError(err).Errorf("Error notifying violations of SLA %s", agreement.Id)
 			}
+			if isTesting {
+				n.TestingNotificationsSent++
+			}
+		} else {
+			logger.Debug("Skipping violation notification due to testing configuration: %v", n.TestingConfiguration)
 		}
 	}
 }

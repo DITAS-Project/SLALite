@@ -20,16 +20,18 @@ package ditas
 
 import (
 	"SLALite/assessment/monitor"
+	"SLALite/assessment/monitor/genericadapter"
 	"SLALite/assessment/notifier"
 	"SLALite/model"
 	"errors"
 	"fmt"
 	"io/ioutil"
-	"net/http"
-	"net/url"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/DITAS-Project/blueprint-go"
+	"github.com/go-resty/resty/v2"
 	"github.com/spf13/viper"
 
 	log "github.com/sirupsen/logrus"
@@ -37,33 +39,72 @@ import (
 
 const (
 	// BlueprintLocation is the location where the DITAS blueprint must be found
-	BlueprintLocation = "/opt/blueprint"
+	BlueprintLocation = "/etc/ditas"
 
 	// BlueprintName is the name of the DITAS blueprint file to read to compose SLAs
 	BlueprintName = "blueprint.json"
 
+	// ConfigFileName is the name of the configuration file to read
 	ConfigFileName = "slalite"
 
 	// BlueprintPath is the path to the DITAS blueprint
 	BlueprintPath = BlueprintLocation + "/" + BlueprintName
 
-	DS4MUrlDefault = "http://vdm:8080"
+	// VDCIdPropery is the name of the property holding the VDC Id value in the configuration file
+	VDCIdPropery = "vdcId"
 
-	VDCIdPropery          = "vdcId"
-	ElasticSearchProperty = "elasticsearch.url"
-	DS4MUrlProperty       = "ds4m.url"
+	// InfrastructureIDProperty is the name of the property holding the infrastructure identifier in which this instance of the SLA manager is running
+	InfrastructureIDProperty = "infrastructureId"
+
+	// DataAnalyticsURLProperty is the name of the property holding the URL to the data analytics REST service
+	DataAnalyticsURLProperty = "data_analytics.url"
+
+	// DS4MPortProperty is the name of the property holding the port of the DS4M in the VDM service
+	DS4MPortProperty = "ds4m.port"
+
+	TestingEnabledProperty       = "testing.enabled"
+	TestingMethodIDProperty      = "testing.method"
+	TestingNumViolationsProperty = "testing.num_violations"
+	TestingMetricsProperty       = "testing.metrics"
+
+	TestingMetricNameKey  = "name"
+	TestingMetricValueKey = "value"
+
+	DebugHTTPCallsProperty = "debug.trace_http"
+
+	// DS4MDefaultPortValue is the default port in which the DS4M listens at the VDM
+	DS4MDefaultPortValue = 30003
+
+	DS4MVDCIDHeaderName = "VDCID"
+
+	TestingEnabledDefaultValue       = false
+	TestingNumViolationsDefaultValue = 1
+
+	VDMRetryTimeoutProperty     = "ds4m.timeout"
+	VDMRetryTimeoutDefaultValue = 60
+
+	DebugHTTPCallsDefaultValue = false
 )
 
-type MethodInfo struct {
+type methodInfo struct {
 	MethodID  string
 	Agreement model.Agreement
 	Path      string
 	Operation string
 }
 
-func readProperty(property blueprint.MetricPropertyType, name string) string {
+type constraintExpression struct {
+	Expression string
+	Variables  []string
+}
+
+// readProperty composes a rule based on the property value
+// If there's a maximum and minimum it will create an expression x € [min, max]
+// If there's just a maximum or minimum it will create x >= min or x <= max
+// If it's a fixed value it will create x == value
+func readProperty(property blueprint.Property, name string) string {
 	if property.Value != nil {
-		return fmt.Sprintf("%s == %f", name, *property.Value)
+		return fmt.Sprintf("%s == %f", name, property.Value)
 	}
 
 	if property.Maximum != nil && property.Minimum != nil {
@@ -80,36 +121,36 @@ func readProperty(property blueprint.MetricPropertyType, name string) string {
 	return ""
 }
 
-func readProperties(properties map[string]blueprint.MetricPropertyType) string {
+// readProperties forms a constraint in the form metric1 && metric2 &&...
+// for every property in DATA_MANAGEMENT.method.dataUtility.properties,
+// i.e if there are availability and responseTime properties it will form an expression of type
+// availability >= 90 && responseTime <= 1
+//
+// It will also return a list of variables associated to this constraint
+func readProperties(properties map[string]blueprint.Property) constraintExpression {
 	var result strings.Builder
+	vars := make([]string, len(properties))
 	i := 0
 	if properties != nil {
 		for name, property := range properties {
 			result.WriteString(readProperty(property, name))
+			vars[i] = name
 			if i < len(properties)-1 {
 				result.WriteString(" && ")
 			}
 			i++
 		}
 	}
-	return result.String()
+	return constraintExpression{
+		Expression: result.String(),
+		Variables:  vars,
+	}
 }
 
-/*func getExpression(goal blueprint.GoalType) string {
-	var result string
-	if goal.Metrics != nil {
-		for i, metric := range goal.Metrics {
-			result = result + readProperties(metric.Properties)
-			if i < len(goal.Metrics)-1 {
-				result = result + " %% "
-			}
-		}
-	}
-	return result
-}*/
-
-func getExpressions(goals []blueprint.ConstraintType) map[string]string {
-	result := make(map[string]string)
+// getExpressions associates to every expression in DATA_MANAGEMENT.method.dataUtility an expression
+// which ANDs of all its properties and index it by the rule id
+func getExpressions(goals []blueprint.DataUtility) map[string]constraintExpression {
+	result := make(map[string]constraintExpression)
 	for _, goal := range goals {
 		if goal.ID != nil {
 			result[*goal.ID] = readProperties(goal.Properties)
@@ -120,12 +161,17 @@ func getExpressions(goals []blueprint.ConstraintType) map[string]string {
 	return result
 }
 
-func composeExpression(ids []string, expressions map[string]string) string {
+// composeExpression will create an AND expression composing all attributes of a leaf node type
+// it receives the leaves as ids and the partial expressions indexed by id
+// i.e in a tree of
+// leaf.attibutes = [id1, id2] and expresions = {id1: "responseTime <= 2"; id2: "availability <= 90"}
+// it will compose the expression "responseTime <= 2 && availability <= 90"
+func composeExpression(ids []string, expressions map[string]constraintExpression) string {
 	var result strings.Builder
 	for i, id := range ids {
 		expression, ok := expressions[id]
 		if ok {
-			result.WriteString(expression)
+			result.WriteString(expression.Expression)
 			if i < len(ids)-1 {
 				result.WriteString(" && ")
 			}
@@ -136,11 +182,14 @@ func composeExpression(ids []string, expressions map[string]string) string {
 	return result.String()
 }
 
-func createGuarantee(leaf blueprint.LeafType, expressions map[string]string) model.Guarantee {
+// createGuarantee creates a guarantee from a tree leaf assigning it the leaf id as the guarantee id.
+// It will do so by creating and AND expression of all its attributes.
+func createGuarantee(leaf blueprint.LeafType, expressions map[string]constraintExpression) model.Guarantee {
 	return model.Guarantee{Name: *leaf.Id, Constraint: composeExpression(leaf.Attributes, expressions)}
 }
 
-func flattenLeaves(leaves []blueprint.LeafType, expressions map[string]string, operator string) (string, string) {
+// flattenLeaves will create and expression applying the passed operator to all its leafs
+func flattenLeaves(leaves []blueprint.LeafType, expressions map[string]constraintExpression, operator string) (string, string) {
 	var result strings.Builder
 	var name strings.Builder
 	for i, leaf := range leaves {
@@ -161,7 +210,8 @@ func flattenLeaves(leaves []blueprint.LeafType, expressions map[string]string, o
 	return name.String(), result.String()
 }
 
-func flatten(tree blueprint.TreeStructureType, expressions map[string]string) (string, string) {
+// flatten traverses recursively the tree creating a flat expression of the node operator and its leafs
+func flatten(tree blueprint.TreeStructureType, expressions map[string]constraintExpression) (string, string) {
 	operator := "||"
 	if *tree.Type == "AND" {
 		operator = "&&"
@@ -192,7 +242,11 @@ func flatten(tree blueprint.TreeStructureType, expressions map[string]string) (s
 	return nameBuilder.String(), constraintBuilder.String()
 }
 
-func parseTree(tree blueprint.TreeStructureType, expressions map[string]string) []model.Guarantee {
+// flatten will create guarantees by analyzing the tree structure recursively
+// As long as it finds an AND node, it will create one guarantee for each of its leaves
+// and recursively create guarantees for its children
+// When it finds an OR node, it will create a flat || rule with all its children and leafs
+func parseTree(tree blueprint.TreeStructureType, expressions map[string]constraintExpression) []model.Guarantee {
 	switch *tree.Type {
 	case "AND":
 		init := make([]model.Guarantee, 0, len(tree.Leaves)+len(tree.Children))
@@ -211,47 +265,64 @@ func parseTree(tree blueprint.TreeStructureType, expressions map[string]string) 
 	return make([]model.Guarantee, 0)
 }
 
-func getGuarantees(method blueprint.AbstractPropertiesMethodType, expressions map[string]string) []model.Guarantee {
+// getGuarantees parses the goal tree and the expression data to form guarantees for the SLA
+func getGuarantees(method blueprint.AbstractPropertiesMethodType, expressions map[string]constraintExpression) []model.Guarantee {
 	return parseTree(method.GoalTrees.DataUtility, expressions)
 }
 
-func CreateAgreements(bp *blueprint.BlueprintType) (model.Agreements, map[string]blueprint.ExtendedOps) {
+// CreateAgreements creates one SLA per method found in the blueprint by:
+// 1. Getting the individual constraints defined in DATA_MANAGEMENT[method_id].attributes.dataUtility
+// 2. Creating guarantees with the goal tree defined in ABSTRACT_PROPERTIES[method_id].goalTrees.dataUtility
+func CreateAgreements(bp *blueprint.Blueprint) (model.Agreements, map[string]blueprint.ExtendedOps) {
+	blueprintID := bp.ID
 	blueprintName := bp.InternalStructure.Overview.Name
 
 	methodInfo := blueprint.AssembleOperationsMap(*bp)
 
 	agreements := make(map[string]*model.Agreement)
-	expressions := make(map[string]map[string]string)
+	expressions := make(map[string]map[string]constraintExpression)
 
 	methods := bp.DataManagement
 	if methods != nil && len(methods) > 0 {
 		for _, method := range methods {
-			if method.MethodId != nil {
+			if method.MethodID != "" {
 				agreement := model.Agreement{
-					Id:   *method.MethodId,
-					Name: *method.MethodId,
+					Id:   method.MethodID,
+					Name: method.MethodID,
 					Details: model.Details{
-						Name: *method.MethodId,
+						Name: method.MethodID,
 						Provider: model.Provider{
-							Id:   *blueprintName,
-							Name: *blueprintName,
+							Id:   blueprintID,
+							Name: blueprintName,
 						},
 						Client: model.Client{
-							Id:   *blueprintName,
-							Name: *blueprintName,
+							Id:   blueprintID,
+							Name: blueprintName,
 						},
-						Id: *method.MethodId,
+						Id:        method.MethodID,
+						Variables: make([]model.Variable, 0),
 					},
 					State: model.STARTED,
 				}
-				agreement.Id = *method.MethodId
+				agreement.Id = method.MethodID
 
 				if method.Attributes.DataUtility != nil {
-					expressions[*method.MethodId] = getExpressions(method.Attributes.DataUtility)
+					attExpressions := getExpressions(method.Attributes.DataUtility)
+
+					for _, exp := range attExpressions {
+						for _, variable := range exp.Variables {
+							agreement.Details.Variables = append(agreement.Details.Variables, model.Variable{
+								Name:   variable,
+								Metric: variable,
+							})
+						}
+					}
+					expressions[method.MethodID] = attExpressions
 				}
+
 				agreements[agreement.Id] = &agreement
 			} else {
-				log.Errorf("INVALID BLUEPRINT %s: Found method without name", *blueprintName)
+				log.Errorf("INVALID BLUEPRINT %s: Found method without name", blueprintName)
 			}
 		}
 
@@ -263,14 +334,14 @@ func CreateAgreements(bp *blueprint.BlueprintType) (model.Agreements, map[string
 				if foundExp && foundAg {
 					agreement.Details.Guarantees = getGuarantees(method, exp)
 				} else {
-					log.Errorf("INVALID BLUEPRINT %s: Method %s goals or tree not found", *blueprintName, *method.MethodId)
+					log.Errorf("INVALID BLUEPRINT %s: Method %s goals or tree not found", blueprintName, *method.MethodId)
 				}
 			}
 		} else {
-			log.Errorf("INVALID BLUEPRINT %s: Abstract properties section not found", *blueprintName)
+			log.Errorf("INVALID BLUEPRINT %s: Abstract properties section not found", blueprintName)
 		}
 	} else {
-		log.Errorf("INVALID BLUEPRINT %s: Can't find any method in data management section", *blueprintName)
+		log.Errorf("INVALID BLUEPRINT %s: Can't find any method in data management section", blueprintName)
 	}
 
 	var results = make(model.Agreements, 0)
@@ -282,84 +353,98 @@ func CreateAgreements(bp *blueprint.BlueprintType) (model.Agreements, map[string
 	return results, methodInfo
 }
 
-func sendBlueprintToVDM(logger *log.Entry, ds4mUrl string) error {
+func sendBlueprintToVDM(logger *log.Entry, ds4mURL, vdcID string, timeout int64, debugHTTP bool) error {
 	rawJSON, err := ioutil.ReadFile(BlueprintPath)
 	if err != nil {
 		logger.WithError(err).Error("Error reading")
 		return err
 	}
 
-	rawJSONStr := string(rawJSON)
-	data := url.Values{
-		"ConcreteBlueprint": []string{rawJSONStr},
-	}
-	logger.Debug("Sending blueprint to DS4M")
-	response, err := http.PostForm(ds4mUrl+"/AddVDC", data)
-
-	if err != nil {
-		logger.WithError(err).Error("Error received from DS4M service")
-		return err
-	}
-
-	if response.StatusCode != 200 {
-		logger.Errorf("Received error status code %d", response.StatusCode)
-		body := make([]byte, response.ContentLength)
-		if response.ContentLength > 0 {
-			read, err := response.Body.Read(body)
-
-			if err != nil {
-				logger.WithError(err).Error("Error reading response body")
-				return err
-			}
-
-			if int64(read) < response.ContentLength {
-				msg := fmt.Sprintf("Read %d bytes while expecting %d in response body", read, response.ContentLength)
-				return errors.New(msg)
-			}
+	start := time.Now()
+	limit := start.Add(time.Second * time.Duration(timeout))
+	success := false
+	client := resty.New().SetDebug(debugHTTP)
+	for limit.After(start) && !success {
+		_, err = client.R().SetHeader("VDCID", vdcID).SetBody(rawJSON).Post(ds4mURL + "/v2/AddVDC")
+		if err != nil {
+			logger.WithError(err).Error("Error received from DS4M service. Will retry again in 10 seconds")
+			time.Sleep(time.Second * 10)
+			start = time.Now()
+		} else {
+			success = true
 		}
-		msg := fmt.Sprintf("Status error %d sending violations: %s", response.StatusCode, string(body))
-		return errors.New(msg)
+	}
+	if !success {
+		return errors.New("Timeout waiting for VDM to be ready")
 	}
 	return nil
-
 }
 
-func Configure(repo model.IRepository) (monitor.MonitoringAdapter, notifier.ViolationNotifier) {
+// Configure creates SLAs from methods found in a blueprint, returning the Ditas monitoring adapter
+// and a violation notifier that will inform the DS4M
+func Configure(repo model.IRepository) (monitor.MonitoringAdapter, notifier.ViolationNotifier, error) {
 	config := viper.New()
 
-	config.SetDefault(DS4MUrlProperty, DS4MUrlDefault)
+	config.SetDefault(DS4MPortProperty, DS4MDefaultPortValue)
+	config.SetDefault(TestingEnabledProperty, TestingEnabledDefaultValue)
+	config.SetDefault(VDMRetryTimeoutProperty, VDMRetryTimeoutDefaultValue)
+	config.SetDefault(TestingNumViolationsProperty, TestingNumViolationsDefaultValue)
+	config.SetDefault(DebugHTTPCallsProperty, DebugHTTPCallsDefaultValue)
 
 	config.AddConfigPath(BlueprintLocation)
 	config.SetConfigName(ConfigFileName)
 	config.ReadInConfig()
 
+	log.Infof("Read DITAS configuration file %s", config.ConfigFileUsed())
+
 	bp, err := blueprint.ReadBlueprint(BlueprintPath)
+	if err != nil {
+		log.WithError(err).Error("Error reading blueprint")
+		return nil, nil, err
+	}
 
-	if err == nil {
+	logger := log.WithField("blueprint", bp.InternalStructure.Overview.Name)
 
-		logger := log.WithField("blueprint", *bp.InternalStructure.Overview.Name)
+	logger.Debug("Creating blueptint at VDM")
 
-		logger.Debug("Creating blueptint at VDM")
+	vdcID := config.GetString(VDCIdPropery)
+	vdmURL := fmt.Sprintf("http://vdm:%d", config.GetInt(DS4MPortProperty))
+	debugHTTP := config.GetBool(DebugHTTPCallsProperty)
+	err = sendBlueprintToVDM(logger, vdmURL, vdcID, config.GetInt64(VDMRetryTimeoutProperty), debugHTTP)
 
-		err = sendBlueprintToVDM(logger, config.GetString(DS4MUrlProperty))
+	if err != nil {
+		logger.WithError(err).Error("Error registering blueprint in VDM. Violation notification will have problems")
+	}
 
-		if err != nil {
-			logger.WithError(err).Error("Error registering blueprint in VDM. Violation notification will have problems")
-		}
+	agreements, _ := CreateAgreements(bp)
 
-		agreements, ops := CreateAgreements(bp)
-
-		if agreements != nil {
-			for _, agreement := range agreements {
-				_, err := repo.CreateAgreement(&agreement)
-				if err != nil {
-					log.Errorf("Error creating agreement %s: %s", agreement.Id, err.Error())
-				}
+	if agreements != nil {
+		for _, agreement := range agreements {
+			_, err := repo.CreateAgreement(&agreement)
+			if err != nil {
+				log.Errorf("Error creating agreement %s: %s", agreement.Id, err.Error())
 			}
 		}
-
-		return NewAdapter(config.GetString(ElasticSearchProperty), ops), NewNotifier(config.GetString(VDCIdPropery), config.GetString(DS4MUrlProperty))
 	}
-	log.Errorf("Error reading blueprint: %s", err.Error())
-	return nil, nil
+
+	testingConfig := TestingConfiguration{
+		Enabled:       config.GetBool(TestingEnabledProperty),
+		MethodID:      config.GetString(TestingMethodIDProperty),
+		NumViolations: config.GetInt(TestingNumViolationsProperty),
+		Metrics:       make(map[string]float64),
+	}
+
+	metrics := config.GetStringMapString(TestingMetricsProperty)
+	if metrics != nil {
+		for metricName, metricValue := range metrics {
+			floatValue, err := strconv.ParseFloat(metricValue, 64)
+			if err != nil {
+				logger.WithError(err).Errorf("Error converting testing metric value of %s", metricName)
+			}
+			testingConfig.Metrics[metricName] = floatValue
+		}
+	}
+	da := NewDataAnalyticsAdapter(config.GetString(DataAnalyticsURLProperty), config.GetString(VDCIdPropery), config.GetString(InfrastructureIDProperty), testingConfig, debugHTTP)
+	adapter := genericadapter.New(da.Retrieve, da.Process)
+	return adapter, NewNotifier(vdcID, vdmURL, testingConfig, debugHTTP), nil
 }

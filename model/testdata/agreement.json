@@ -1,0 +1,20 @@
+{
+    "id": "id",
+    "name": "Agreement 02",
+    "state": "stopped",
+    "details":{
+        "id": "id",
+        "type": "agreement",
+        "name": "Agreement 02",
+        "provider": { "id": "mf2c", "name": "mF2C Platform" },
+        "client": { "id": "c02", "name": "A client" },
+        "creation": "2018-01-16T17:09:45.0Z",
+        "expiration": "2019-01-17T17:09:45.0Z",
+        "guarantees": [
+            {
+                "name": "dijkstra",
+                "constraint": "execution_time < 100"
+            }
+        ]
+    }
+}

@@ -74,13 +74,15 @@ func main() {
 		log.Fatal("Error creating repository: ", errRepo.Error())
 	}
 
-	repo, _ = validation.New(repo, false)
+	validater := model.NewDefaultValidator(config.GetBool(utils.ExternalIDsPropertyName), true)
+	repo, _ = validation.New(repo, validater)
 	if repo != nil {
-		a, _ := NewApp(config, repo)
-		adapter, notifier := ditas.Configure(repo)
-		go createValidationThread(repo, adapter, notifier, checkPeriod)
-
-		a.Run()
+		a, _ := NewApp(config, repo, validater)
+		adapter, notifier, err := ditas.Configure(repo)
+		if err == nil {
+			go createValidationThread(repo, adapter, notifier, checkPeriod)
+			a.Run()
+		}
 	}
 }
 
@@ -97,6 +99,7 @@ func createMainConfig(file *string, paths *string, basename *string) *viper.Vipe
 	config.AutomaticEnv()
 	config.SetDefault(utils.CheckPeriodPropertyName, utils.DefaultCheckPeriod)
 	config.SetDefault(utils.RepositoryTypePropertyName, utils.DefaultRepositoryType)
+	config.SetDefault(utils.ExternalIDsPropertyName, utils.DefaultExternalIDs)
 
 	if *file != "" {
 		config.SetConfigFile(*file)
@@ -119,12 +122,14 @@ func logMainConfig(config *viper.Viper) {
 
 	checkPeriod := config.GetDuration(utils.CheckPeriodPropertyName)
 	repoType := config.GetString(utils.RepositoryTypePropertyName)
+	externalIDs := config.GetBool(utils.ExternalIDsPropertyName)
 
 	log.Infof("SLALite initialization\n"+
 		"\tConfigfile: %s\n"+
 		"\tRepository type: %s\n"+
+		"\tExternal IDs: %v\n"+
 		"\tCheck period:%d\n",
-		config.ConfigFileUsed(), repoType, checkPeriod)
+		config.ConfigFileUsed(), repoType, externalIDs, checkPeriod)
 
 	caPath := config.GetString(utils.CAPathPropertyName)
 	if caPath != "" {

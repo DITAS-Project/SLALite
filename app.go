@@ -16,7 +16,9 @@ limitations under the License.
 package main
 
 import (
+	"SLALite/generator"
 	"SLALite/model"
+	"SLALite/utils"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -50,6 +52,8 @@ type App struct {
 	SslEnabled  bool
 	SslCertPath string
 	SslKeyPath  string
+	externalIDs bool
+	validator   model.Validator
 }
 
 // ApiError is the struct sent to client on errors
@@ -78,9 +82,10 @@ type endpoint struct {
 var api = map[string]endpoint{
 	"providers":  endpoint{"GET", "/providers", "Providers"},
 	"agreements": endpoint{"GET", "/agreements", "Agreements"},
+	"templates":  endpoint{"GET", "/templates", "Templates"},
 }
 
-func NewApp(config *viper.Viper, repository model.IRepository) (App, error) {
+func NewApp(config *viper.Viper, repository model.IRepository, validator model.Validator) (App, error) {
 
 	setDefaults(config)
 	logConfig(config)
@@ -90,6 +95,8 @@ func NewApp(config *viper.Viper, repository model.IRepository) (App, error) {
 		SslEnabled:  config.GetBool(enableSslPropertyName),
 		SslCertPath: config.GetString(sslCertPathPropertyName),
 		SslKeyPath:  config.GetString(sslKeyPathPropertyName),
+		externalIDs: config.GetBool(utils.ExternalIDsPropertyName),
+		validator:   validator,
 	}
 
 	a.initialize(repository)
@@ -145,6 +152,13 @@ func (a *App) initialize(repository model.IRepository) {
 	a.Router.Methods("PUT").Path("/agreements/{id}").Handler(logger(a.UpdateAgreement))
 	a.Router.Methods("DELETE").Path("/agreements/{id}").Handler(logger(a.DeleteAgreement))
 	a.Router.Methods("GET").Path("/agreements/{id}/details").Handler(logger(a.GetAgreementDetails))
+
+	a.Router.Methods("GET").Path("/templates").Handler(logger(a.GetTemplates))
+	a.Router.Methods("GET").Path("/templates/{id}").Handler(logger(a.GetTemplate))
+	a.Router.Methods("POST").Path("/templates").Handler(logger(a.CreateTemplate))
+
+	a.Router.Methods("POST").Path("/create-agreement").Handler(logger(a.CreateAgreementFromTemplate))
+
 }
 
 // Run starts the REST API
@@ -581,6 +595,160 @@ func (a *App) TerminateAgreement(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// GetTemplates return all templates in db
+// swagger:operation GET /templates getAllTemplates
+//
+// Returns all registered templates
+//
+// ---
+// produces:
+// - application/json
+// responses:
+//   '200':
+//     description: The complete list of registered templates
+//     schema:
+//       type: object
+//       additionalProperties:
+//         "$ref": "#/definitions/Templates"
+func (a *App) GetTemplates(w http.ResponseWriter, r *http.Request) {
+
+	a.getAll(w, r, func() (interface{}, error) {
+		return a.Repository.GetAllTemplates()
+	})
+}
+
+// GetTemplate gets a template by REST ID
+// swagger:operation GET /templates/{id} getTemplate
+//
+// Returns a template given its ID
+//
+// ---
+// produces:
+// - application/json
+// parameters:
+// - name: id
+//   in: path
+//   description: The identifier of the template
+//   required: true
+//   type: string
+// responses:
+//   '200':
+//     description: The template with the ID
+//     schema:
+//       "$ref": "#/definitions/Template"
+//   '404' :
+//     description: Template not found
+func (a *App) GetTemplate(w http.ResponseWriter, r *http.Request) {
+	a.get(w, r, func(id string) (interface{}, error) {
+		return a.Repository.GetTemplate(id)
+	})
+}
+
+// CreateTemplate creates a template passed by REST params
+// swagger:operation POST /templates createTemplate
+//
+// Creates a template with the information passed in the request body
+//
+// ---
+// produces:
+// - application/json
+// consumes:
+// - application/json
+// parameters:
+// - name: template
+//   in: body
+//   description: The template to create
+//   required: true
+//   schema:
+//     "$ref": "#/definitions/Template"
+// responses:
+//   '200':
+//     description: The new template that has been created
+//     schema:
+//       "$ref": "#/definitions/Template"
+func (a *App) CreateTemplate(w http.ResponseWriter, r *http.Request) {
+
+	var template model.Template
+
+	a.create(w, r,
+		func() error {
+			return json.NewDecoder(r.Body).Decode(&template)
+		},
+		func() (model.Identity, error) {
+			return a.Repository.CreateTemplate(&template)
+		})
+}
+
+// CreateAgreementFromTemplate generates an agreement from a template and parameters
+//
+// swagger:operation POST /create-agreement createAgreementFromTemplate
+//
+// Creates an agreement from a template; templateId is the templateID to base the
+// agreement from; agreementID is an output field, containing the ID of the created
+// and stored agreement; parameters must contain a property for each placeholder to
+// be substituted in the template.
+//
+// ---
+// produces:
+// - application/json
+// consumes:
+// - application/json
+// parameters:
+// - name: createAgreement
+//   in: body
+//   description: Parameters to create an agreement from a template
+//   required: true
+//   schema:
+//     "$ref": "#/definitions/CreateAgreement"
+// responses:
+//   '200':
+//     description: The response contains the ID of the created agreement
+//     schema:
+//       "$ref": "#/definitions/CreateAgreement"
+//   '400' :
+//     description: Not all template placeholders were substituted
+//   '404' :
+//     description: Not found the TemplateID to create the agreement from
+func (a *App) CreateAgreementFromTemplate(w http.ResponseWriter, r *http.Request) {
+
+	var in model.CreateAgreement
+	var t *model.Template
+	var ag *model.Agreement
+
+	a.create(w, r,
+		func() error {
+			return json.NewDecoder(r.Body).Decode(&in)
+		},
+		func() (model.Identity, error) {
+			var err error
+
+			t, err = a.Repository.GetTemplate(in.TemplateID)
+			if err != nil {
+				return nil, err
+			}
+
+			genmodel := generator.Model{
+				Template:  *t,
+				Variables: in.Parameters,
+			}
+
+			ag, err = generator.Do(&genmodel, a.validator, a.externalIDs)
+			if err != nil {
+				return nil, err
+			}
+
+			ag, err = a.Repository.CreateAgreement(ag)
+			if err != nil {
+				return nil, err
+			}
+
+			out := in
+			out.AgreementID = ag.Id
+
+			return &out, nil
+		})
+}
+
 func manageError(err error, w http.ResponseWriter) {
 	switch err {
 	case model.ErrAlreadyExist:
@@ -588,7 +756,7 @@ func manageError(err error, w http.ResponseWriter) {
 	case model.ErrNotFound:
 		respondWithError(w, http.StatusNotFound, "Can't find object")
 	default:
-		if model.IsErrValidation(err) {
+		if model.IsErrValidation(err) || generator.IsErrUnreplaced(err) {
 			respondWithError(w, http.StatusBadRequest, err.Error())
 		} else {
 			respondWithError(w, http.StatusInternalServerError, err.Error())

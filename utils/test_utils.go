@@ -24,7 +24,6 @@ import (
 	"SLALite/repositories/memrepository"
 	"SLALite/repositories/mongodb"
 	"SLALite/repositories/validation"
-	"encoding/json"
 	"os"
 	"strings"
 	"time"
@@ -59,7 +58,7 @@ func createRepository(repoType string) model.IRepository {
 		}
 		repo = mongoRepo
 	}
-	repo, _ = validation.New(repo, false)
+	repo, _ = validation.New(repo, model.NewDefaultValidator(false, true))
 	return repo
 }
 
@@ -75,8 +74,10 @@ type Timeline struct {
 // Ex:
 //     t.T(2)
 //     t.T(-1)
-func (t *Timeline) T(second time.Duration) time.Time {
-	return t.T0.Add(time.Second * second)
+func (t *Timeline) T(second float64) time.Time {
+	ms := int(1000 * second)
+	d := time.Duration(ms) * time.Millisecond
+	return t.T0.Add(d)
 }
 
 // ReadAgreement returns the agreement read from the file pointed by path.
@@ -88,13 +89,23 @@ func (t *Timeline) T(second time.Duration) time.Time {
 //      t.Errorf("Error reading agreement: %v", err)
 //    }
 func ReadAgreement(path string) (model.Agreement, error) {
-	var a model.Agreement
+	/*
+	 * Moved to model to avoid cyclic dependency when used in model package tests
+	 */
+	return model.ReadAgreement(path)
+}
 
-	f, err := os.Open(path)
-	if err != nil {
-		return a, err
-	}
-	json.NewDecoder(f).Decode(&a)
-	f.Close()
-	return a, nil
+// ReadTemplate returns the template read from the file pointed by path.
+// The CWD is the location of the test.
+//
+// Ex:
+//    a, err := readAgreement("testdata/a.json")
+//    if err != nil {
+//      t.Errorf("Error reading agreement: %v", err)
+//    }
+func ReadTemplate(path string) (model.Template, error) {
+	/*
+	 * Moved to model to avoid cyclic dependency when used in model package tests
+	 */
+	return model.ReadTemplate(path)
 }

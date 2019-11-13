@@ -47,6 +47,7 @@ var providerPrefix = "pf_" + strconv.Itoa(rand.Int())
 var agreementPrefix = "apf_" + strconv.Itoa(rand.Int())
 
 var a1 = createAgreement("a01", p1, c2, "Agreement 01", nil)
+var t1, _ = utils.ReadTemplate("model/testdata/template.json")
 
 // TestMain runs the tests
 func TestMain(m *testing.M) {
@@ -59,10 +60,13 @@ func TestMain(m *testing.M) {
 		if err == nil {
 			_, err = repo.CreateAgreement(&a1)
 		}
+		if err == nil {
+			_, err = repo.CreateTemplate(&t1)
+		}
 		if err != nil {
 			log.Fatalf("Error creating initial state: %v", err)
 		}
-		a, _ = NewApp(viper.New(), repo)
+		a, _ = NewApp(viper.New(), repo, model.NewDefaultValidator(false, true))
 	} else {
 		log.Fatal("Error initializing repository")
 	}
@@ -307,7 +311,7 @@ func testGetAgreementExists(t *testing.T) {
 }
 
 func testGetAgreementNotExists(t *testing.T) {
-	req, _ := http.NewRequest("GET", "/agreements/doesnotexist/details", nil)
+	req, _ := http.NewRequest("GET", "/agreements/doesnotexist", nil)
 	res := request(req)
 	checkError(t, res, http.StatusNotFound, res.Code)
 }
@@ -532,6 +536,172 @@ func testAgreementNotEscaped(t *testing.T) {
 	if strings.Contains(s, "\\u003e") {
 		t.Error("Agreement is HTML escaped")
 	}
+}
+
+/********************************************************************
+*****************TEMPLATES******************************************
+********************************************************************/
+
+func TestTemplates(t *testing.T) {
+	t.Run("GetTemplates", testGetTemplates)
+	t.Run("GetTemplateExists", testGetTemplateExists)
+	t.Run("GetTemplateNotExists", testGetTemplateNotExists)
+	t.Run("CreateTemplateThatExists", testCreateTemplateThatExists)
+	t.Run("CreateTemplate", testCreateTemplate)
+}
+
+func testGetTemplates(t *testing.T) {
+	req, _ := http.NewRequest("GET", "/templates", nil)
+	res := request(req)
+	checkStatus(t, http.StatusOK, res.Code)
+
+	var templates model.Templates
+	_ = json.NewDecoder(res.Body).Decode(&templates)
+	if len(templates) != 1 {
+		t.Errorf("Expected 1 template. Received: %v", templates)
+	}
+	log.Infof("%#v", templates)
+}
+
+func testGetTemplateExists(t *testing.T) {
+	req, _ := http.NewRequest("GET", "/templates/t01", nil)
+	res := request(req)
+	checkStatus(t, http.StatusOK, res.Code)
+	/*
+	 * Check body
+	 */
+	var template model.Template
+	_ = json.NewDecoder(res.Body).Decode(&template)
+	if !reflect.DeepEqual(t1, template) {
+		t.Errorf("Expected: %#v. Actual: %#v", t1, template)
+	}
+}
+
+func testGetTemplateNotExists(t *testing.T) {
+	req, _ := http.NewRequest("GET", "/templates/doesnotexist", nil)
+	res := request(req)
+	checkError(t, res, http.StatusNotFound, res.Code)
+}
+
+func testCreateTemplateThatExists(t *testing.T) {
+	body, err := json.Marshal(t1)
+	if err != nil {
+		t.Error("Unexpected marshalling error")
+	}
+	req, _ := http.NewRequest("POST", "/templates", bytes.NewBuffer(body))
+	res := request(req)
+
+	checkStatus(t, http.StatusConflict, res.Code)
+}
+
+func testCreateTemplate(t *testing.T) {
+	posted, _ := utils.ReadTemplate("model/testdata/template2.json")
+	body, err := json.Marshal(posted)
+	if err != nil {
+		t.Error("Unexpected marshalling error")
+	}
+	req, _ := http.NewRequest("POST", "/templates", bytes.NewBuffer(body))
+	res := request(req)
+
+	checkStatus(t, http.StatusCreated, res.Code)
+
+	var created model.Template
+	_ = json.NewDecoder(res.Body).Decode(&created)
+	if !reflect.DeepEqual(created, posted) {
+		t.Errorf("Expected: %v. Actual: %v", posted, created)
+	}
+}
+
+/********************************************************************
+*****************CREATEAGREEMENT(FROM TEMPLATE)**********************
+********************************************************************/
+
+func TestCreateAgreements(t *testing.T) {
+	t.Run("Create agreement from template", testCreateAgreementFromTemplate)
+	t.Run("Missing fields in create agreement from template", testCreateAgreementFromTemplateMissingFields)
+	t.Run("Wrong templateID in create agreement from template", testCreateAgreementFromTemplateWrongID)
+}
+
+func testCreateAgreementFromTemplate(t *testing.T) {
+	/*
+	 * Provider or Client are not decoded as the respective entity in the endpoint;
+	 * that is why the provider is traversed in the template as
+	 * {{provider.id}}, instead of {{provider.Id}}
+	 * (see model/testdata/template.json)
+	 */
+	ca := model.CreateAgreement{
+		TemplateID: "t01",
+		Parameters: map[string]interface{}{
+			"M":             1,
+			"N":             2,
+			"agreementname": "agreement-test",
+			"provider":      model.Provider{Id: "p01", Name: "p01-name"},
+			"client":        map[string]string{"Id": "c01", "Name": "c01-name"},
+		},
+	}
+	body, err := json.Marshal(ca)
+	if err != nil {
+		t.Error("Unexpected marshalling error")
+	}
+
+	req, _ := http.NewRequest("POST", "/create-agreement", bytes.NewBuffer(body))
+	res := request(req)
+
+	checkStatus(t, http.StatusCreated, res.Code)
+	if res.Code != http.StatusCreated {
+		var e ApiError
+		_ = json.NewDecoder(res.Body).Decode(&e)
+		log.Infof("Error=%#v", e)
+		return
+	}
+
+	var created model.CreateAgreement
+	_ = json.NewDecoder(res.Body).Decode(&created)
+
+	a, _ := repo.GetAgreement(created.AgreementID)
+	log.Infof("Generated agreement: %#v", a)
+}
+
+func testCreateAgreementFromTemplateWrongID(t *testing.T) {
+	ca := model.CreateAgreement{
+		TemplateID: "tnotexists",
+		Parameters: map[string]interface{}{
+			"M":             1,
+			"N":             2,
+			"agreementname": "agreement-test",
+			"provider":      model.Provider{Id: "p01", Name: "p01-name"},
+			"client":        map[string]string{"Id": "c01", "Name": "c01-name"},
+		},
+	}
+	body, err := json.Marshal(ca)
+	if err != nil {
+		t.Error("Unexpected marshalling error")
+	}
+
+	req, _ := http.NewRequest("POST", "/create-agreement", bytes.NewBuffer(body))
+	res := request(req)
+
+	checkStatus(t, http.StatusNotFound, res.Code)
+}
+
+func testCreateAgreementFromTemplateMissingFields(t *testing.T) {
+
+	ca := model.CreateAgreement{
+		TemplateID: "t01",
+		Parameters: map[string]interface{}{
+			"M": 1,
+			"N": 2,
+		},
+	}
+	body, err := json.Marshal(ca)
+	if err != nil {
+		t.Error("Unexpected marshalling error")
+	}
+
+	req, _ := http.NewRequest("POST", "/create-agreement", bytes.NewBuffer(body))
+	res := request(req)
+
+	checkStatus(t, http.StatusBadRequest, res.Code)
 }
 
 func request(req *http.Request) *httptest.ResponseRecorder {

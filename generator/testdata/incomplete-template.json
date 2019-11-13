@@ -1,0 +1,20 @@
+{
+    "id": "t01",
+    "details":{
+        "id": "t01",
+        "type": "template",
+        "provider": { "id": "{{.provider.Id}}", "name": "{{.provider.Name}}" },
+        "client": { "id": "{{.client.Id}}", "name": "{{.client.Name}}" },
+        "creation": "2018-01-16T17:09:45.0Z",
+        "expiration": "2019-01-17T17:09:45.0Z",
+        "guarantees": [
+            {
+                "name": "TestGuarantee",
+                "constraint": "m < {{.M}} && n < {{.N}}"
+            }
+        ],
+        "variables": {
+            "m": { "function": "avg", "period": "10s"}
+        }
+    }
+}

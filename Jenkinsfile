@@ -8,8 +8,9 @@ pipeline {
                 }
             }
             steps {
-                sh "chmod +x jenkins/build.sh"
-                sh "jenkins/build.sh ${WORKSPACE}"
+                // Build
+		        sh "echo skipping"
+                //sh "jenkins/build.sh ${WORKSPACE}"
             }
         }
         stage('Image creation') {
@@ -22,7 +23,7 @@ pipeline {
                 echo 'Creating the image...'
 
                 // This will search for a Dockerfile.artifact in the working directory and build the image to the local repository
-                sh "docker build -t \"ditas/slalite:production\" -f Dockerfile.artifact ."
+                sh "docker build -t \"ditas/slalite:staging\" -f Dockerfile ."
                 echo "Done"
 		    
                 // Get the password from a file. This reads the file from the host, not the container. Slaves already have the password in there.
@@ -36,8 +37,8 @@ pipeline {
                 sh "docker login -u ditasgeneric -p ${password}"
                 echo "Done"
 
-                echo "Pushing the image ditas/slalite:latest..."
-                sh "docker push ditas/slalite:production"
+                echo "Pushing the image ditas/slalite:staging..."
+                sh "docker push ditas/slalite:staging"
                 echo "Done "
             }
         }

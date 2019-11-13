@@ -69,7 +69,7 @@ type Identity interface {
 // Validable identifies entities that can be validated
 //
 type Validable interface {
-	Validate() []error
+	Validate(val Validator, mode ValidationMode) []error
 }
 
 // State is the type of possible states of an agreement
@@ -77,6 +77,9 @@ type State string
 
 // TextType is the type of possible types a Details type
 type TextType string
+
+// AggregationType is the type of supported variable aggregations
+type AggregationType string
 
 const (
 	// STARTED is the state of an agreement that can be evaluated
@@ -95,6 +98,13 @@ const (
 
 	// TEMPLATE is the text type of a Template text
 	TEMPLATE TextType = "template"
+)
+
+const (
+	// NONE is used when the variable is not aggregated
+	NONE AggregationType = "none"
+	// AVERAGE is used to calculate average of a variable
+	AVERAGE AggregationType = "average"
 )
 
 // States is the list of possible states of an agreement/template
@@ -117,13 +127,8 @@ func (p *Provider) GetId() string {
 }
 
 // Validate validates the consistency of a Provider entity
-func (p *Provider) Validate() []error {
-	result := make([]error, 0, 2)
-
-	result = checkEmpty(p.Id, "Provider.Id", result)
-	result = checkEmpty(p.Name, "Provider.Name", result)
-
-	return result
+func (p *Provider) Validate(val Validator, mode ValidationMode) []error {
+	return val.ValidateProvider(p, mode)
 }
 
 // Client is the entity that represents a client.
@@ -136,13 +141,35 @@ func (c *Client) GetId() string {
 }
 
 // Validate validates the consistency of a Client entity
-func (c *Client) Validate() []error {
-	result := make([]error, 0, 2)
+func (c *Client) Validate(val Validator, mode ValidationMode) []error {
+	return val.ValidateClient(c, mode)
+}
 
-	result = checkEmpty(c.Id, "Client.Id", result)
-	result = checkEmpty(c.Name, "Client.Name", result)
+// Template is the entity that serves as base to create new agreements
+//
+// The Details field of the template contains placeholders that are substituted
+// when generating an agreement from a template (see generator package).
+// The Constraints fields contains constraints that a variable used in a guarantee
+// must satisfy. F.e., if the guarantee expression is "cpu_usage < {{M}}", one could
+// specify in Constraints that "M" : "M >= 0 && M <= 100".Template
+//
+// The Id and Name are relative to the template itself, and should not match
+// the fields in Details.
+// swagger:model
+type Template struct {
+	Id   string `json:"id" bson:"_id"`
+	Name string `json:"name"`
+	//	State       State             `json:"state"`
+	Details     Details           `json:"details"`
+	Constraints map[string]string `json:"constraints"`
+}
 
-	return result
+// CreateAgreement is the resource used to create an agreement from a template.
+// swagger:model
+type CreateAgreement struct {
+	TemplateID  string                 `json:"template_id"`
+	AgreementID string                 `json:"agreement_id"`
+	Parameters  map[string]interface{} `json:"parameters"`
 }
 
 // Agreement is the entity that represents an agreement between a provider and a client.
@@ -165,7 +192,23 @@ type Agreement struct {
 type Assessment struct {
 	FirstExecution time.Time `json:"first_execution"`
 	LastExecution  time.Time `json:"last_execution"`
+	// Guarantees may be nil. Use Assessment.SetGuarantee to create if needed.
+	Guarantees map[string]AssessmentGuarantee `json:"guarantees,omitempty"`
 }
+
+// AssessmentGuarantee contain the assessment information for a guarantee term
+//
+// swagger:model
+type AssessmentGuarantee struct {
+	FirstExecution time.Time  `json:"first_execution"`
+	LastExecution  time.Time  `json:"last_execution"`
+	LastValues     LastValues `json:"last_values,omitempty"`
+}
+
+// LastValues contain last values of variables in guarantee terms
+//
+// swagger:model
+type LastValues map[string]MetricValue
 
 // Details is the struct that represents the "contract" signed by the client
 // swagger:model
@@ -177,17 +220,44 @@ type Details struct {
 	Client     Client      `json:"client"`
 	Creation   time.Time   `json:"creation"`
 	Expiration *time.Time  `json:"expiration,omitempty"`
+	Variables  []Variable  `json:"variables,omitempty"`
 	Guarantees []Guarantee `json:"guarantees"`
+}
+
+// Variable gives additional information about a metric used in a Guarantee constraint
+// swagger:model
+type Variable struct {
+	Name        string       `json:"name"`
+	Metric      string       `json:"metric"`
+	Aggregation *Aggregation `json:"aggregation,omitempty"`
+}
+
+// Aggregation gives aggregation information of a variable.
+// If defined and value is not NONE, the metric must be aggregated
+// in the specified window in seconds.
+// I.e. (average, 3600) means that the average over a period of one hour is calculated.
+// swagger:model
+type Aggregation struct {
+	Type   AggregationType `json:"type"`
+	Window int             `json:"window"`
 }
 
 // Guarantee is the struct that represents an SLO
 // swagger:model
 type Guarantee struct {
 	Name       string       `json:"name"`
+	Scope      Scope        `json:"scope,omitempty"`
 	Constraint string       `json:"constraint"`
-	Warning    string       `json:"warning"`
-	Penalties  []PenaltyDef `json:"penalties"`
+	Schedule   Schedule     `json:"schedule,omitempty"`
+	Warning    string       `json:"warning,omitempty"`
+	Penalties  []PenaltyDef `json:"penalties,omitempty"`
 }
+
+// Scope is the resources a guarantee term applies on
+type Scope string
+
+// Schedule is the frequency a guarantee term is evaluated
+type Schedule string
 
 // PenaltyDef is the struct that represents a penalty in case of an SLO violation
 // swagger:model
@@ -205,7 +275,7 @@ type MetricValue struct {
 	DateTime time.Time   `json:"datetime"`
 }
 
-func (v *MetricValue) String() string {
+func (v MetricValue) String() string {
 	return fmt.Sprintf("{Key: %s, Value: %v, DateTime: %v}", v.Key, v.Value, v.DateTime)
 }
 
@@ -229,6 +299,21 @@ type Penalty struct {
 	Guarantee   string     `json:"guarantee"`
 	Datetime    time.Time  `json:"datetime"`
 	Definition  PenaltyDef `json:"definition"`
+}
+
+// GetId returns the id of an template
+func (t *Template) GetId() string {
+	return t.Id
+}
+
+// Validate validates the consistency of a Template.
+func (t *Template) Validate(val Validator, mode ValidationMode) []error {
+	return val.ValidateTemplate(t, mode)
+}
+
+// GetId returns the id of a CreateAgreement entity
+func (ca *CreateAgreement) GetId() string {
+	return ""
 }
 
 // GetId returns the id of an agreement
@@ -257,56 +342,60 @@ func (a *Agreement) IsValidTransition(newState State) bool {
 }
 
 // Validate validates the consistency of an Agreement.
-func (a *Agreement) Validate() []error {
-	result := make([]error, 0)
-
-	a.State = normalizeState(a.State)
-	result = checkEmpty(a.Id, "Agreement.Id", result)
-	result = checkEmpty(a.Name, "Agreement.Name", result)
-	for _, e := range a.Assessment.Validate() {
-		result = append(result, e)
-	}
-	for _, e := range a.Details.Validate() {
-		result = append(result, e)
-	}
-
-	result = checkEquals(a.Id, "Agreement.Id", a.Details.Id, "Agreement.Details.Id", result)
-	result = checkEquals(a.Name, "Agreement.Name", a.Details.Name, "Agreement.Details.Name", result)
-
-	return result
+func (a *Agreement) Validate(val Validator, mode ValidationMode) []error {
+	return val.ValidateAgreement(a, mode)
 }
 
 // Validate validates the consistency of an Assessment entity
-func (as *Assessment) Validate() []error {
-	return []error{}
+func (as *Assessment) Validate(val Validator, mode ValidationMode) []error {
+	return val.ValidateAssessment(as, mode)
+}
+
+// SetGuarantee is a helper function to set the assessment info of a guarantee term
+func (as *Assessment) SetGuarantee(name string, value AssessmentGuarantee) {
+	if as.Guarantees == nil {
+		as.Guarantees = make(map[string]AssessmentGuarantee)
+	}
+	as.Guarantees[name] = value
+}
+
+// GetGuarantee is a helper to return the assessment info of a guarantee term.
+//
+// If empty, it returns a zero AssessmentGuarantee
+func (as *Assessment) GetGuarantee(name string) AssessmentGuarantee {
+	zero := AssessmentGuarantee{
+		LastValues: LastValues{},
+	}
+	if as.Guarantees == nil {
+		return zero
+	}
+	if _, ok := as.Guarantees[name]; !ok {
+		return zero
+	}
+	return as.Guarantees[name]
 }
 
 // Validate validates the consistency of a Details entity
-func (t *Details) Validate() []error {
-	result := make([]error, 0)
-	result = checkEmpty(t.Id, "Details.Id", result)
-	result = checkEmpty(t.Name, "Details.Name", result)
-	for _, e := range t.Provider.Validate() {
-		result = append(result, e)
-	}
-	for _, e := range t.Client.Validate() {
-		result = append(result, e)
-	}
-	for _, g := range t.Guarantees {
-		for _, e := range g.Validate() {
-			result = append(result, e)
+func (t *Details) Validate(val Validator, mode ValidationMode) []error {
+	return val.ValidateDetails(t, mode)
+}
+
+// GetVariable returns the variable with name "varname".
+//
+// If not found, it returns a default value for the variable
+// (i.e., Name and Metric equal to varname).
+func (t *Details) GetVariable(varname string) (result Variable, ok bool) {
+	for _, val := range t.Variables {
+		if varname == val.Name {
+			return val, true
 		}
 	}
-	return result
+	return Variable{Name: varname, Metric: varname}, false
 }
 
 // Validate validates the consistency of a Guarantee entity
-func (g *Guarantee) Validate() []error {
-	result := make([]error, 0)
-	result = checkEmpty(g.Name, "Guarantee.Name", result)
-	result = checkEmpty(g.Constraint, fmt.Sprintf("Guarantee['%s'].Constraint", g.Name), result)
-
-	return result
+func (g *Guarantee) Validate(val Validator, mode ValidationMode) []error {
+	return val.ValidateGuarantee(g, mode)
 }
 
 // GetId returns the Id of a violation
@@ -315,43 +404,8 @@ func (v *Violation) GetId() string {
 }
 
 // Validate validates the consistency of a Violation entity
-func (v *Violation) Validate() []error {
-	result := make([]error, 0)
-	result = checkEmpty(v.Id, "Violation.Id", result)
-	result = checkEmpty(v.AgreementId, "Violation.AgreementId", result)
-	result = checkEmpty(v.Guarantee, "Violation.Guarantee", result)
-	if v.Datetime.IsZero() {
-		result = append(result, fmt.Errorf("%v is not a valid date", v.Datetime))
-	}
-	if v.Values == nil || len(v.Values) == 0 {
-		result = append(result, fmt.Errorf("Violation.Values cannot be empty"))
-	}
-	result = checkEmpty(v.Constraint, "Violation.Constraint", result)
-
-	return result
-}
-
-func checkEmpty(field string, description string, current []error) []error {
-	if field == "" {
-		current = append(current, fmt.Errorf("%s is empty", description))
-	}
-	return current
-}
-
-func checkEquals(f1 string, f1desc, f2 string, f2desc string, current []error) []error {
-	if f1 != f2 {
-		current = append(current, fmt.Errorf("%s and %s do not match", f1desc, f2desc))
-	}
-	return current
-}
-
-func normalizeState(s State) State {
-	for _, v := range States {
-		if s == v {
-			return s
-		}
-	}
-	return STOPPED
+func (v *Violation) Validate(val Validator, mode ValidationMode) []error {
+	return val.ValidateViolation(v, mode)
 }
 
 // Normalize returns an always valid state: any different value from contained in States is STOPPED.
@@ -366,3 +420,7 @@ type Providers []Provider
 // Agreements is the type of an slice of Agreement
 // swagger:model
 type Agreements []Agreement
+
+// Templates is the type of an slice of Template
+// swagger:model
+type Templates []Template

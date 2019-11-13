@@ -32,11 +32,13 @@ type MemRepository struct {
 	agreements map[string]model.Agreement
 	violations map[string]model.Violation
 	penalties  map[string]model.Penalty
+	templates  map[string]model.Template
 }
 
 // NewMemRepository creates a MemRepository with an initial state set by the parameters
 func NewMemRepository(providers map[string]model.Provider, agreements map[string]model.Agreement,
-	violations map[string]model.Violation, penalties map[string]model.Penalty) MemRepository {
+	violations map[string]model.Violation, penalties map[string]model.Penalty,
+	templates map[string]model.Template) MemRepository {
 	var r MemRepository
 
 	if providers == nil {
@@ -51,18 +53,22 @@ func NewMemRepository(providers map[string]model.Provider, agreements map[string
 	if penalties == nil {
 		penalties = make(map[string]model.Penalty)
 	}
+	if templates == nil {
+		templates = make(map[string]model.Template)
+	}
 	r = MemRepository{
 		providers:  providers,
 		agreements: agreements,
 		violations: violations,
 		penalties:  penalties,
+		templates:  templates,
 	}
 	return r
 }
 
 //New creates a new instance of MemRepository
 func New(config *viper.Viper) (MemRepository, error) {
-	return NewMemRepository(nil, nil, nil, nil), nil
+	return NewMemRepository(nil, nil, nil, nil, nil), nil
 }
 
 /*
@@ -308,4 +314,59 @@ func (r MemRepository) UpdateAgreementState(id string, newState model.State) (*m
 		result = &current
 	}
 	return result, err
+}
+
+/*
+GetAllTemplates returns the list of templates.
+
+The list is empty when there are no templates;
+error != nil on error
+*/
+func (r MemRepository) GetAllTemplates() (model.Templates, error) {
+
+	result := make(model.Templates, 0, len(r.templates))
+
+	for _, value := range r.templates {
+		result = append(result, value)
+	}
+	return result, nil
+}
+
+/*
+GetTemplate returns the Template identified by id.
+
+error != nil on error;
+error is sql.ErrNoRows if the Template is not found
+*/
+func (r MemRepository) GetTemplate(id string) (*model.Template, error) {
+	var err error
+
+	item, ok := r.templates[id]
+
+	if ok {
+		err = nil
+	} else {
+		err = model.ErrNotFound
+	}
+	return &item, err
+}
+
+/*
+CreateTemplate stores a new Template.
+
+error != nil on error;
+error is sql.ErrNoRows if the Template already exists
+*/
+func (r MemRepository) CreateTemplate(template *model.Template) (*model.Template, error) {
+	var err error
+
+	id := template.Id
+	_, ok := r.templates[id]
+
+	if ok {
+		err = model.ErrAlreadyExist
+	} else {
+		r.templates[id] = *template
+	}
+	return template, err
 }

@@ -21,41 +21,27 @@ package ditas
 import (
 	"SLALite/assessment"
 	assessment_model "SLALite/assessment/model"
+	"SLALite/assessment/monitor"
+	"SLALite/assessment/monitor/genericadapter"
+	"SLALite/assessment/monitor/simpleadapter"
 	"SLALite/model"
-	"flag"
+	"fmt"
+	"math/rand"
+	"net/http"
 	"os"
 	"testing"
 	"time"
 
-	"github.com/Knetic/govaluate"
-
 	blueprint "github.com/DITAS-Project/blueprint-go"
+	"github.com/jarcoal/httpmock"
 )
 
 const (
-	DS4MUrl = "http://31.171.247.162:50003/NotifyViolation"
+	DS4MUrl          = "http://ds4m"
+	dataAnalyticsURL = "http://data-analytics/data-analytics"
 )
-
-var (
-	integrationNotifier = flag.Bool("notifier", false, "run DS4M integration tests")
-	integrationElastic  = flag.Bool("elastic", false, "run ElasticSearch integration tests")
-)
-
-type TestMonitoring struct {
-	Metrics assessment_model.ExpressionData
-}
-
-func (t *TestMonitoring) Initialize(a *model.Agreement) {
-}
-
-func (t *TestMonitoring) GetValues(gt model.Guarantee, vars []string) assessment_model.GuaranteeData {
-	return assessment_model.GuaranteeData{t.Metrics}
-}
 
 var t0 = time.Now()
-var testNotifier = DitasNotifier{
-	VDCId: "VDC_2",
-}
 
 func TestMain(m *testing.M) {
 	os.Exit(m.Run())
@@ -74,38 +60,197 @@ func TestReader(t *testing.T) {
 		t.Fatalf("Did not get any SLA from the blueprint")
 	}
 
-	for _, sla := range slas {
-		_, ok := methodsInfo[sla.Id]
-		if !ok {
-			t.Fatalf("Can't find method information for SLA %s", sla.Id)
+	if len(slas) > 1 {
+		t.Fatalf("Expected one SLA but found %d", len(slas))
+	}
+
+	sla := slas[0]
+
+	_, ok := methodsInfo[sla.Id]
+	if !ok {
+		t.Fatalf("Can't find method information for SLA %s", sla.Id)
+	}
+
+	if len(sla.Details.Guarantees) != 4 {
+		t.Fatalf("Wrong number of guarantees for SLA %s: expected 4 but found %d", sla.Id, len(sla.Details.Guarantees))
+	}
+
+	for _, guarantee := range sla.Details.Guarantees {
+		var expected string
+		switch guarantee.Name {
+		case "serviceAvailable":
+			expected = "availability >= 90.000000"
+		case "fastProcess":
+			expected = "responseTime <= 2.000000"
+		case "freshData":
+			expected = "timeliness <= 99.000000"
+		case "EnoughData":
+			expected = "volume >= 1200.000000"
 		}
-
-		if !(len(sla.Details.Guarantees) > 0) {
-			t.Fatalf("Guarantees were not generated for SLA %s", sla.Id)
-		}
-
-		for _, guarantee := range sla.Details.Guarantees {
-			if guarantee.Name == "" {
-				t.Fatalf("Empty guarantee name for SLA %s", sla.Id)
-			}
-
-			if guarantee.Constraint == "" {
-				t.Fatalf("Empty constraint for guarantee %s of SLA %s", guarantee.Name, sla.Id)
-			}
+		if guarantee.Constraint != expected {
+			t.Fatalf("Invalid guarantee %s found in SLA %s: Expected %s but found %s", guarantee.Name, sla.Id, expected, guarantee.Constraint)
 		}
 	}
 }
 
-func TestNotifier(t *testing.T) {
-	if *integrationNotifier {
-		testNotifier.NotifyUrl = DS4MUrl
+func getRamdomTestData(sla model.Agreement, ranges map[string]struct {
+	Min float64
+	Max float64
+}, from time.Time) (map[string][]model.MetricValue, time.Time, error) {
+	result := make(map[string][]model.MetricValue)
+	currentTime := from
+	for _, variable := range sla.Details.Variables {
+		values := make([]model.MetricValue, 10)
+		currentRange, ok := ranges[variable.Metric]
+		if !ok {
+			return result, currentTime, fmt.Errorf("Can't find range for variable %s", variable.Metric)
+		}
+		if currentRange.Min > currentRange.Max {
+			return result, currentTime, fmt.Errorf("Invalid range for variable %s: Min %f is greater than max %f", variable.Metric, currentRange.Min, currentRange.Max)
+		}
+		max := currentRange.Max - currentRange.Min
+		for i := range values {
+			currentTime := currentTime.Add(time.Minute * time.Duration(1))
+			values[i] = model.MetricValue{
+				Key:      variable.Metric,
+				Value:    currentRange.Min + (rand.Float64() * max),
+				DateTime: currentTime,
+			}
+		}
+		result[variable.Metric] = values
 	}
+	return result, currentTime, nil
+}
+
+func getMonitoringItems(sla model.Agreement, from time.Time, to time.Time) []monitor.RetrievalItem {
+	vars := sla.Details.Variables
+	result := make([]monitor.RetrievalItem, len(vars))
+	for i, variable := range vars {
+		result[i] = monitor.RetrievalItem{
+			From: from,
+			To:   to,
+			Var:  variable,
+		}
+	}
+	return result
+}
+
+func mockDataRetrieval(data map[string][]model.MetricValue) {
+	httpmock.RegisterResponder("GET", dataAnalyticsURL+"/infra1", func(req *http.Request) (*http.Response, error) {
+		query := req.URL.Query()
+		metric := query.Get("name")
+		if metric == "" {
+			return httpmock.NewStringResponse(http.StatusBadRequest, "Can't find metric name in request"), nil
+		}
+		operation := query.Get("operationID")
+		if operation == "" {
+			return httpmock.NewStringResponse(http.StatusBadRequest, "Can't find operation identifier in request"), nil
+		}
+		metricData, ok := data[metric]
+		if !ok {
+			return httpmock.NewStringResponse(http.StatusNotFound, fmt.Sprintf("Can't find data for metric %s", metric)), nil
+		}
+		result := make([]DataAnalyticsMetric, len(metricData))
+		for i := range result {
+			value := metricData[i]
+			result[i] = DataAnalyticsMetric{
+				OperationID: operation,
+				Name:        metric,
+				Value:       value.Value.(float64),
+				Unit:        "",
+				Timestamp:   value.DateTime.Format(time.RFC3339),
+			}
+		}
+		return httpmock.NewJsonResponse(http.StatusOK, result)
+	})
+}
+
+func TestDitasMonitoringAdapter(t *testing.T) {
+	vdcID := "vdc1"
+	infraID := "infra1"
 	bp, err := blueprint.ReadBlueprint("resources/concrete_blueprint_doctor.json")
 	if err != nil {
 		t.Fatalf("Error reading blueprint: %s", err.Error())
 	}
 
-	testNotifier.VDCId = *bp.InternalStructure.Overview.Name
+	slas, _ := CreateAgreements(bp)
+	sla := slas[0]
+	sla.State = model.STARTED
+
+	da := NewDataAnalyticsAdapter(dataAnalyticsURL, vdcID, infraID, TestingConfiguration{
+		Enabled: false,
+	}, false)
+
+	httpmock.ActivateNonDefault(da.Client.GetClient())
+	defer httpmock.DeactivateAndReset()
+
+	testData := map[string]struct {
+		Min float64
+		Max float64
+	}{
+		"availability": {0.0, 100.0},
+		"responseTime": {0.1, 10},
+		"timeliness":   {0.0, 100.0},
+		"volume":       {1000.0, 10000.0},
+	}
+	from := time.Now()
+	data, to, err := getRamdomTestData(sla, testData, from)
+	if err != nil {
+		t.Fatalf("Error getting random data: %s", err.Error())
+	}
+
+	mockDataRetrieval(data)
+
+	responseValues := da.Retrieve(sla, getMonitoringItems(sla, from, to))
+	if len(data) != len(responseValues) {
+		t.Fatalf("Retrieved %d variables but expected %d", len(responseValues), len(data))
+	}
+	for variable, values := range responseValues {
+		varSourceData, ok := data[variable.Metric]
+		if !ok {
+			t.Fatalf("Can't find original data for returned metric %s", variable.Metric)
+		}
+		if len(values) != len(varSourceData) {
+			t.Fatalf("There are %d returned metrics for variable %s while it was expected to be %d", len(values), variable.Metric, len(varSourceData))
+		}
+	}
+
+	adapter := genericadapter.New(da.Retrieve, da.Process).Initialize(&sla)
+	for _, guarantee := range sla.Details.Guarantees {
+		var vars []string
+		switch guarantee.Name {
+		case "serviceAvailable":
+			vars = []string{"availability"}
+		case "fastProcess":
+			vars = []string{"responseTime"}
+		case "freshData":
+			vars = []string{"timeliness"}
+		case "EnoughData":
+			vars = []string{"volume"}
+		}
+		vals := adapter.GetValues(guarantee, vars, to)
+		if len(vals) != 1 {
+			t.Fatalf("Expected a single aggregated value for guarantee %s but found %d values instead", guarantee.Name, len(vals))
+		}
+
+	}
+
+}
+
+func TestNotifier(t *testing.T) {
+	bp, err := blueprint.ReadBlueprint("resources/concrete_blueprint_doctor.json")
+	if err != nil {
+		t.Fatalf("Error reading blueprint: %s", err.Error())
+	}
+
+	testNotifier := NewNotifier("VDC_2", DS4MUrl, TestingConfiguration{
+		Enabled: false,
+	}, false)
+
+	httpmock.ActivateNonDefault(testNotifier.Client.GetClient())
+	defer httpmock.DeactivateAndReset()
+
+	httpmock.RegisterResponder("POST", DS4MUrl+DS4MNotifyPath, httpmock.NewStringResponder(http.StatusOK, ""))
 
 	slas, _ := CreateAgreements(bp)
 	slas[0].State = model.STARTED
@@ -113,14 +258,15 @@ func TestNotifier(t *testing.T) {
 	var m1 = assessment_model.ExpressionData{
 		"availability": model.MetricValue{Key: "availability", Value: 90, DateTime: t_(0)},
 		"responseTime": model.MetricValue{Key: "responseTime", Value: 1.5, DateTime: t_(0)},
-		"timeliness":   model.MetricValue{Key: "timeliness", Value: 0.5, DateTime: t_(0)},
+		"timeliness":   model.MetricValue{Key: "timeliness", Value: 102.0, DateTime: t_(0)},
+		"volume":       model.MetricValue{Key: "volume", Value: 1100.0, DateTime: t_(0)},
 	}
 
-	adapter := TestMonitoring{
-		Metrics: m1,
-	}
+	adapter := simpleadapter.New(assessment_model.GuaranteeData{
+		m1,
+	})
 
-	result := assessment.AssessAgreement(&slas[0], &adapter, time.Now())
+	result := assessment.AssessAgreement(&slas[0], adapter, time.Now())
 	testNotifier.NotifyViolations(&slas[0], &result)
 
 	notViolations := testNotifier.Violations
@@ -139,8 +285,8 @@ func TestNotifier(t *testing.T) {
 		}
 
 		expectedMetrics := make(map[string]bool)
-		expectedMetrics["availability"] = false
-		expectedMetrics["responseTime"] = false
+		expectedMetrics["volume"] = false
+		expectedMetrics["timeliness"] = false
 
 		for _, metric := range violation.Metrics {
 			found, ok := expectedMetrics[metric.Key]
@@ -165,56 +311,6 @@ func TestNotifier(t *testing.T) {
 		t.Errorf("Unexpected number of violations: %d. Expected %d", len(notViolations), 1)
 	}
 
-}
-
-func TestElastic(t *testing.T) {
-	if *integrationElastic {
-		t.Log("Testing elasticsearch integration")
-		bp, err := blueprint.ReadBlueprint("resources/concrete_blueprint_doctor.json")
-
-		if err != nil {
-			t.Fatalf("Error reading blueprint: %s", err.Error())
-		}
-
-		slas, methods := CreateAgreements(bp)
-
-		sla := slas[0]
-
-		monitor := NewAdapter("http://localhost:9200", methods)
-
-		monitor.Initialize(&sla)
-
-		for _, guarantee := range sla.Details.Guarantees {
-			constraint := guarantee.Constraint
-			exp, err := govaluate.NewEvaluableExpression(constraint)
-			if err != nil {
-				t.Fatalf("Invalid constraint %s found: %s", constraint, err.Error())
-			}
-			vars := exp.Vars()
-			values := monitor.GetValues(guarantee, vars)
-
-			if len(values) == 0 {
-				t.Errorf("Can't find values for constraint %s", constraint)
-			}
-
-			for _, metrics := range values {
-				if len(metrics) == 0 {
-					t.Errorf("Found empty metrics map for constraint %s", constraint)
-				}
-				for key, value := range metrics {
-					if !contains(key, vars) {
-						t.Fatalf("Found metric not requested %s", key)
-					}
-					if value.Key != key {
-						t.Fatalf("Found not matching key in map. Expected: %s, found: %s", key, value.Key)
-					}
-				}
-			}
-		}
-
-	} else {
-		t.Log("Skipping elasticsearch integration test")
-	}
 }
 
 func contains(key string, values []string) bool {

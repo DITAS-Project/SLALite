@@ -20,9 +20,9 @@ returns a random value each time it is called.
 
 Usage:
 	ma := dummyadapter.New()
-	ma.Initialize(&agreement)
+	ma = ma.Initialize(&agreement)
 	for _, gt := range gts {
-		for values := ma.NextValues(gt); values != nil; values = ma.NextValues(gt) {
+		for values := range ma.GetValues(gt, ...) {
 			...
 		}
 	}
@@ -51,11 +51,14 @@ func New(size int) monitor.MonitoringAdapter {
 	}
 }
 
-func (ma *monitoringAdapter) Initialize(a *model.Agreement) {
-	ma.agreement = a
+func (ma *monitoringAdapter) Initialize(a *model.Agreement) monitor.MonitoringAdapter {
+	result := *ma
+	result.agreement = a
+
+	return &result
 }
 
-func (ma *monitoringAdapter) GetValues(gt model.Guarantee, vars []string) assessment_model.GuaranteeData {
+func (ma *monitoringAdapter) GetValues(gt model.Guarantee, vars []string, now time.Time) assessment_model.GuaranteeData {
 	result := make(assessment_model.GuaranteeData, ma.size)
 	for i := 0; i < ma.size; i++ {
 		val := make(assessment_model.ExpressionData)

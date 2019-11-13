@@ -39,11 +39,13 @@ func TestGetViolations(test *testing.T) {
 	}
 
 	r := Result{
-		"gt": EvaluationGtResult{
-			Metrics: values,
-			Violations: []model.Violation{
-				model.Violation{
-					/* We are not interested in actual violation contents */
+		Violated: map[string]EvaluationGtResult{
+			"gt": EvaluationGtResult{
+				Metrics: values,
+				Violations: []model.Violation{
+					model.Violation{
+						/* We are not interested in actual violation contents */
+					},
 				},
 			},
 		},

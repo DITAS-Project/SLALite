@@ -99,6 +99,29 @@ type IRepository interface {
 	DeleteAgreement(agreement *Agreement) error
 
 	/*
+	 * GetAllTemplates returns the list of templates.
+	 *
+	 * The list is empty when there are no templates;
+	 * error != nil on error
+	 */
+	GetAllTemplates() (Templates, error)
+
+	/*
+	 * GetTemplate returns the Template identified by id.
+	 * error != nil on error;
+	 * error is sql.ErrNoRows if the Template is not found
+	 */
+	GetTemplate(id string) (*Template, error)
+
+	/*
+	 * CreateTemplate stores a new Template.
+	 *
+	 * error != nil on error;
+	 * error is sql.ErrNoRows if the Template already exists
+	 */
+	CreateTemplate(template *Template) (*Template, error)
+
+	/*
 	 * CreateViolation stores a new Violation.
 	 *
 	 * error != nil on error;

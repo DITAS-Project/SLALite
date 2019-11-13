@@ -24,6 +24,7 @@ package memrepository
 
 import (
 	"SLALite/model"
+	"SLALite/repositories"
 	"os"
 	"testing"
 
@@ -48,125 +49,41 @@ func TestMain(m *testing.M) {
 }
 
 func TestRepository(t *testing.T) {
+	ctx := repositories.TestContext{Repo: repo}
 	/* Providers */
-	t.Run("CreateProvider", testCreateProvider)
-	t.Run("CreateProviderExists", testCreateProviderExists)
-	t.Run("GetAllProviders", testGetAllProviders)
-	t.Run("GetProvider", testGetProvider)
-	t.Run("GetProviderNotExists", testGetProviderNotExists)
-	t.Run("DeleteProvider", testDeleteProvider)
-	t.Run("DeleteProviderNotExists", testDeleteProviderNotExists)
+	t.Run("CreateProvider", ctx.TestCreateProvider)
+	t.Run("CreateProviderExists", ctx.TestCreateProviderExists)
+	t.Run("GetAllProviders", ctx.TestGetAllProviders)
+	t.Run("GetProvider", ctx.TestGetProvider)
+	t.Run("GetProviderNotExists", ctx.TestGetProviderNotExists)
+	t.Run("DeleteProvider", ctx.TestDeleteProvider)
+	t.Run("DeleteProviderNotExists", ctx.TestDeleteProviderNotExists)
 
 	/* Agreements */
-	t.Run("CreateAgreement", testCreateAgreement)
-	t.Run("CreateAgreementExists", testCreateAgreementExists)
-	t.Run("GetAllAgreements", testGetAllAgreements)
-	t.Run("GetAgreement", testGetAgreement)
-	t.Run("GetAgreementNotExists", testGetAgreementNotExists)
-	t.Run("UpdateAgreementState", testUpdateAgreementState)
-	t.Run("UpdateAgreementStateNotExists", testUpdateAgreementStateNotExists)
-	t.Run("GetAgreementsByState", testGetAgreementsByState)
-	t.Run("UpdateAgreement", testUpdateAgreement)
-	t.Run("UpdateAgreementNotExists", testUpdateAgreementNotExists)
-	t.Run("DeleteAgreement", testDeleteAgreement)
-	t.Run("DeleteAgreementNotExists", testDeleteAgreementNotExists)
+	t.Run("CreateAgreement", ctx.TestCreateAgreement)
+	t.Run("CreateAgreementExists", ctx.TestCreateAgreementExists)
+	t.Run("GetAllAgreements", ctx.TestGetAllAgreements)
+	t.Run("GetAgreement", ctx.TestGetAgreement)
+	t.Run("GetAgreementNotExists", ctx.TestGetAgreementNotExists)
+	t.Run("UpdateAgreementState", ctx.TestUpdateAgreementState)
+	t.Run("UpdateAgreementStateNotExists", ctx.TestUpdateAgreementStateNotExists)
+	t.Run("GetAgreementsByState", ctx.TestGetAgreementsByState)
+	t.Run("UpdateAgreement", ctx.TestUpdateAgreement)
+	t.Run("UpdateAgreementNotExists", ctx.TestUpdateAgreementNotExists)
+	t.Run("DeleteAgreement", ctx.TestDeleteAgreement)
+	t.Run("DeleteAgreementNotExists", ctx.TestDeleteAgreementNotExists)
 
 	/* Violations */
-	t.Run("CreateViolation", testCreateViolation)
-	t.Run("CreateViolationExists", testCreateViolationExists)
+	t.Run("CreateViolation", ctx.TestCreateViolation)
+	t.Run("CreateViolationExists", ctx.TestCreateViolationExists)
 
-	t.Run("GetViolation", testGetViolation)
-	t.Run("GetViolationNotExists", testGetViolationNotExists)
-}
+	t.Run("GetViolation", ctx.TestGetViolation)
+	t.Run("GetViolationNotExists", ctx.TestGetViolationNotExists)
 
-func testCreateProvider(t *testing.T) {
-	model.TestCreateProvider(t, repo)
-}
-
-func testCreateProviderExists(t *testing.T) {
-	model.TestCreateProviderExists(t, repo)
-}
-
-func testGetAllProviders(t *testing.T) {
-	model.TestGetAllProviders(t, repo)
-}
-
-func testGetProvider(t *testing.T) {
-	model.TestGetProvider(t, repo)
-}
-
-func testGetProviderNotExists(t *testing.T) {
-	model.TestGetProviderNotExists(t, repo)
-}
-
-func testDeleteProvider(t *testing.T) {
-	model.TestDeleteProvider(t, repo)
-}
-
-func testDeleteProviderNotExists(t *testing.T) {
-	model.TestDeleteProviderNotExists(t, repo)
-}
-
-func testCreateAgreement(t *testing.T) {
-	model.TestCreateAgreement(t, repo)
-}
-
-func testCreateAgreementExists(t *testing.T) {
-	model.TestCreateAgreementExists(t, repo)
-}
-
-func testGetAllAgreements(t *testing.T) {
-	model.TestGetAllAgreements(t, repo)
-}
-
-func testGetAgreement(t *testing.T) {
-	model.TestGetAgreement(t, repo)
-}
-
-func testGetAgreementNotExists(t *testing.T) {
-	model.TestGetAgreementNotExists(t, repo)
-}
-
-func testUpdateAgreementState(t *testing.T) {
-	model.TestUpdateAgreementState(t, repo)
-}
-
-func testUpdateAgreementStateNotExists(t *testing.T) {
-	model.TestUpdateAgreementStateNotExists(t, repo)
-}
-
-func testGetAgreementsByState(t *testing.T) {
-	model.TestGetAgreementsByState(t, repo)
-}
-
-func testUpdateAgreement(t *testing.T) {
-	model.TestUpdateAgreement(t, repo)
-}
-
-func testUpdateAgreementNotExists(t *testing.T) {
-	model.TestUpdateAgreementNotExists(t, repo)
-}
-
-func testDeleteAgreement(t *testing.T) {
-	model.TestDeleteAgreement(t, repo)
-}
-
-func testDeleteAgreementNotExists(t *testing.T) {
-	model.TestDeleteAgreementNotExists(t, repo)
-}
-
-func testCreateViolation(t *testing.T) {
-	model.TestCreateViolation(t, repo)
-}
-
-func testCreateViolationExists(t *testing.T) {
-	model.TestCreateViolationExists(t, repo)
-}
-
-func testGetViolation(t *testing.T) {
-	model.TestGetViolation(t, repo)
-}
-
-func testGetViolationNotExists(t *testing.T) {
-	model.TestGetViolationNotExists(t, repo)
+	/* Templates */
+	t.Run("CreateTemplate", ctx.TestCreateTemplate)
+	t.Run("CreateTemplateExists", ctx.TestCreateTemplateExists)
+	t.Run("GetAllTemplates", ctx.TestGetAllTemplates)
+	t.Run("GetTemplate", ctx.TestGetTemplate)
+	t.Run("GetTemplateNotExists", ctx.TestGetTemplateNotExists)
 }
