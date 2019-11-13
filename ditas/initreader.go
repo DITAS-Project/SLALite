@@ -353,7 +353,7 @@ func CreateAgreements(bp *blueprint.Blueprint) (model.Agreements, map[string]blu
 	return results, methodInfo
 }
 
-func sendBlueprintToVDM(logger *log.Entry, ds4mURL, vdcID string, timeout int64) error {
+func sendBlueprintToVDM(logger *log.Entry, ds4mURL, vdcID string, timeout int64, debugHTTP bool) error {
 	rawJSON, err := ioutil.ReadFile(BlueprintPath)
 	if err != nil {
 		logger.WithError(err).Error("Error reading")
@@ -363,8 +363,10 @@ func sendBlueprintToVDM(logger *log.Entry, ds4mURL, vdcID string, timeout int64)
 	start := time.Now()
 	limit := start.Add(time.Second * time.Duration(timeout))
 	success := false
+	client := resty.New().SetDebug(debugHTTP).SetLogger(logger)
 	for limit.After(start) && !success {
-		_, err = resty.New().R().SetHeader("VDCID", vdcID).SetBody(rawJSON).Post(ds4mURL + "/v2/AddVDC")
+		client.R().Get("http://www.google.com")
+		_, err = client.R().SetHeader("VDCID", vdcID).SetBody(rawJSON).Post(ds4mURL + "/v2/AddVDC")
 		if err != nil {
 			logger.WithError(err).Error("Error received from DS4M service. Will retry again in 10 seconds")
 			time.Sleep(time.Second * 10)
@@ -408,7 +410,8 @@ func Configure(repo model.IRepository) (monitor.MonitoringAdapter, notifier.Viol
 
 	vdcID := config.GetString(VDCIdPropery)
 	vdmURL := fmt.Sprintf("http://vdm:%d", config.GetInt(DS4MPortProperty))
-	err = sendBlueprintToVDM(logger, vdmURL, vdcID, config.GetInt64(VDMRetryTimeoutProperty))
+	debugHTTP := config.GetBool(DebugHTTPCallsProperty)
+	err = sendBlueprintToVDM(logger, vdmURL, vdcID, config.GetInt64(VDMRetryTimeoutProperty), debugHTTP)
 
 	if err != nil {
 		logger.WithError(err).Error("Error registering blueprint in VDM. Violation notification will have problems")
@@ -442,7 +445,6 @@ func Configure(repo model.IRepository) (monitor.MonitoringAdapter, notifier.Viol
 			testingConfig.Metrics[metricName] = floatValue
 		}
 	}
-	debugHTTP := config.GetBool(DebugHTTPCallsProperty)
 	da := NewDataAnalyticsAdapter(config.GetString(DataAnalyticsURLProperty), config.GetString(VDCIdPropery), config.GetString(InfrastructureIDProperty), testingConfig, debugHTTP)
 	adapter := genericadapter.New(da.Retrieve, da.Process)
 	return adapter, NewNotifier(vdcID, vdmURL, testingConfig, debugHTTP), nil

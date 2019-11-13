@@ -1,0 +1,19 @@
+---
+checkPeriod: 5
+vdcId: VDC_2
+infrastructureId: 281f6c12-cb3c-44d8-83df-550c31a2fa36
+ds4m:
+  port: 8080
+  timeout: 1
+debug:
+  trace_http: true
+testing:
+  enabled: false
+  method: GetStreamingData
+  num_violations: 1
+  metrics:
+   availability: 97
+   timeliness: 80
+   throughtput: 1
+   precision: 1
+   accuracy: 95

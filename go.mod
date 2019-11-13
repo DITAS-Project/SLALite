@@ -9,7 +9,7 @@ require (
 	github.com/boltdb/bolt v1.3.1 // indirect
 	github.com/coreos/bbolt v1.3.0
 	github.com/globalsign/mgo v0.0.0-20180615134936-113d3961e731
-	github.com/go-resty/resty/v2 v2.0.0
+	github.com/go-resty/resty/v2 v2.1.0
 	github.com/google/uuid v1.1.1
 	github.com/gorilla/context v1.1.1 // indirect
 	github.com/gorilla/mux v1.6.2

@@ -51,10 +51,7 @@ type DataAnalyticsAdapter struct {
 }
 
 func NewDataAnalyticsAdapter(analyticsBaseUrl, vdcID, infraID string, testingConfig TestingConfiguration, debugHTTP bool) *DataAnalyticsAdapter {
-	client := resty.New()
-	if debugHTTP {
-		client = client.EnableTrace()
-	}
+	client := resty.New().SetDebug(debugHTTP).SetLogger(log.New())
 	return &DataAnalyticsAdapter{
 		Client:               client,
 		AnalyticsBaseUrl:     analyticsBaseUrl + "/{infraId}",
