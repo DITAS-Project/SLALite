@@ -363,9 +363,8 @@ func sendBlueprintToVDM(logger *log.Entry, ds4mURL, vdcID string, timeout int64,
 	start := time.Now()
 	limit := start.Add(time.Second * time.Duration(timeout))
 	success := false
-	client := resty.New().SetDebug(debugHTTP).SetLogger(logger)
+	client := resty.New().SetDebug(debugHTTP)
 	for limit.After(start) && !success {
-		client.R().Get("http://www.google.com")
 		_, err = client.R().SetHeader("VDCID", vdcID).SetBody(rawJSON).Post(ds4mURL + "/v2/AddVDC")
 		if err != nil {
 			logger.WithError(err).Error("Error received from DS4M service. Will retry again in 10 seconds")

@@ -53,7 +53,7 @@ type Notifier struct {
 
 // NewNotifier creates a new Ditas notifier that will use the VDC identifier and DS4M URL provided as parameters
 func NewNotifier(vdcID, url string, testingConfig TestingConfiguration, debugHTTP bool) *Notifier {
-	client := resty.New().SetDebug(debugHTTP).SetLogger(log.New())
+	client := resty.New().SetDebug(debugHTTP)
 	return &Notifier{
 		VDCId:                vdcID,
 		NotifyURL:            url + DS4MNotifyPath,
