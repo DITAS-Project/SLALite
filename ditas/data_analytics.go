@@ -55,7 +55,7 @@ func NewDataAnalyticsAdapter(analyticsBaseUrl, vdcID, infraID string, testingCon
 	client := resty.New().SetDebug(debugHTTP)
 	return &DataAnalyticsAdapter{
 		Client:               client,
-		AnalyticsBaseUrl:     analyticsBaseUrl + "/{infraId}",
+		AnalyticsBaseUrl:     analyticsBaseUrl,
 		VdcID:                vdcID,
 		InfraID:              infraID,
 		TestingConfiguration: testingConfig,
