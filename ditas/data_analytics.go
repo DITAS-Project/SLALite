@@ -78,7 +78,7 @@ func (d DataAnalyticsAdapter) Retrieve(agreement model.Agreement,
 				model.MetricValue{
 					Key:   item.Var.Metric,
 					Value: metricValue,
-					//					DateTime: time.Now(),
+//					DateTime: time.Now(),
 					DateTime: time.Now().Add(time.Minute * -2),
 				},
 			}
@@ -90,7 +90,10 @@ func (d DataAnalyticsAdapter) Retrieve(agreement model.Agreement,
 				"startTime":   item.From.Format(time.RFC3339),
 				"endTime":     item.To.Format(time.RFC3339),
 			}).SetPathParams(map[string]string{
+<<<<<<< HEAD
 				//				"infraId": d.InfraID,
+=======
+>>>>>>> c7cd98c5478e3a3319f957cbbd6765d0bf00efc9
 				"infraId": d.VdcID,
 			}).SetResult(&metrics).Get(d.AnalyticsBaseUrl)
 			if err != nil {
