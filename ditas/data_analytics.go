@@ -76,10 +76,9 @@ func (d DataAnalyticsAdapter) Retrieve(agreement model.Agreement,
 		if metricValue, ok := d.TestingConfiguration.Metrics[lowerMetric]; ok && useTesting {
 			result[item.Var] = []model.MetricValue{
 				model.MetricValue{
-					Key:   item.Var.Metric,
-					Value: metricValue,
-					//Adding a two minutes window
-					DateTime: time.Now().Add(time.Minute * -2),
+					Key:      item.Var.Metric,
+					Value:    metricValue,
+					DateTime: time.Now(),
 				},
 			}
 		} else {
@@ -128,7 +127,7 @@ func (d *DataAnalyticsAdapter) Process(v model.Variable, values []model.MetricVa
 	}
 	result := sum / float64(len(values))
 
-	processTime := time.Now()
+	processTime := time.Now().Add(time.Minute * -2)
 	if len(values) > 0 {
 		processTime = values[0].DateTime
 	}
