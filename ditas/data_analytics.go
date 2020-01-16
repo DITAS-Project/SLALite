@@ -76,9 +76,10 @@ func (d DataAnalyticsAdapter) Retrieve(agreement model.Agreement,
 		if metricValue, ok := d.TestingConfiguration.Metrics[lowerMetric]; ok && useTesting {
 			result[item.Var] = []model.MetricValue{
 				model.MetricValue{
-					Key:      item.Var.Metric,
-					Value:    metricValue,
-					DateTime: time.Now(),
+					Key:   item.Var.Metric,
+					Value: metricValue,
+					//					DateTime: time.Now(),
+					DateTime: time.Now().Add(time.Minute * -2),
 				},
 			}
 		} else {
@@ -89,7 +90,8 @@ func (d DataAnalyticsAdapter) Retrieve(agreement model.Agreement,
 				"startTime":   item.From.Format(time.RFC3339),
 				"endTime":     item.To.Format(time.RFC3339),
 			}).SetPathParams(map[string]string{
-				"infraId": d.InfraID,
+				//				"infraId": d.InfraID,
+				"infraId": d.VdcID,
 			}).SetResult(&metrics).Get(d.AnalyticsBaseUrl)
 			if err != nil {
 				log.WithError(err).Errorf("Error getting values for metric %s", item.Var.Metric)
