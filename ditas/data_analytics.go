@@ -87,7 +87,7 @@ func (d DataAnalyticsAdapter) Retrieve(agreement model.Agreement,
 				"operationID": agreement.Id,
 				"name":        item.Var.Metric,
 				"startTime":   item.From.Add(time.Minute * -5).Format(time.RFC3339),
-				"endTime":     item.To.Add(time.Minute * -5).Format(time.RFC3339),
+				"endTime":     item.To.Format(time.RFC3339),
 			}).SetPathParams(map[string]string{
 				"infraId": d.VdcID,
 			}).SetResult(&metrics).Get(d.AnalyticsBaseUrl)
