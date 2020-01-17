@@ -150,10 +150,10 @@ func mockDataRetrieval(data map[string][]model.MetricValue) {
 		if !ok {
 			return httpmock.NewStringResponse(http.StatusNotFound, fmt.Sprintf("Can't find data for metric %s", metric)), nil
 		}
-		result := make([]DataAnalyticsMetric, len(metricData))
+		result := make([]DataAnalyticsMeter, len(metricData))
 		for i := range result {
 			value := metricData[i]
-			result[i] = DataAnalyticsMetric{
+			result[i] = DataAnalyticsMeter{
 				OperationID: operation,
 				Name:        metric,
 				Value:       value.Value.(float64),

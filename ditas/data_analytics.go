@@ -34,7 +34,7 @@ type TestingConfiguration struct {
 	NumViolations int
 	Metrics       map[string]float64
 }
-type DataAnalyticsMetric struct {
+type DataAnalyticsMeter struct {
 	OperationID string  `json:"operationID"`
 	Name        string  `json:"name"`
 	Value       float64 `json:"value"`
@@ -42,7 +42,9 @@ type DataAnalyticsMetric struct {
 	Timestamp   string  `json:"timestamp"`
 	Appendix    string  `json:"appendix"`
 }
-
+type DataAnalyticsMetrics struct {
+	DataAnalyticsMeter DataAnalyticsMeter `json:"meter"`
+}
 type DataAnalyticsAdapter struct {
 	Client               *resty.Client
 	AnalyticsBaseUrl     string
@@ -82,7 +84,7 @@ func (d DataAnalyticsAdapter) Retrieve(agreement model.Agreement,
 				},
 			}
 		} else {
-			metrics := make([]DataAnalyticsMetric, 0)
+			metrics := make([]DataAnalyticsMetrics, 0)
 			res, err := d.Client.R().SetQueryParams(map[string]string{
 				"operationID": agreement.Id,
 				"name":        item.Var.Metric,
@@ -101,13 +103,13 @@ func (d DataAnalyticsAdapter) Retrieve(agreement model.Agreement,
 						log.Printf("BUG len(metrics): %d", len(metrics))
 					}
 					for _, metric := range metrics {
-						metricTime, err := time.Parse(time.RFC3339, metric.Timestamp)
+						metricTime, err := time.Parse(time.RFC3339, metric.DataAnalyticsMeter.Timestamp)
 						if err != nil {
-							log.WithError(err).Errorf("Error parsing timestamp %s for metric %s", metric.Timestamp, item.Var.Metric)
+							log.WithError(err).Errorf("Error parsing timestamp %s for metric %s", metric.DataAnalyticsMeter.Timestamp, item.Var.Metric)
 						} else {
 							currentMetrics = append(currentMetrics, model.MetricValue{
 								Key:      item.Var.Metric,
-								Value:    metric.Value,
+								Value:    metric.DataAnalyticsMeter.Value,
 								DateTime: metricTime,
 							})
 						}

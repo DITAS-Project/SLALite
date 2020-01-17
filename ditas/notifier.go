@@ -176,7 +176,7 @@ func (n *Notifier) NotifyViolations(agreement *model.Agreement, result *assessme
 				n.TestingNotificationsSent++
 			}
 		} else {
-			logger.Debug("Skipping violation notification due to testing configuration: %v", n.TestingConfiguration)
+			logger.Debugf("Skipping violation notification due to testing configuration: %v", n.TestingConfiguration)
 		}
 	}
 }
