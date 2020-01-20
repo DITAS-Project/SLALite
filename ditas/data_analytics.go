@@ -128,11 +128,13 @@ func (d *DataAnalyticsAdapter) Process(v model.Variable, values []model.MetricVa
 	for _, value := range values {
 		sum += value.Value.(float64)
 	}
-	//Availability is converted to a percentage
+
 	result := sum / float64(len(values))
+
+	//Availability is converted to a percentage (i.e, from 0,75 to 75)
 	if v.Name == "availability" {
 		result = result * 100
-
+		log.Printf("Availability (result): %d", result)
 	}
 
 	processTime := time.Now()
