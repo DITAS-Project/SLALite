@@ -88,7 +88,7 @@ func (d DataAnalyticsAdapter) Retrieve(agreement model.Agreement,
 			res, err := d.Client.R().SetQueryParams(map[string]string{
 				"operationID": agreement.Id,
 				"name":        item.Var.Metric,
-				"startTime":   item.From.Add(time.Minute * -5).Format(time.RFC3339),
+				"startTime":   item.From.Format(time.RFC3339),
 				"endTime":     item.To.Format(time.RFC3339),
 			}).SetPathParams(map[string]string{
 				"infraId": d.VdcID,
@@ -100,7 +100,7 @@ func (d DataAnalyticsAdapter) Retrieve(agreement model.Agreement,
 					currentMetrics, ok := result[item.Var]
 					if !ok {
 						currentMetrics = make([]model.MetricValue, 0, len(metrics))
-						log.Printf("BUG len(metrics): %d", len(metrics))
+						log.Printf("len(metrics): %d", len(metrics))
 					}
 					for _, metric := range metrics {
 						metricTime, err := time.Parse(time.RFC3339, metric.DataAnalyticsMeter.Timestamp)
@@ -128,7 +128,12 @@ func (d *DataAnalyticsAdapter) Process(v model.Variable, values []model.MetricVa
 	for _, value := range values {
 		sum += value.Value.(float64)
 	}
+	//Availability is converted to a percentage
 	result := sum / float64(len(values))
+	if v.Name == "availability" {
+		result = result * 100
+
+	}
 
 	processTime := time.Now()
 	if len(values) > 0 {
