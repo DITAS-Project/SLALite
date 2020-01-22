@@ -35,12 +35,12 @@ type TestingConfiguration struct {
 	Metrics       map[string]float64
 }
 type DataAnalyticsMeter struct {
-	OperationID string  `json:"operationID"`
-	Name        string  `json:"name"`
-	Value       float64 `json:"value"`
-	Unit        string  `json:"unit"`
-	Timestamp   string  `json:"timestamp"`
-	Appendix    string  `json:"appendix"`
+	OperationID string      `json:"operationID"`
+	Name        string      `json:"name"`
+	Value       interface{} `json:"value"`
+	Unit        string      `json:"unit"`
+	Timestamp   string      `json:"timestamp"`
+	Appendix    string      `json:"appendix"`
 }
 type DataAnalyticsMetrics struct {
 	DataAnalyticsMeter DataAnalyticsMeter `json:"meter"`
@@ -93,6 +93,11 @@ func (d DataAnalyticsAdapter) Retrieve(agreement model.Agreement,
 			}).SetPathParams(map[string]string{
 				"infraId": d.VdcID,
 			}).SetResult(&metrics).Get(d.AnalyticsBaseUrl)
+			log.Printf("Metric: %s", item.Var.Metric)
+			log.Printf("startime: %s", item.From.Format(time.RFC3339))
+			log.Printf("endtime: %s", item.To.Format(time.RFC3339))
+			log.Printf("Value: %s", metricValue)
+			log.Printf("URL: %s", d.AnalyticsBaseUrl)
 			if err != nil {
 				log.WithError(err).Errorf("Error getting values for metric %s", item.Var.Metric)
 			} else {
@@ -134,7 +139,7 @@ func (d *DataAnalyticsAdapter) Process(v model.Variable, values []model.MetricVa
 	//Availability is converted to a percentage (i.e, from 0,75 to 75)
 	if v.Name == "availability" {
 		result = result * 100
-		log.Printf("Availability (result): %d", result)
+		log.Printf("Availability (result): %f", result)
 	}
 
 	processTime := time.Now()
