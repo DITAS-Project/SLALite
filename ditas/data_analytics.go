@@ -35,12 +35,12 @@ type TestingConfiguration struct {
 	Metrics       map[string]float64
 }
 type DataAnalyticsMeter struct {
-	OperationID string      `json:"operationID"`
-	Name        string      `json:"name"`
-	Value       interface{} `json:"value"`
-	Unit        string      `json:"unit"`
-	Timestamp   string      `json:"timestamp"`
-	Appendix    string      `json:"appendix"`
+	OperationID string  `json:"operationID"`
+	Name        string  `json:"name"`
+	Value       float64 `json:"value"`
+	Unit        string  `json:"unit"`
+	Timestamp   string  `json:"timestamp"`
+	Appendix    string  `json:"appendix"`
 }
 type DataAnalyticsMetrics struct {
 	DataAnalyticsMeter DataAnalyticsMeter `json:"meter"`
@@ -105,14 +105,6 @@ func (d DataAnalyticsAdapter) Retrieve(agreement model.Agreement,
 					}
 					for _, metric := range metrics {
 						metricTime, err := time.Parse(time.RFC3339, metric.DataAnalyticsMeter.Timestamp)
-						log.Printf("metricTime: %s", metricTime)
-						log.Printf("Timestamp: %s", metric.DataAnalyticsMeter.Timestamp)
-						log.Printf("OperationID: %s", metric.DataAnalyticsMeter.OperationID)
-						log.Printf("Name: %s", metric.DataAnalyticsMeter.Name)
-						log.Printf("Value: %s", metric.DataAnalyticsMeter.Value)
-						log.Printf("Unit: %s", metric.DataAnalyticsMeter.Unit)
-						log.Printf("Appendix: %s", metric.DataAnalyticsMeter.Appendix)
-
 						if err != nil {
 							log.WithError(err).Errorf("Error parsing timestamp %s for metric %s", metric.DataAnalyticsMeter.Timestamp, item.Var.Metric)
 						} else {
@@ -121,10 +113,9 @@ func (d DataAnalyticsAdapter) Retrieve(agreement model.Agreement,
 								Value:    metric.DataAnalyticsMeter.Value,
 								DateTime: metricTime,
 							})
-							log.Printf("Result key: %s", item.Var.Metric)
-							log.Printf("Result value: %v", metric.DataAnalyticsMeter.Value)
-							log.Printf("Result key: %s", metricTime)
-
+							log.Printf("Retrieve.Result key: %s", item.Var.Metric)
+							log.Printf("Retrieve.Result value: %v", metric.DataAnalyticsMeter.Value)
+							log.Printf("Retrieve.Result key: %s", metricTime)
 						}
 					}
 					result[item.Var] = currentMetrics
@@ -132,11 +123,15 @@ func (d DataAnalyticsAdapter) Retrieve(agreement model.Agreement,
 			}
 		}
 	}
-
+	log.Printf("Retrieve.result %#v", result)
 	return result
 }
 
 func (d *DataAnalyticsAdapter) Process(v model.Variable, values []model.MetricValue) []model.MetricValue {
+	if len(values) <= 0 {
+		return []model.MetricValue{}
+	}
+
 	sum := 0.0
 	for _, value := range values {
 		sum += value.Value.(float64)
@@ -144,7 +139,7 @@ func (d *DataAnalyticsAdapter) Process(v model.Variable, values []model.MetricVa
 
 	result := sum / float64(len(values))
 
-	//Availability is converted to a percentage (i.e, from 0,75 to 75)
+	//Availability is converted to a percentage as DME sends boolean (i.e, from 0,75 to 75)
 	if v.Name == "availability" {
 		result = result * 100
 		log.Printf("Availability (result): %f", result)
