@@ -88,7 +88,7 @@ func (d DataAnalyticsAdapter) Retrieve(agreement model.Agreement,
 			res, err := d.Client.R().SetQueryParams(map[string]string{
 				"operationID": agreement.Id,
 				"name":        item.Var.Metric,
-				"startTime":   item.From.Add(time.Minute * -5).Format(time.RFC3339),
+				"startTime":   item.From.Format(time.RFC3339),
 				"endTime":     item.To.Format(time.RFC3339),
 			}).SetPathParams(map[string]string{
 				"infraId": d.VdcID,
